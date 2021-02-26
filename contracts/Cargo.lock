@@ -4,7 +4,7 @@
 name = "always-success"
 version = "0.1.0"
 dependencies = [
- "ckb-std 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ckb-std",
 ]
 
 [[package]]
@@ -61,19 +61,9 @@ dependencies = [
 
 [[package]]
 name = "ckb-std"
-version = "0.7.2"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35e14bf64c694f078d6d33bad7e2b9a87d129d8b4e4c9a6cfc4364e2c6eddbd9"
-dependencies = [
- "buddy-alloc",
- "cc",
- "ckb-standalone-types",
-]
-
-[[package]]
-name = "ckb-std"
-version = "0.7.2"
-source = "git+https://github.com/nervosnetwork/ckb-std.git?branch=add-more-functions-on-since#d57d80c0eee9f08dd0c9331145210b4ddeaa7c1d"
+checksum = "2f16c4f7efbf13f060dcd7a916f353936daf5eaccb411fcc255033eabde92155"
 dependencies = [
  "buddy-alloc",
  "cc",
@@ -164,7 +154,7 @@ dependencies = [
 name = "validator-utils"
 version = "0.1.0"
 dependencies = [
- "ckb-std 0.7.2 (git+https://github.com/nervosnetwork/ckb-std.git?branch=add-more-functions-on-since)",
+ "ckb-std",
  "gw-common",
  "gw-types",
 ]
