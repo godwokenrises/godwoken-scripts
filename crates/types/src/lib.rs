@@ -19,8 +19,6 @@ cfg_if::cfg_if! {
         use std::borrow;
         use std::str;
         use std::string;
-
-        mod signature_message;
     } else {
         use alloc::vec;
         use alloc::borrow;
