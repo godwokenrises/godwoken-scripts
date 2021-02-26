@@ -12,19 +12,20 @@
 #define GW_ACCOUNT_SCRIPT_HASH 2
 #define GW_ACCOUNT_SCRIPT_HASH_TO_ID 3
 
+/* Limitations */
 /* 24KB (ethereum max contract code size) */
 #define GW_MAX_RETURN_DATA_SIZE (24 * 1024)
 /* 128KB */
 #define GW_MAX_L2TX_ARGS_SIZE (128 * 1024)
 /* 128KB + 4KB */
 #define GW_MAX_L2TX_SIZE (132 * 1024)
-/* 2048 * (32 + 32 + 8) = 147456 Byte (~144KB)*/
-#define GW_MAX_KV_STATE_CAPACITY 2048
-
-/* Limitations */
+/* MAX kv state pairs in a tx */
 #define GW_MAX_KV_PAIRS 1024
 #define GW_MAX_SCRIPT_SIZE 128
-#define GW_MAX_ROLLUP_CONFIG_SIZE (8 * 1024)
+/* MAX scripts in a tx */
+#define GW_MAX_SCRIPT_ENTRIES_SIZE 100
+/* MAX size of rollup config */
+#define GW_MAX_ROLLUP_CONFIG_SIZE (4 * 1024)
 #define GW_MAX_WITNESS_SIZE (300 * 1024)
 #define GW_MAX_CODE_SIZE (64 * 1024)
 
