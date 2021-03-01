@@ -28,6 +28,7 @@
 #define ERROR_INCORRECT_SINCE_VALUE -24
 #define ERROR_MESSAGE_SIZE -25
 #define ERROR_PUBKEY_BLAKE160_HASH -31
+#define ERROR_SHA3 -32;
 /* Others */
 #define ETH_SIGNING_PREFIX                                                     \
   ("\x19"                                                                      \
@@ -150,7 +151,10 @@ int recover_pubkey(unsigned char recovered_pubkey[PUBKEY_SIZE],
       ETH_SIGNING_PREFIX;
   memcpy(data + sizeof(ETH_SIGNING_PREFIX) - 1, msg, BLAKE2B_BLOCK_SIZE);
   struct ethash_h256 signing_message = {0};
-  SHA3_256(&signing_message, data, sizeof(data));
+  ret = SHA3_256(&signing_message, data, sizeof(data));
+  if (ret != 0) {
+    return ERROR_SHA3;
+  }
 
   // From the recoverable signature, we can derive the public key used.
   secp256k1_pubkey pubkey;
@@ -199,7 +203,10 @@ int main() {
 
   /* check pubkey hash */
   struct ethash_h256 recovered_pubkey_hash = {0};
-  SHA3_256(&recovered_pubkey_hash, recovered_pubkey + 1, PUBKEY_SIZE - 1);
+  ret = SHA3_256(&recovered_pubkey_hash, recovered_pubkey + 1, PUBKEY_SIZE - 1);
+  if (ret != 0) {
+    return ERROR_SHA3;
+  }
   if (memcmp(pubkey_hash, recovered_pubkey_hash.b + 12, BLAKE160_SIZE) != 0) {
     return ERROR_PUBKEY_BLAKE160_HASH;
   }
