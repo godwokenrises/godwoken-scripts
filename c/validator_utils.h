@@ -14,7 +14,8 @@
 #define GW_MAX_GET_BLOCK_HASH_DEPTH 256
 
 /* functions */
-int _gw_check_account_script_is_allowed(mol_seg_t *script_seg,
+int _gw_check_account_script_is_allowed(uint8_t rollup_script_hash[32],
+                                        mol_seg_t *script_seg,
                                         mol_seg_t *rollup_config_seg);
 void _gw_block_smt_key(uint8_t key[32], uint64_t number);
 
@@ -42,6 +43,8 @@ typedef struct gw_context_t {
   gw_block_info_t block_info;
   uint8_t rollup_config[GW_MAX_ROLLUP_CONFIG_SIZE];
   size_t rollup_config_size;
+  uint8_t rollup_script_hash[32];
+
   /* layer2 syscalls */
   gw_load_fn sys_load;
   gw_load_nonce_fn sys_load_nonce;
@@ -308,8 +311,8 @@ int sys_create(gw_context_t *ctx, uint8_t *script, uint32_t script_len,
   mol_seg_t rollup_config_seg;
   rollup_config_seg.ptr = ctx->rollup_config;
   rollup_config_seg.size = ctx->rollup_config_size;
-  ret = _gw_check_account_script_is_allowed(&account_script_seg,
-                                            &rollup_config_seg);
+  ret = _gw_check_account_script_is_allowed(
+      ctx->rollup_script_hash, &account_script_seg, &rollup_config_seg);
   if (ret != 0) {
     ckb_debug("disallowed account script");
     return ret;
@@ -889,7 +892,8 @@ int _load_verify_transaction_witness(
 }
 
 /* check that an account script is allowed */
-int _gw_check_account_script_is_allowed(mol_seg_t *script_seg,
+int _gw_check_account_script_is_allowed(uint8_t rollup_script_hash[32],
+                                        mol_seg_t *script_seg,
                                         mol_seg_t *rollup_config_seg) {
 
   if (MolReader_Script_verify(script_seg, false) != MOL_OK) {
@@ -946,6 +950,20 @@ int _gw_check_account_script_is_allowed(mol_seg_t *script_seg,
     }
     if (memcmp(allowed_code_hash_res.seg.ptr, code_hash_seg.ptr,
                code_hash_seg.size) == 0) {
+      // check that contract'script must start with a 32 bytes
+      // rollup_script_hash
+      mol_seg_t args_seg = MolReader_Script_get_args(script_seg);
+      mol_seg_t raw_args_seg = MolReader_Bytes_raw_bytes(&args_seg);
+      if (raw_args_seg.size < 32) {
+        ckb_debug(
+            "disallow contract script because args is less than 32 bytes");
+        return GW_ERROR_INVALID_CONTRACT_SCRIPT;
+      }
+      if (memcmp(rollup_script_hash, raw_args_seg.ptr, 32) != 0) {
+        ckb_debug("disallow contract script because args is not start with "
+                  "rollup_script_hash");
+        return GW_ERROR_INVALID_CONTRACT_SCRIPT;
+      }
       /* found a valid code_hash */
       return 0;
     }
@@ -984,6 +1002,8 @@ int gw_context_init(gw_context_t *ctx) {
     ckb_debug("failed to load rollup script hash");
     return ret;
   }
+  /* set ctx->rollup_script_hash */
+  memcpy(ctx->rollup_script_hash, rollup_script_hash, 32);
   uint64_t rollup_cell_index = 0;
   ret = _find_cell_by_type_hash(rollup_script_hash, CKB_SOURCE_INPUT,
                                 &rollup_cell_index);
@@ -1048,7 +1068,7 @@ int gw_finalize(gw_context_t *ctx) {
 
   gw_state_normalize(&ctx->kv_state);
   int ret = gw_smt_verify(ctx->post_account.merkle_root, &ctx->kv_state,
-                      ctx->kv_state_proof, ctx->kv_state_proof_size);
+                          ctx->kv_state_proof, ctx->kv_state_proof_size);
   if (ret != 0) {
     ckb_debug("failed to merkle verify post account merkle root");
     return ret;
