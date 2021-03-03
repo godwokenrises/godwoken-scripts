@@ -188,8 +188,17 @@ pub fn find_challenge_cell(
     Ok(cells.pop())
 }
 
-pub fn build_l2_sudt_script(config: &RollupConfig, l1_sudt_script_hash: [u8; 32]) -> Script {
-    let args = Bytes::from(l1_sudt_script_hash.to_vec());
+pub fn build_l2_sudt_script(
+    rollup_script_hash: &H256,
+    config: &RollupConfig,
+    l1_sudt_script_hash: &H256,
+) -> Script {
+    let args = {
+        let mut args = Vec::with_capacity(64);
+        args.extend(rollup_script_hash.as_slice());
+        args.extend(l1_sudt_script_hash.as_slice());
+        Bytes::from(args)
+    };
     Script::new_builder()
         .args(args.pack())
         .code_hash(config.l2_sudt_validator_script_type_hash())

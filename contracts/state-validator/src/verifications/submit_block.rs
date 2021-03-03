@@ -205,6 +205,7 @@ fn check_output_custodian_cells(
 }
 
 fn mint_layer2_sudt(
+    rollup_type_hash: &H256,
     config: &RollupConfig,
     context: &mut BlockContext,
     deposit_cells: &[DepositionRequestCell],
@@ -237,7 +238,8 @@ fn mint_layer2_sudt(
             continue;
         }
         // find or create Simple UDT account
-        let l2_sudt_script = build_l2_sudt_script(config, request.value.sudt_script_hash.into());
+        let l2_sudt_script =
+            build_l2_sudt_script(rollup_type_hash, config, &request.value.sudt_script_hash);
         let l2_sudt_script_hash: [u8; 32] = l2_sudt_script.hash();
         let sudt_id = match context.get_account_id_by_script_hash(&l2_sudt_script_hash.into())? {
             Some(id) => id,
@@ -255,6 +257,7 @@ fn mint_layer2_sudt(
 }
 
 fn burn_layer2_sudt(
+    rollup_type_hash: &H256,
     config: &RollupConfig,
     context: &mut BlockContext,
     block: &L2Block,
@@ -262,7 +265,7 @@ fn burn_layer2_sudt(
     for request in block.withdrawals() {
         let raw = request.raw();
         let l2_sudt_script_hash: [u8; 32] =
-            build_l2_sudt_script(config, raw.sudt_script_hash().unpack()).hash();
+            build_l2_sudt_script(rollup_type_hash, config, &raw.sudt_script_hash().unpack()).hash();
         // find EOA
         let id = context
             .get_account_id_by_script_hash(&raw.account_script_hash().unpack())?
@@ -544,9 +547,9 @@ pub fn verify(
     }
 
     // Withdrawal token: Layer2 SUDT -> withdrawals
-    burn_layer2_sudt(config, &mut context, block)?;
+    burn_layer2_sudt(&rollup_type_hash, config, &mut context, block)?;
     // Mint token: deposition requests -> layer2 SUDT
-    mint_layer2_sudt(config, &mut context, &deposit_cells)?;
+    mint_layer2_sudt(&rollup_type_hash, config, &mut context, &deposit_cells)?;
     // Check transactions
     check_block_transactions(&context, block)?;
 
