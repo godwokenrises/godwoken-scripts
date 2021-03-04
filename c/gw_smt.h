@@ -63,7 +63,7 @@ int _gw_pair_cmp(const void *a, const void *b) {
   const gw_pair_t *pa = (const gw_pair_t *)a;
   const gw_pair_t *pb = (const gw_pair_t *)b;
 
-  for (uint32_t i = GW_KEY_BYTES - 1; i >= 0; i--) {
+  for (int32_t i = GW_KEY_BYTES - 1; i >= 0; i--) {
     int cmp_result = pa->key[i] - pb->key[i];
     if (cmp_result != 0) {
       return cmp_result;
