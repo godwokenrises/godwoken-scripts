@@ -4,8 +4,12 @@ use core::result::Result;
 // Import heap related library from `alloc`
 // https://doc.rust-lang.org/alloc/index.html
 use validator_utils::{
-    ckb_std::high_level::load_cell_capacity,
+    ckb_std::{
+        ckb_types::prelude::Unpack as CKBUnpack,
+        high_level::{load_cell_capacity, load_script},
+    },
     search_cells::{load_rollup_config, parse_rollup_action},
+    type_id::{check_type_id, TYPE_ID_SIZE},
 };
 
 // Import CKB syscalls and structures
@@ -16,7 +20,7 @@ use crate::{
     verifications,
 };
 
-use gw_types::{packed::RollupActionUnion, prelude::*};
+use gw_types::{bytes::Bytes, packed::RollupActionUnion, prelude::*};
 
 use validator_utils::error::Error;
 
@@ -33,6 +37,17 @@ fn check_initialization() -> Result<bool, Error> {
 }
 
 pub fn main() -> Result<(), Error> {
+    // check type_id
+    {
+        let script = load_script()?;
+        let args: Bytes = CKBUnpack::unpack(&script.args());
+        if args.len() < TYPE_ID_SIZE {
+            return Err(Error::InvalidTypeID);
+        }
+        let mut type_id = [0u8; TYPE_ID_SIZE];
+        type_id.copy_from_slice(&args[..TYPE_ID_SIZE]);
+        check_type_id(type_id)?;
+    }
     // return success if we are in the initialization
     if check_initialization()? {
         return Ok(());

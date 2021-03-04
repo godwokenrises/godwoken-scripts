@@ -45,6 +45,7 @@ pub enum Error {
     UnknownEOAScript,
     UnknownContractScript,
     ScriptNotFound,
+    InvalidTypeID,
 }
 
 impl From<SysError> for Error {
