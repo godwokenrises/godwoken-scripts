@@ -45,15 +45,10 @@ int main() {
   };
 
   /* parse SUDT args */
-  if (ctx.transaction_context.args_len < 32) {
-    ckb_debug("sUDT script args is less than 32");
-    return GW_ERROR_INVALID_DATA;
-  }
   mol_seg_t args_seg;
-  args_seg.ptr = ctx.transaction_context.args + 32;
-  args_seg.size = ctx.transaction_context.args_len - 32;
+  args_seg.ptr = ctx.transaction_context.args;
+  args_seg.size = ctx.transaction_context.args_len;
   if (MolReader_SUDTArgs_verify(&args_seg, false) != MOL_OK) {
-    ckb_debug("sUDT script is invalid");
     return GW_ERROR_INVALID_DATA;
   }
   mol_union_t msg = MolReader_SUDTArgs_unpack(&args_seg);
