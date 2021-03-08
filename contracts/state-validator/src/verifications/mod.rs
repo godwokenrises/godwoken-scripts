@@ -3,7 +3,10 @@ use gw_types::{
     core::Status,
     packed::{GlobalState, RollupConfig},
 };
-use validator_utils::{ckb_std::{ckb_constants::Source, debug}, error::Error};
+use validator_utils::{
+    ckb_std::{ckb_constants::Source, debug},
+    error::Error,
+};
 
 use crate::cells::{
     collect_custodian_locks, collect_deposition_locks, collect_stake_cells,

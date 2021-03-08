@@ -11,9 +11,9 @@ use gw_types::{
 use validator_utils::{
     ckb_std::{
         ckb_constants::Source,
+        debug,
         high_level::load_input_since,
         since::{LockValue, Since},
-        debug,
     },
     search_cells::search_lock_hashes,
 };

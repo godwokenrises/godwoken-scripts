@@ -2,7 +2,10 @@
 
 use crate::types::CellValue;
 use crate::{
-    ckb_std::{ckb_types::prelude::{Entity as CKBEntity, Unpack as CKBUnpack}, debug},
+    ckb_std::{
+        ckb_types::prelude::{Entity as CKBEntity, Unpack as CKBUnpack},
+        debug,
+    },
     types::{
         BurnCell, ChallengeCell, CustodianCell, DepositionRequestCell, StakeCell, WithdrawalCell,
     },
