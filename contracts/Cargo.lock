@@ -91,6 +91,7 @@ dependencies = [
 [[package]]
 name = "gw-common"
 version = "0.1.0"
+source = "git+https://github.com/jjyr/godwoken.git?branch=generator-check-contract-script-args#087f49932d9a5fb7bd4e8402afc6a5390e06ccf5"
 dependencies = [
  "cfg-if",
  "gw-hash",
@@ -100,6 +101,7 @@ dependencies = [
 [[package]]
 name = "gw-hash"
 version = "0.1.0"
+source = "git+https://github.com/jjyr/godwoken.git?branch=generator-check-contract-script-args#087f49932d9a5fb7bd4e8402afc6a5390e06ccf5"
 dependencies = [
  "blake2b-ref",
 ]
@@ -107,6 +109,7 @@ dependencies = [
 [[package]]
 name = "gw-types"
 version = "0.1.0"
+source = "git+https://github.com/jjyr/godwoken.git?branch=generator-check-contract-script-args#087f49932d9a5fb7bd4e8402afc6a5390e06ccf5"
 dependencies = [
  "cfg-if",
  "gw-hash",

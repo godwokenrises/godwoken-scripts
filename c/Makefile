@@ -8,7 +8,8 @@ CFLAGS := $(CINCLUDES) $(SECP256K1_INCLUDES) -DCKB_C_STDLIB_PRINTF -fPIC -O3 -no
 LDFLAGS := -Wl,-static -fdata-sections -ffunction-sections -Wl,--gc-sections
 MOLC := moleculec
 MOLC_VERSION := 0.6.1
-PROTOCOL_SCHEMA_DIR := ../crates/types/schemas
+PROTOCOL_VERSION := b235a243a18234d10dce87abd8d4c92293a6528f
+PROTOCOL_SCHEMA_URL := https://raw.githubusercontent.com/nervosnetwork/godwoken/${PROTOCOL_VERSION}/crates/types/schemas
 
 # docker pull nervos/ckb-riscv-gnu-toolchain:gnu-bionic-20191012
 BUILDER_DOCKER := nervos/ckb-riscv-gnu-toolchain@sha256:aae8a3f79705f67d505d1f1d5ddc694a4fd537ed1c7e9622420a470d59ba2ec3
@@ -29,7 +30,10 @@ debug-all-via-docker: generate-protocol $(SECP256K1_HELPER)
 all: $(BINS)
 
 clean:
-	rm $(BINS)
+	rm -f $(BINS)
+	rm -f build/*.debug
+	rm -f build/*.h
+	rm -f build/*.mol
 
 debug-all: CFLAGS += -DCKB_C_STDLIB_PRINTF 
 debug-all: all
@@ -82,10 +86,13 @@ fmt:
 check-moleculec-version:
 	test "$$(${MOLC} --version | awk '{ print $$2 }' | tr -d ' ')" = ${MOLC_VERSION}
 
-build/blockchain.h: ${PROTOCOL_SCHEMA_DIR}/blockchain.mol
+%.mol:
+	curl -L -o $@ ${PROTOCOL_SCHEMA_URL}/$@
+
+build/blockchain.h: blockchain.mol
 	${MOLC} --language c --schema-file $< > $@
 
-build/godwoken.h: ${PROTOCOL_SCHEMA_DIR}/godwoken.mol
+build/godwoken.h: godwoken.mol
 	${MOLC} --language c --schema-file $< > $@
 
 install-tools:

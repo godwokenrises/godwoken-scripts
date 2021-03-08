@@ -8,5 +8,5 @@ edition = "2018"
 
 [dependencies]
 ckb-std = "0.7.3"
-gw-types = { path = "../../crates/types", default-features = false }
-gw-common = { path = "../../crates/common", default-features = false }
+gw-types = { git = "https://github.com/jjyr/godwoken.git", branch = "generator-check-contract-script-args", default-features = false }
+gw-common = { git = "https://github.com/jjyr/godwoken.git", branch = "generator-check-contract-script-args", default-features = false }
