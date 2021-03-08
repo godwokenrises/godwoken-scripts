@@ -29,16 +29,16 @@ pub fn check_type_id(type_id: [u8; 32]) -> Result<(), Error> {
     // search current output index.
     // (since we have no input in the group, we must have at least one output)
     let script_hash = load_script_hash()?;
-    let output_index = QueryIter::new(load_cell_type_hash, Source::Output)
+    let output_index: u64 = QueryIter::new(load_cell_type_hash, Source::Output)
         .position(|type_hash| type_hash == Some(script_hash))
-        .ok_or(Error::InvalidTypeID)?;
+        .ok_or(Error::InvalidTypeID)? as u64;
     // The type ID is calculated as the blake2b (with CKB's personalization) of
     // the first CellInput in current transaction, and the created output cell
     // index(in 64-bit little endian unsigned integer).
     let mut buf = [0u8; 128];
-    load_input(&mut buf, 0, 0, Source::Input)?;
+    let input_len = load_input(&mut buf, 0, 0, Source::Input)?;
     let mut hasher = new_blake2b();
-    hasher.update(&buf);
+    hasher.update(&buf[..input_len]);
     hasher.update(&output_index.to_le_bytes());
     let mut expected_type_id = [0u8; 32];
     hasher.finalize(&mut expected_type_id);

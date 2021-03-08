@@ -3,7 +3,10 @@ use gw_types::{
     core::Status,
     packed::{GlobalState, RollupConfig},
 };
-use validator_utils::{ckb_std::ckb_constants::Source, error::Error};
+use validator_utils::{
+    ckb_std::{ckb_constants::Source, debug},
+    error::Error,
+};
 
 use crate::cells::{
     collect_custodian_locks, collect_deposition_locks, collect_stake_cells,
@@ -47,9 +50,11 @@ pub fn check_rollup_lock_cells(
 ) -> Result<(), Error> {
     check_rollup_lock_cells_except_stake(rollup_type_hash, config)?;
     if !collect_stake_cells(rollup_type_hash, config, Source::Input)?.is_empty() {
+        debug!("unexpected input stake cell");
         return Err(Error::InvalidStakeCell);
     }
     if !collect_stake_cells(rollup_type_hash, config, Source::Output)?.is_empty() {
+        debug!("unexpected output stake cell");
         return Err(Error::InvalidStakeCell);
     }
     Ok(())

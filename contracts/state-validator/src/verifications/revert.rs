@@ -11,6 +11,7 @@ use gw_types::{
 use validator_utils::{
     ckb_std::{
         ckb_constants::Source,
+        debug,
         high_level::load_input_since,
         since::{LockValue, Since},
     },
@@ -105,6 +106,7 @@ fn check_rewards(
         .collect();
     // ensure stake cells are all belongs to reverted blocks and no missing stake cells
     if reverted_block_stake_set != reverted_stake_cells_set {
+        debug!("reverted stake cells isn't according to reverted block stake set");
         return Err(Error::InvalidStakeCell);
     }
 

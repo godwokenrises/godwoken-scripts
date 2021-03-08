@@ -12,7 +12,7 @@ use crate::{
         build_l2_sudt_script, collect_custodian_locks, collect_deposition_locks,
         collect_withdrawal_locks, find_challenge_cell, find_one_stake_cell,
     },
-    ckb_std::ckb_constants::Source,
+    ckb_std::{ckb_constants::Source, debug},
     types::{CellValue, DepositionRequestCell, WithdrawalCell},
 };
 
@@ -410,6 +410,7 @@ fn verify_block_producer(
     )?;
     // check stake cell capacity
     if stake_cell.value.capacity < config.required_staking_capacity().unpack() {
+        debug!("stake cell's capacity is insufficient");
         return Err(Error::InvalidStakeCell);
     }
     // expected output stake args
@@ -427,6 +428,7 @@ fn verify_block_producer(
     if expected_stake_lock_args != output_stake_cell.args
         || stake_cell.value != output_stake_cell.value
     {
+        debug!("the output stake cell isn't corresponded to the input one");
         return Err(Error::InvalidStakeCell);
     }
 

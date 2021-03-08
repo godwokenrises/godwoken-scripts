@@ -2,7 +2,10 @@
 
 use crate::types::CellValue;
 use crate::{
-    ckb_std::ckb_types::prelude::{Entity as CKBEntity, Unpack as CKBUnpack},
+    ckb_std::{
+        ckb_types::prelude::{Entity as CKBEntity, Unpack as CKBUnpack},
+        debug,
+    },
     types::{
         BurnCell, ChallengeCell, CustodianCell, DepositionRequestCell, StakeCell, WithdrawalCell,
     },
@@ -114,6 +117,7 @@ pub fn collect_stake_cells(
             };
             // we only accept CKB as staking assets for now
             if value.sudt_script_hash != CKB_SUDT_SCRIPT_ARGS.into() || value.amount != 0 {
+                debug!("found a stake cell with simple UDT");
                 return Some(Err(Error::InvalidStakeCell));
             }
             let cell = StakeCell { index, args, value };
@@ -136,9 +140,15 @@ pub fn find_one_stake_cell(
     let mut cells = collect_stake_cells(rollup_type_hash, config, source)?;
     // this function guratee only one cell in the source
     if cells.len() != 1 {
+        debug!(
+            "expected 1 stake cell from {:?}, found {}",
+            source,
+            cells.len()
+        );
         return Err(Error::InvalidStakeCell);
     }
     if &cells[0].args.owner_lock_hash() != owner_lock_hash {
+        debug!("found 1 stake cell from unexpected owner_lock_hash");
         return Err(Error::InvalidStakeCell);
     }
     Ok(cells.remove(0))

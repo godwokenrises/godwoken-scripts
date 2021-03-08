@@ -9,5 +9,5 @@ edition = "2018"
 blake2b-rs = "0.1.5"
 
 [dependencies]
-gw-types = { path = "../../crates/types", default-features = false }
+gw-types = {git = "https://github.com/jjyr/godwoken.git", branch = "generator-check-contract-script-args", default-features = false }
 validator-utils = { path = "../validator-utils" }
