@@ -17,11 +17,13 @@ jobs:
           ~/.cargo/registry
           ~/.cargo/git
           target
-        key: ${{ runner.os }}-cargo-utils
+        key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
     - name: Install moleculec
       run: CARGO_TARGET_DIR=target/ cargo install moleculec --version 0.6.1
     - name: Install capsule
       run: CARGO_TARGET_DIR=target/ cargo install ckb-capsule --version 0.4.5
+    - name: Check format
+      run: cargo fmt -- --check
     - name: Check contracts format
       run: cd contracts && cargo fmt -- --check
     - name: Init submodules
@@ -42,3 +44,5 @@ jobs:
     - name: Backup capsule cache
       if: steps.fetch-capsule-cache.outputs.cache-hit != 'true'
       run: tools/backup-capsule-cache.sh
+    - name: Tests
+      run: cargo test
