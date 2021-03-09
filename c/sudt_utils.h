@@ -22,13 +22,13 @@ void _sudt_id_to_key(const uint32_t account_id, uint8_t key[32]) {
   memcpy(key, (uint8_t *)&account_id, 4);
 }
 
-void _sudt_build_allowance_key(const uint32_t owner_account_id,
-                               const uint32_t spender_account_id,
+void _sudt_build_allowance_key(const uint32_t owner_id,
+                               const uint32_t spender_id,
                                uint8_t key[32]) {
   static char *allowance_prefix = "allowanc";
   memcpy(key, (uint8_t *)allowance_prefix, 8);
-  memcpy(key + 8, (uint8_t *)&owner_account_id, 4);
-  memcpy(key + 12, (uint8_t *)&spender_account_id, 4);
+  memcpy(key + 8, (uint8_t *)&owner_id, 4);
+  memcpy(key + 12, (uint8_t *)&spender_id, 4);
 }
 
 int _account_exists(gw_context_t *ctx, uint32_t account_id, bool *exists) {
@@ -132,10 +132,10 @@ int sudt_transfer(gw_context_t *ctx, uint32_t sudt_id, uint32_t from_id,
 }
 
 int sudt_set_allowance(gw_context_t *ctx, uint32_t sudt_id,
-                       uint32_t owner_account_id, uint32_t spender_account_id,
+                       uint32_t owner_id, uint32_t spender_id,
                        uint128_t amount) {
   uint8_t key[32] = {0};
-  _sudt_build_allowance_key(owner_account_id, spender_account_id, key);
+  _sudt_build_allowance_key(owner_id, spender_id, key);
 
   uint8_t value[32] = {0};
   *(uint128_t *)value = amount;
@@ -143,10 +143,10 @@ int sudt_set_allowance(gw_context_t *ctx, uint32_t sudt_id,
 }
 
 int sudt_get_allowance(gw_context_t *ctx, uint32_t sudt_id,
-                       uint32_t owner_account_id, uint32_t spender_account_id,
+                       uint32_t owner_id, uint32_t spender_id,
                        uint128_t *amount) {
   uint8_t key[32] = {0};
-  _sudt_build_allowance_key(owner_account_id, spender_account_id, key);
+  _sudt_build_allowance_key(owner_id, spender_id, key);
 
   uint8_t value[32] = {0};
   int ret = ctx->sys_load(ctx, sudt_id, key, value);
