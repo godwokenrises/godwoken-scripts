@@ -34,7 +34,7 @@ jobs:
       id: fetch-capsule-cache
       with:
         path: |
-          /tmp/capsule-cache.tar
+          .tmp/capsule-cache.tar
         key: ${{ runner.os }}-capsule-cache-${{ hashFiles('contracts/Cargo.lock') }}
     - name: Restore capsule cache
       if: steps.fetch-capsule-cache.outputs.cache-hit == 'true'
