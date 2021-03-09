@@ -8,6 +8,8 @@ use gw_types::{
     packed::{BlockMerkleState, Byte32, GlobalState, RawL2Block, RollupConfig, RollupRevert},
     prelude::*,
 };
+use validator_utils::gw_common;
+use validator_utils::gw_types;
 use validator_utils::{
     ckb_std::{
         ckb_constants::Source,

@@ -3,6 +3,8 @@ use gw_types::{
     core::Status,
     packed::{GlobalState, RollupConfig},
 };
+use validator_utils::gw_common;
+use validator_utils::gw_types;
 use validator_utils::{
     ckb_std::{ckb_constants::Source, debug},
     error::Error,

@@ -1,8 +1,6 @@
 // Import from `core` instead of from `std` since we are in no-std mode
 use core::result::Result;
 
-// Import heap related library from `alloc`
-// https://doc.rust-lang.org/alloc/index.html
 use gw_types::{
     core::ScriptHashType,
     packed::{
@@ -10,6 +8,7 @@ use gw_types::{
         UnlockWithdrawalWitnessUnion, WithdrawalLockArgs, WithdrawalLockArgsReader,
     },
 };
+use validator_utils::gw_types;
 use validator_utils::{
     ckb_std::high_level::load_cell_lock,
     search_cells::{

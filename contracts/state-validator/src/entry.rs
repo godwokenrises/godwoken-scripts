@@ -21,6 +21,7 @@ use crate::{
 };
 
 use gw_types::{bytes::Bytes, packed::RollupActionUnion, prelude::*};
+use validator_utils::gw_types;
 
 use validator_utils::error::Error;
 

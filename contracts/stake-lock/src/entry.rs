@@ -15,6 +15,7 @@ use crate::ckb_std::{
     high_level::load_script,
 };
 
+use validator_utils::gw_types;
 use validator_utils::search_cells::{search_lock_hash, search_rollup_cell, search_rollup_state};
 
 use gw_types::{

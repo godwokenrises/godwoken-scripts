@@ -9,6 +9,8 @@ use gw_types::packed::{
     ChallengeLockArgs, CustodianLockArgs, DepositionLockArgs, Script, StakeLockArgs,
     WithdrawalLockArgs,
 };
+use validator_utils::gw_common;
+use validator_utils::gw_types;
 
 #[derive(Clone)]
 pub struct DepositionRequest {

@@ -15,6 +15,8 @@ use crate::{
     ckb_std::{ckb_constants::Source, debug},
     types::{CellValue, DepositionRequestCell, WithdrawalCell},
 };
+use validator_utils::gw_common;
+use validator_utils::gw_types;
 
 use super::check_status;
 use crate::types::BlockContext;

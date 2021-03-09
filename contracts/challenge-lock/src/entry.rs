@@ -4,6 +4,8 @@ use core::{convert::TryInto, result::Result};
 // Import heap related library from `alloc`
 // https://doc.rust-lang.org/alloc/index.html
 use alloc::vec;
+use validator_utils::gw_common;
+use validator_utils::gw_types;
 use validator_utils::{
     ckb_std::{
         ckb_constants::Source,

@@ -23,6 +23,7 @@ use gw_types::{
     },
     prelude::*,
 };
+use validator_utils::gw_types;
 
 use crate::error::Error;
 
