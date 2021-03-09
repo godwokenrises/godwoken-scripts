@@ -25,8 +25,10 @@ void _sudt_id_to_key(const uint32_t account_id, uint8_t key[32]) {
 void _sudt_build_allowance_key(const uint32_t owner_account_id,
                                const uint32_t spender_account_id,
                                uint8_t key[32]) {
-  memcpy(key, (uint8_t *)&owner_account_id, 4);
-  memcpy(key + 4, (uint8_t *)&spender_account_id, 4);
+  static char *allowance_prefix = "allowanc";
+  memcpy(key, (uint8_t *)allowance_prefix, 8);
+  memcpy(key + 8, (uint8_t *)&owner_account_id, 4);
+  memcpy(key + 12, (uint8_t *)&spender_account_id, 4);
 }
 
 int _account_exists(gw_context_t *ctx, uint32_t account_id, bool *exists) {
