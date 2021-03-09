@@ -44,8 +44,6 @@ checksum = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
 name = "challenge-lock"
 version = "0.1.0"
 dependencies = [
- "gw-common",
- "gw-types",
  "validator-utils",
 ]
 
@@ -74,8 +72,6 @@ dependencies = [
 name = "custodian-lock"
 version = "0.1.0"
 dependencies = [
- "gw-common",
- "gw-types",
  "validator-utils",
 ]
 
@@ -84,14 +80,13 @@ name = "deposition-lock"
 version = "0.1.0"
 dependencies = [
  "blake2b-rs",
- "gw-types",
  "validator-utils",
 ]
 
 [[package]]
 name = "gw-common"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=generator-check-contract-script-args#087f49932d9a5fb7bd4e8402afc6a5390e06ccf5"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=73a0ca15428124d2f796a1d0389068e7f8959fb4#73a0ca15428124d2f796a1d0389068e7f8959fb4"
 dependencies = [
  "cfg-if",
  "gw-hash",
@@ -101,7 +96,7 @@ dependencies = [
 [[package]]
 name = "gw-hash"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=generator-check-contract-script-args#087f49932d9a5fb7bd4e8402afc6a5390e06ccf5"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=73a0ca15428124d2f796a1d0389068e7f8959fb4#73a0ca15428124d2f796a1d0389068e7f8959fb4"
 dependencies = [
  "blake2b-ref",
 ]
@@ -109,7 +104,7 @@ dependencies = [
 [[package]]
 name = "gw-types"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=generator-check-contract-script-args#087f49932d9a5fb7bd4e8402afc6a5390e06ccf5"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=73a0ca15428124d2f796a1d0389068e7f8959fb4#73a0ca15428124d2f796a1d0389068e7f8959fb4"
 dependencies = [
  "cfg-if",
  "gw-hash",
@@ -139,8 +134,6 @@ dependencies = [
 name = "stake-lock"
 version = "0.1.0"
 dependencies = [
- "gw-common",
- "gw-types",
  "validator-utils",
 ]
 
@@ -148,8 +141,6 @@ dependencies = [
 name = "state-validator"
 version = "0.1.0"
 dependencies = [
- "gw-common",
- "gw-types",
  "validator-utils",
 ]
 
@@ -166,7 +157,5 @@ dependencies = [
 name = "withdrawal-lock"
 version = "0.1.0"
 dependencies = [
- "gw-common",
- "gw-types",
  "validator-utils",
 ]

@@ -27,6 +27,7 @@ use gw_types::{
     packed::{DepositionLockArgs, DepositionLockArgsReader},
     prelude::*,
 };
+use validator_utils::gw_types;
 
 use crate::error::Error;
 

@@ -6,6 +6,8 @@ use gw_types::{
     packed::{GlobalState, RollupConfig, RollupEnterChallenge},
     prelude::*,
 };
+use validator_utils::gw_common;
+use validator_utils::gw_types;
 use validator_utils::{ckb_std::ckb_constants::Source, error::Error};
 
 use super::{check_rollup_lock_cells, check_status};

@@ -23,6 +23,8 @@ use gw_types::{
     },
     prelude::*,
 };
+use validator_utils::gw_common;
+use validator_utils::gw_types;
 use validator_utils::{
     ckb_std::{
         ckb_constants::Source,

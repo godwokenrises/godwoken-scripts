@@ -713,7 +713,7 @@ dependencies = [
 [[package]]
 name = "gw-block-producer"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=generator-check-contract-script-args#087f49932d9a5fb7bd4e8402afc6a5390e06ccf5"
+source = "git+https://github.com/nervosnetwork/godwoken.git?branch=master#73a0ca15428124d2f796a1d0389068e7f8959fb4"
 dependencies = [
  "anyhow",
  "gw-common",
@@ -725,7 +725,7 @@ dependencies = [
 [[package]]
 name = "gw-chain"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=generator-check-contract-script-args#087f49932d9a5fb7bd4e8402afc6a5390e06ccf5"
+source = "git+https://github.com/nervosnetwork/godwoken.git?branch=master#73a0ca15428124d2f796a1d0389068e7f8959fb4"
 dependencies = [
  "anyhow",
  "ckb-fixed-hash",
@@ -746,7 +746,7 @@ dependencies = [
 [[package]]
 name = "gw-common"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=generator-check-contract-script-args#087f49932d9a5fb7bd4e8402afc6a5390e06ccf5"
+source = "git+https://github.com/nervosnetwork/godwoken.git?branch=master#73a0ca15428124d2f796a1d0389068e7f8959fb4"
 dependencies = [
  "cfg-if 0.1.10",
  "gw-hash",
@@ -757,7 +757,7 @@ dependencies = [
 [[package]]
 name = "gw-config"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=generator-check-contract-script-args#087f49932d9a5fb7bd4e8402afc6a5390e06ccf5"
+source = "git+https://github.com/nervosnetwork/godwoken.git?branch=master#73a0ca15428124d2f796a1d0389068e7f8959fb4"
 dependencies = [
  "ckb-fixed-hash",
  "gw-types",
@@ -766,7 +766,7 @@ dependencies = [
 [[package]]
 name = "gw-db"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=generator-check-contract-script-args#087f49932d9a5fb7bd4e8402afc6a5390e06ccf5"
+source = "git+https://github.com/nervosnetwork/godwoken.git?branch=master#73a0ca15428124d2f796a1d0389068e7f8959fb4"
 dependencies = [
  "ckb-rocksdb",
  "libc",
@@ -778,7 +778,7 @@ dependencies = [
 [[package]]
 name = "gw-generator"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=generator-check-contract-script-args#087f49932d9a5fb7bd4e8402afc6a5390e06ccf5"
+source = "git+https://github.com/nervosnetwork/godwoken.git?branch=master#73a0ca15428124d2f796a1d0389068e7f8959fb4"
 dependencies = [
  "anyhow",
  "blake2b-rs 0.2.0",
@@ -797,7 +797,7 @@ dependencies = [
 [[package]]
 name = "gw-hash"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=generator-check-contract-script-args#087f49932d9a5fb7bd4e8402afc6a5390e06ccf5"
+source = "git+https://github.com/nervosnetwork/godwoken.git?branch=master#73a0ca15428124d2f796a1d0389068e7f8959fb4"
 dependencies = [
  "blake2b-ref",
 ]
@@ -805,7 +805,7 @@ dependencies = [
 [[package]]
 name = "gw-mem-pool"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=generator-check-contract-script-args#087f49932d9a5fb7bd4e8402afc6a5390e06ccf5"
+source = "git+https://github.com/nervosnetwork/godwoken.git?branch=master#73a0ca15428124d2f796a1d0389068e7f8959fb4"
 dependencies = [
  "anyhow",
  "gw-common",
@@ -818,7 +818,7 @@ dependencies = [
 [[package]]
 name = "gw-store"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=generator-check-contract-script-args#087f49932d9a5fb7bd4e8402afc6a5390e06ccf5"
+source = "git+https://github.com/nervosnetwork/godwoken.git?branch=master#73a0ca15428124d2f796a1d0389068e7f8959fb4"
 dependencies = [
  "anyhow",
  "gw-common",
@@ -866,7 +866,7 @@ dependencies = [
 [[package]]
 name = "gw-traits"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=generator-check-contract-script-args#087f49932d9a5fb7bd4e8402afc6a5390e06ccf5"
+source = "git+https://github.com/nervosnetwork/godwoken.git?branch=master#73a0ca15428124d2f796a1d0389068e7f8959fb4"
 dependencies = [
  "gw-common",
  "gw-db",
@@ -876,7 +876,7 @@ dependencies = [
 [[package]]
 name = "gw-types"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=generator-check-contract-script-args#087f49932d9a5fb7bd4e8402afc6a5390e06ccf5"
+source = "git+https://github.com/nervosnetwork/godwoken.git?branch=master#73a0ca15428124d2f796a1d0389068e7f8959fb4"
 dependencies = [
  "cfg-if 0.1.10",
  "ckb-fixed-hash",
