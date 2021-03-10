@@ -25,7 +25,7 @@ void _sudt_id_to_key(const uint32_t account_id, uint8_t key[32]) {
 void _sudt_build_allowance_key(const uint32_t owner_id,
                                const uint32_t spender_id,
                                uint8_t key[32]) {
-  static char *allowance_prefix = "allowanc";
+  static char const *allowance_prefix = "allowanc";
   memcpy(key, (uint8_t *)allowance_prefix, 8);
   memcpy(key + 8, (uint8_t *)&owner_id, 4);
   memcpy(key + 12, (uint8_t *)&spender_id, 4);
