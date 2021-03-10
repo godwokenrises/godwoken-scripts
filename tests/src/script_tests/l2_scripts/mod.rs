@@ -14,9 +14,11 @@ use crate::testing_tool::chain::build_backend_manage;
 mod examples;
 mod meta_contract;
 mod sudt;
+mod sudt_allowance;
 
 const EXAMPLES_DIR: &'static str = "../../godwoken-scripts/c/build/examples";
 const SUM_BIN_NAME: &'static str = "sum-generator";
+const SUDT_ALLOWANCE_BIN_NAME: &'static str = "sudt-allowance-generator";
 
 lazy_static! {
     static ref SUM_PROGRAM: Bytes = {
@@ -32,6 +34,22 @@ lazy_static! {
         let mut buf = [0u8; 32];
         let mut hasher = new_blake2b();
         hasher.update(&SUM_PROGRAM);
+        hasher.finalize(&mut buf);
+        buf
+    };
+    static ref SUDT_ALLOWANCE_PROGRAM: Bytes = {
+        let mut buf = Vec::new();
+        let mut path = PathBuf::new();
+        path.push(&EXAMPLES_DIR);
+        path.push(&SUDT_ALLOWANCE_BIN_NAME);
+        let mut f = fs::File::open(&path).expect("load program");
+        f.read_to_end(&mut buf).expect("read program");
+        Bytes::from(buf.to_vec())
+    };
+    static ref SUDT_ALLOWANCE_PROGRAM_CODE_HASH: [u8; 32] = {
+        let mut buf = [0u8; 32];
+        let mut hasher = new_blake2b();
+        hasher.update(&SUDT_ALLOWANCE_PROGRAM);
         hasher.finalize(&mut buf);
         buf
     };
