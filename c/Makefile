@@ -14,8 +14,8 @@ PROTOCOL_SCHEMA_URL := https://raw.githubusercontent.com/nervosnetwork/godwoken/
 # docker pull nervos/ckb-riscv-gnu-toolchain:gnu-bionic-20191012
 BUILDER_DOCKER := nervos/ckb-riscv-gnu-toolchain@sha256:aae8a3f79705f67d505d1f1d5ddc694a4fd537ed1c7e9622420a470d59ba2ec3
 
-GENERATORS := build/meta-contract-generator build/sudt-generator build/examples/sum-generator build/examples/sudt-allowance-generator
-VALIDATORS := build/meta-contract-validator build/sudt-validator build/examples/sum-validator build/examples/sudt-allowance-validator
+GENERATORS := build/meta-contract-generator build/sudt-generator build/examples/sum-generator
+VALIDATORS := build/meta-contract-validator build/sudt-validator build/examples/sum-validator
 ACCOUNT_LOCKS := build/account_locks/eth-account-lock
 SECP256K1_HELPER := deps/ckb-miscellaneous-scripts/build/secp256k1_data_info.h
 
@@ -73,16 +73,6 @@ build/examples/sum-generator: examples/sum.c gw_def.h generator_utils.h
 	$(OBJCOPY) --strip-debug --strip-all $@
 
 build/examples/sum-validator: examples/sum.c gw_def.h validator_utils.h
-	$(CC) $(CFLAGS) -DGW_VALIDATOR $(LDFLAGS) -o $@ $<
-	$(OBJCOPY) --only-keep-debug $@ $@.debug
-	$(OBJCOPY) --strip-debug --strip-all $@
-
-build/examples/sudt-allowance-generator: examples/sudt_allowance.c gw_def.h generator_utils.h sudt_utils.h
-	$(CC) $(CFLAGS) -DGW_GENERATOR $(LDFLAGS) -o $@ $<
-	$(OBJCOPY) --only-keep-debug $@ $@.debug
-	$(OBJCOPY) --strip-debug --strip-all $@
-
-build/examples/sudt-allowance-validator: examples/sudt_allowance.c gw_def.h validator_utils.h sudt_utils.h
 	$(CC) $(CFLAGS) -DGW_VALIDATOR $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
