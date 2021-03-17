@@ -21,7 +21,7 @@
 #define GW_MAX_L2TX_SIZE (132 * 1024)
 /* MAX kv state pairs in a tx */
 #define GW_MAX_KV_PAIRS 1024
-#define GW_MAX_SCRIPT_SIZE 128
+#define GW_MAX_SCRIPT_SIZE 256
 /* MAX scripts in a tx */
 #define GW_MAX_SCRIPT_ENTRIES_SIZE 100
 /* MAX size of rollup config */
