@@ -2,10 +2,18 @@ use gw_common::blake2b::new_blake2b;
 use gw_common::state::State;
 use gw_common::H256;
 use gw_generator::{account_lock_manage::AccountLockManage, Generator};
-use gw_generator::{error::TransactionError, traits::StateExt, types::RollupContext};
+use gw_generator::{
+    error::TransactionError,
+    traits::StateExt,
+    types::{RollupContext, RunResult},
+};
 use gw_traits::{ChainStore, CodeStore};
 use gw_types::packed::{RawL2Transaction, RollupConfig};
-use gw_types::{bytes::Bytes, packed::BlockInfo, prelude::*};
+use gw_types::{
+    bytes::Bytes,
+    packed::{BlockInfo, LogItem},
+    prelude::*,
+};
 use lazy_static::lazy_static;
 use std::{fs, io::Read, path::PathBuf};
 
@@ -69,14 +77,81 @@ impl ChainStore for DummyChainStore {
     }
 }
 
-pub fn run_contract<S: State + CodeStore>(
+const SUDT_OPERATION_LOG_PREFIX: u8 = 0xFE;
+const SUDT_OPERATION_TRANSFER: u8 = 0x01;
+
+#[derive(Debug)]
+pub struct SudtTransferLog {
+    sudt_id: u32,
+    from_id: u32,
+    to_id: u32,
+    amount: u128,
+}
+
+impl SudtTransferLog {
+    fn from_log_item(item: &LogItem) -> Result<SudtTransferLog, String> {
+        let sudt_id: u32 = item.account_id().unpack();
+        let raw_data = item.data().raw_data();
+        let log_data: &[u8] = raw_data.as_ref();
+        if log_data[0] != SUDT_OPERATION_LOG_PREFIX {
+            return Err(format!("Not a sudt log prefix: {}", log_data[0]));
+        }
+        if log_data[1] != SUDT_OPERATION_TRANSFER {
+            return Err(format!("Not a sudt transfer prefix: {}", log_data[1]));
+        }
+        if log_data.len() != (1 + 1 + 4 + 4 + 16) {
+            return Err(format!("Invalid data length: {}", log_data.len()));
+        }
+        let data = &log_data[2..];
+
+        let mut u32_bytes = [0u8; 4];
+        u32_bytes.copy_from_slice(&data[0..4]);
+        let from_id = u32::from_le_bytes(u32_bytes.clone());
+
+        u32_bytes.copy_from_slice(&data[4..8]);
+        let to_id = u32::from_le_bytes(u32_bytes);
+
+        let mut u128_bytes = [0u8; 16];
+        u128_bytes.copy_from_slice(&data[8..24]);
+        let amount = u128::from_le_bytes(u128_bytes);
+        Ok(SudtTransferLog {
+            sudt_id,
+            from_id,
+            to_id,
+            amount,
+        })
+    }
+}
+
+pub fn check_transfer_logs(
+    logs: &[LogItem],
+    sudt_id: u32,
+    block_producer_id: u32,
+    fee: u128,
+    from_id: u32,
+    to_id: u32,
+    amount: u128,
+) {
+    let sudt_fee_log = SudtTransferLog::from_log_item(&logs[0]).unwrap();
+    assert_eq!(sudt_fee_log.sudt_id, sudt_id);
+    assert_eq!(sudt_fee_log.from_id, from_id);
+    assert_eq!(sudt_fee_log.to_id, block_producer_id);
+    assert_eq!(sudt_fee_log.amount, fee);
+    let sudt_transfer_log = SudtTransferLog::from_log_item(&logs[1]).unwrap();
+    assert_eq!(sudt_transfer_log.sudt_id, sudt_id);
+    assert_eq!(sudt_transfer_log.from_id, from_id);
+    assert_eq!(sudt_transfer_log.to_id, to_id);
+    assert_eq!(sudt_transfer_log.amount, amount);
+}
+
+pub fn run_contract_get_result<S: State + CodeStore>(
     rollup_config: &RollupConfig,
     tree: &mut S,
     from_id: u32,
     to_id: u32,
     args: Bytes,
     block_info: &BlockInfo,
-) -> Result<Vec<u8>, TransactionError> {
+) -> Result<RunResult, TransactionError> {
     let raw_tx = RawL2Transaction::new_builder()
         .from_id(from_id.pack())
         .to_id(to_id.pack())
@@ -92,5 +167,18 @@ pub fn run_contract<S: State + CodeStore>(
     let chain_view = DummyChainStore;
     let run_result = generator.execute_transaction(&chain_view, tree, block_info, &raw_tx)?;
     tree.apply_run_result(&run_result).expect("update state");
+    Ok(run_result)
+}
+
+pub fn run_contract<S: State + CodeStore>(
+    rollup_config: &RollupConfig,
+    tree: &mut S,
+    from_id: u32,
+    to_id: u32,
+    args: Bytes,
+    block_info: &BlockInfo,
+) -> Result<Vec<u8>, TransactionError> {
+    let run_result =
+        run_contract_get_result(rollup_config, tree, from_id, to_id, args, block_info)?;
     Ok(run_result.return_data)
 }

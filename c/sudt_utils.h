@@ -18,6 +18,13 @@
 #define WITHDRAWAL_AMOUNT 2
 #define WITHDRAWAL_BLOCK_NUMBER 3
 
+/* NOTE: The log prefix can not be the same with:
+     - 0xFF (POLYJUICE_SYSTEM_PREFIX)    => polyjuice evm result log
+     - 0xF0 (POLYJUICE_USER_LOG_PREFIX)  => polyjuice user log
+*/
+#define SUDT_OPERATION_LOG_PREFIX 0xFE
+#define SUDT_OPERATION_TRANSFER 0x01
+
 void _sudt_id_to_key(const uint32_t account_id, uint8_t key[32]) {
   memcpy(key, (uint8_t *)&account_id, 4);
 }
@@ -37,6 +44,22 @@ int _account_exists(gw_context_t *ctx, uint32_t account_id, bool *exists) {
     }
   }
   return 0;
+}
+
+int _emit_transfer_log(gw_context_t *ctx, uint32_t sudt_id,
+                       uint32_t from_id, uint32_t to_id, uint128_t amount) {
+  uint32_t data_size = 1 + 1 + 4 + 4 + 16;
+  uint8_t data[1 + 1 + 4 + 4 + 16] = {0};
+  data[0] = SUDT_OPERATION_LOG_PREFIX;
+  data[1] = SUDT_OPERATION_TRANSFER;
+  uint8_t *ptr = data + 2;
+  memcpy(ptr, (uint8_t *)(&from_id), 4);
+  ptr += 4;
+  memcpy(ptr, (uint8_t *)(&to_id), 4);
+  ptr += 4;
+  memcpy(ptr, (uint8_t *)(&amount), 16);
+
+  return ctx->sys_log(ctx, sudt_id, data_size, data);
 }
 
 int _sudt_get_balance(gw_context_t *ctx, uint32_t sudt_id,
@@ -119,5 +142,9 @@ int sudt_transfer(gw_context_t *ctx, uint32_t sudt_id, uint32_t from_id,
   if (ret != 0) {
     return ret;
   }
-  return _sudt_set_balance(ctx, sudt_id, to_key, new_to_balance);
+  ret = _sudt_set_balance(ctx, sudt_id, to_key, new_to_balance);
+  if (ret != 0) {
+    return ret;
+  }
+  return _emit_transfer_log(ctx, sudt_id, from_id, to_id, amount);
 }
