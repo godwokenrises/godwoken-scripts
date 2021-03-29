@@ -50,12 +50,32 @@ typedef struct gw_context_t {
   gw_log_fn sys_log;
 } gw_context_t;
 
+int _ensure_account_exists(gw_context_t *ctx, uint32_t account_id) {
+  uint8_t script_hash[32];
+  int ret = ctx->sys_get_script_hash_by_account_id(ctx, account_id, script_hash);
+  if (ret != 0) {
+    return ret;
+  }
+  for (int i = 0; i < 32; i++) {
+    /* if account not exists script_hash will be zero */
+    if (script_hash[i] != 0) {
+      return 0;
+    }
+  }
+  return GW_ERROR_ACCOUNT_NOT_FOUND;
+}
+
 int sys_load(gw_context_t *ctx, uint32_t account_id,
              const uint8_t key[GW_KEY_BYTES], uint8_t value[GW_VALUE_BYTES]) {
   gw_context_t *gw_ctx = (gw_context_t *)ctx;
   if (gw_ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
   }
+  int ret = _ensure_account_exists(ctx, account_id);
+  if (ret != 0) {
+    return ret;
+  }
+
   uint8_t raw_key[GW_KEY_BYTES] = {0};
   gw_build_account_key(account_id, key, raw_key);
   return syscall(GW_SYS_LOAD, raw_key, value, 0, 0, 0, 0);
@@ -67,6 +87,11 @@ int sys_store(gw_context_t *ctx, uint32_t account_id,
   if (gw_ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
   }
+  int ret = _ensure_account_exists(ctx, account_id);
+  if (ret != 0) {
+    return ret;
+  }
+
   uint8_t raw_key[GW_KEY_BYTES];
   gw_build_account_key(account_id, key, raw_key);
   return syscall(GW_SYS_STORE, raw_key, value, 0, 0, 0, 0);
@@ -74,6 +99,15 @@ int sys_store(gw_context_t *ctx, uint32_t account_id,
 
 int sys_load_nonce(gw_context_t *ctx, uint32_t account_id,
                    uint8_t value[GW_VALUE_BYTES]) {
+  gw_context_t *gw_ctx = (gw_context_t *)ctx;
+  if (gw_ctx == NULL) {
+    return GW_ERROR_INVALID_CONTEXT;
+  }
+  int ret = _ensure_account_exists(ctx, account_id);
+  if (ret != 0) {
+    return ret;
+  }
+
   uint8_t key[32];
   gw_build_nonce_key(account_id, key);
   return syscall(GW_SYS_LOAD, key, value, 0, 0, 0, 0);
@@ -142,6 +176,15 @@ int sys_create(gw_context_t *ctx, uint8_t *script, uint32_t script_len,
 
 int sys_log(gw_context_t *ctx, uint32_t account_id, uint32_t data_length,
             const uint8_t *data) {
+  gw_context_t *gw_ctx = (gw_context_t *)ctx;
+  if (gw_ctx == NULL) {
+    return GW_ERROR_INVALID_CONTEXT;
+  }
+  int ret = _ensure_account_exists(ctx, account_id);
+  if (ret != 0) {
+    return ret;
+  }
+
   return syscall(GW_SYS_LOG, account_id, data_length, data, 0, 0, 0);
 }
 
