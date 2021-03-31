@@ -92,18 +92,11 @@ typedef struct gw_context_t {
 } gw_context_t;
 
 int _ensure_account_exists(gw_context_t *ctx, uint32_t account_id) {
-  uint8_t script_hash[32];
-  int ret = ctx->sys_get_script_hash_by_account_id(ctx, account_id, script_hash);
-  if (ret != 0) {
-    return ret;
+  if (account_id < ctx->account_count) {
+    return 0;
+  } else {
+    return GW_ERROR_ACCOUNT_NOT_FOUND;
   }
-  for (int i = 0; i < 32; i++) {
-    /* if account not exists script_hash will be zero */
-    if (script_hash[i] != 0) {
-      return 0;
-    }
-  }
-  return GW_ERROR_ACCOUNT_NOT_FOUND;
 }
 
 int sys_load(gw_context_t *ctx, uint32_t account_id,

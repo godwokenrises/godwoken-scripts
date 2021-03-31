@@ -67,8 +67,7 @@ int _ensure_account_exists(gw_context_t *ctx, uint32_t account_id) {
 
 int sys_load(gw_context_t *ctx, uint32_t account_id,
              const uint8_t key[GW_KEY_BYTES], uint8_t value[GW_VALUE_BYTES]) {
-  gw_context_t *gw_ctx = (gw_context_t *)ctx;
-  if (gw_ctx == NULL) {
+  if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
   }
   int ret = _ensure_account_exists(ctx, account_id);
@@ -83,8 +82,7 @@ int sys_load(gw_context_t *ctx, uint32_t account_id,
 int sys_store(gw_context_t *ctx, uint32_t account_id,
               const uint8_t key[GW_KEY_BYTES],
               const uint8_t value[GW_VALUE_BYTES]) {
-  gw_context_t *gw_ctx = (gw_context_t *)ctx;
-  if (gw_ctx == NULL) {
+  if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
   }
   int ret = _ensure_account_exists(ctx, account_id);
@@ -99,8 +97,7 @@ int sys_store(gw_context_t *ctx, uint32_t account_id,
 
 int sys_load_nonce(gw_context_t *ctx, uint32_t account_id,
                    uint8_t value[GW_VALUE_BYTES]) {
-  gw_context_t *gw_ctx = (gw_context_t *)ctx;
-  if (gw_ctx == NULL) {
+  if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
   }
   int ret = _ensure_account_exists(ctx, account_id);
@@ -176,8 +173,7 @@ int sys_create(gw_context_t *ctx, uint8_t *script, uint32_t script_len,
 
 int sys_log(gw_context_t *ctx, uint32_t account_id, uint32_t data_length,
             const uint8_t *data) {
-  gw_context_t *gw_ctx = (gw_context_t *)ctx;
-  if (gw_ctx == NULL) {
+  if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
   }
   int ret = _ensure_account_exists(ctx, account_id);
