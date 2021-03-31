@@ -91,11 +91,24 @@ typedef struct gw_context_t {
   gw_call_receipt_t receipt;
 } gw_context_t;
 
+int _ensure_account_exists(gw_context_t *ctx, uint32_t account_id) {
+  if (account_id < ctx->account_count) {
+    return 0;
+  } else {
+    return GW_ERROR_ACCOUNT_NOT_FOUND;
+  }
+}
+
 int sys_load(gw_context_t *ctx, uint32_t account_id,
              const uint8_t key[GW_KEY_BYTES], uint8_t value[GW_VALUE_BYTES]) {
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
   }
+  int ret = _ensure_account_exists(ctx, account_id);
+  if (ret != 0) {
+    return ret;
+  }
+
   uint8_t raw_key[GW_KEY_BYTES] = {0};
   gw_build_account_key(account_id, key, raw_key);
   return gw_state_fetch(&ctx->kv_state, raw_key, value);
@@ -106,6 +119,11 @@ int sys_store(gw_context_t *ctx, uint32_t account_id,
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
   }
+  int ret = _ensure_account_exists(ctx, account_id);
+  if (ret != 0) {
+    return ret;
+  }
+
   uint8_t raw_key[GW_KEY_BYTES] = {0};
   gw_build_account_key(account_id, key, raw_key);
   return gw_state_insert(&ctx->kv_state, raw_key, value);
@@ -116,6 +134,11 @@ int sys_load_nonce(gw_context_t *ctx, uint32_t account_id,
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
   }
+  int ret = _ensure_account_exists(ctx, account_id);
+  if (ret != 0) {
+    return ret;
+  }
+
   uint8_t key[32] = {0};
   gw_build_nonce_key(account_id, key);
   return gw_state_fetch(&ctx->kv_state, key, value);
@@ -372,6 +395,10 @@ int sys_log(gw_context_t *ctx, uint32_t account_id, uint32_t data_length,
             const uint8_t *data) {
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
+  }
+  int ret = _ensure_account_exists(ctx, account_id);
+  if (ret != 0) {
+    return ret;
   }
   /* do nothing */
   return 0;

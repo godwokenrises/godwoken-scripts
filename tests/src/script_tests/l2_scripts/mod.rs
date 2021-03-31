@@ -17,6 +17,7 @@ mod sudt;
 
 const EXAMPLES_DIR: &'static str = "../../godwoken-scripts/c/build/examples";
 const SUM_BIN_NAME: &'static str = "sum-generator";
+const ACCOUNT_OP_BIN_NAME: &'static str = "account-operation-generator";
 
 lazy_static! {
     static ref SUM_PROGRAM: Bytes = {
@@ -32,6 +33,22 @@ lazy_static! {
         let mut buf = [0u8; 32];
         let mut hasher = new_blake2b();
         hasher.update(&SUM_PROGRAM);
+        hasher.finalize(&mut buf);
+        buf
+    };
+    static ref ACCOUNT_OP_PROGRAM: Bytes = {
+        let mut buf = Vec::new();
+        let mut path = PathBuf::new();
+        path.push(&EXAMPLES_DIR);
+        path.push(&ACCOUNT_OP_BIN_NAME);
+        let mut f = fs::File::open(&path).expect("load program");
+        f.read_to_end(&mut buf).expect("read program");
+        Bytes::from(buf.to_vec())
+    };
+    static ref ACCOUNT_OP_PROGRAM_CODE_HASH: [u8; 32] = {
+        let mut buf = [0u8; 32];
+        let mut hasher = new_blake2b();
+        hasher.update(&ACCOUNT_OP_PROGRAM);
         hasher.finalize(&mut buf);
         buf
     };

@@ -10,6 +10,7 @@ use gw_types::{
 };
 
 const ERROR_INSUFFICIENT_BALANCE: i8 = 12i8;
+const ERROR_ACCOUNT_NOT_EXISTS: i8 = 15;
 const DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH: [u8; 32] = [3u8; 32];
 
 #[test]
@@ -272,5 +273,74 @@ fn test_insufficient_balance() {
             err => panic!("unexpected {:?}", err),
         };
         assert_eq!(err_code, ERROR_INSUFFICIENT_BALANCE);
+    }
+}
+
+#[test]
+fn test_transfer_to_non_exist_account() {
+    let mut tree = DummyState::default();
+    let init_a_balance: u128 = 10000;
+
+    let rollup_config = RollupConfig::new_builder()
+        .l2_sudt_validator_script_type_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.pack())
+        .build();
+
+    // init accounts
+    let sudt_id = tree
+        .create_account_from_script(
+            Script::new_builder()
+                .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
+                .args([0u8; 20].to_vec().pack())
+                .hash_type(ScriptHashType::Type.into())
+                .build(),
+        )
+        .expect("create account");
+    let a_id = tree
+        .create_account_from_script(
+            Script::new_builder()
+                .code_hash([0u8; 32].pack())
+                .args([0u8; 20].to_vec().pack())
+                .hash_type(ScriptHashType::Type.into())
+                .build(),
+        )
+        .expect("create account");
+    // non-exist account id
+    let b_id: u32 = 0x33333;
+
+    let block_info = new_block_info(0, 10, 0);
+
+    // init balance for a
+    tree.update_value(
+        sudt_id,
+        &H256::from_u32(a_id),
+        H256::from_u128(init_a_balance),
+    )
+    .expect("update init balance");
+
+    // transfer from A to B
+    {
+        let value: u128 = 1000;
+        let args = SUDTArgs::new_builder()
+            .set(
+                SUDTTransfer::new_builder()
+                    .to(b_id.pack())
+                    .amount(value.pack())
+                    .build(),
+            )
+            .build();
+        let err = run_contract(
+            &rollup_config,
+            &mut tree,
+            a_id,
+            sudt_id,
+            args.as_bytes(),
+            &block_info,
+        )
+        .expect_err("err");
+        let err_code = match err {
+            TransactionError::InvalidExitCode(code) => code,
+            err => panic!("unexpected {:?}", err),
+        };
+        assert_eq!(err_code, ERROR_ACCOUNT_NOT_EXISTS);
     }
 }
