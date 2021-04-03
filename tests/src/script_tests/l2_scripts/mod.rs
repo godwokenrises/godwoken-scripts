@@ -77,8 +77,10 @@ impl ChainStore for DummyChainStore {
     }
 }
 
-const SUDT_OPERATION_LOG_PREFIX: u8 = 0xFE;
-const SUDT_OPERATION_TRANSFER: u8 = 0x01;
+pub const GW_LOG_SUDT_OPERATION: u8 = 0x0;
+pub const GW_LOG_POLYJUICE_SYSTEM: u8 = 0x1;
+pub const GW_LOG_POLYJUICE_USER: u8 = 0x2;
+pub const SUDT_OPERATION_TRANSFER: u8 = 0x0;
 
 #[derive(Debug)]
 pub struct SudtTransferLog {
@@ -93,13 +95,10 @@ impl SudtTransferLog {
         let sudt_id: u32 = item.account_id().unpack();
         let raw_data = item.data().raw_data();
         let log_data: &[u8] = raw_data.as_ref();
-        if log_data[0] != SUDT_OPERATION_LOG_PREFIX {
-            return Err(format!("Not a sudt log prefix: {}", log_data[0]));
-        }
-        if log_data[1] != SUDT_OPERATION_TRANSFER {
+        if log_data[0] != SUDT_OPERATION_TRANSFER {
             return Err(format!("Not a sudt transfer prefix: {}", log_data[1]));
         }
-        if log_data.len() != (1 + 1 + 4 + 4 + 16) {
+        if log_data.len() != (1 + 4 + 4 + 16) {
             return Err(format!("Invalid data length: {}", log_data.len()));
         }
         let data = &log_data[2..];

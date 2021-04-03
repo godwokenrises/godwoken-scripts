@@ -6,7 +6,7 @@
  *   - sys_load(account_id, key)
  *   - sys_store(account_id, key, value)
  *   - sys_load_nonce(account_id)
- *   - sys_log(account_id, data)
+ *   - sys_log(account_id, service_flag, data)
  */
 
 #include "ckb_syscalls.h"
@@ -78,18 +78,19 @@ int handle_sys_load_nonce(gw_context_t *ctx,
 int handle_sys_log(gw_context_t *ctx,
                    const uint8_t *args, const uint32_t args_len,
                    uint32_t *rv_len, uint8_t *rv) {
-  if (args_len < 8) {
+  if (args_len < 4 + 1 + 4) {
     ckb_debug("invalid args length for sys_log (header)");
     return -1;
   }
   uint32_t account_id = *((uint32_t *)args);
-  uint32_t data_len = *((uint32_t *)(args + 4));
-  if (args_len < data_len + 8) {
+  uint8_t service_flag = args[4];
+  uint32_t data_len = *((uint32_t *)(args + 5));
+  if (args_len < data_len + 9) {
     ckb_debug("invalid args length for sys_log (data part)");
     return -1;
   }
-  const uint8_t *data = args + 8;
-  int ret = ctx->sys_log(ctx, account_id, data_len, data);
+  const uint8_t *data = args + 9;
+  int ret = ctx->sys_log(ctx, account_id, service_flag, data_len, data);
   if (ret != 0) {
     return ret;
   }
