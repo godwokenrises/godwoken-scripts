@@ -92,6 +92,7 @@ int handle_sys_log(gw_context_t *ctx,
   const uint8_t *data = args + 9;
   int ret = ctx->sys_log(ctx, account_id, service_flag, data_len, data);
   if (ret != 0) {
+    ckb_debug("call sys_log failed");
     return ret;
   }
   *rv_len = 0;
@@ -129,6 +130,7 @@ int main() {
   uint32_t rv_len = 0;
   ret = handler(&ctx, args, args_len, &rv_len, rv);
   if (ret != 0) {
+    ckb_debug("call handler failed");
     return ret;
   }
   ctx.sys_set_program_return_data(&ctx, rv, rv_len);

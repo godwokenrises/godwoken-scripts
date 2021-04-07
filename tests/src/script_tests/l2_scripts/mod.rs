@@ -101,7 +101,7 @@ impl SudtTransferLog {
         if log_data.len() != (1 + 4 + 4 + 16) {
             return Err(format!("Invalid data length: {}", log_data.len()));
         }
-        let data = &log_data[2..];
+        let data = &log_data[1..];
 
         let mut u32_bytes = [0u8; 4];
         u32_bytes.copy_from_slice(&data[0..4]);

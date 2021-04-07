@@ -126,7 +126,7 @@ impl AccountOp {
                 data
             }
             AccountOp::Log { account_id, data } => {
-                let mut args_data = vec![];
+                let mut args_data = vec![0xF3];
                 args_data.extend(&account_id.to_le_bytes());
                 args_data.push(GW_LOG_SUDT_OPERATION);
                 args_data.extend(&(data.len() as u32).to_le_bytes());
