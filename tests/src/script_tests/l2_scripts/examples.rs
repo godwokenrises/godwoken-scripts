@@ -1,8 +1,8 @@
 use crate::testing_tool::chain::build_backend_manage;
 
 use super::{
-    new_block_info, DummyChainStore, ACCOUNT_OP_PROGRAM, ACCOUNT_OP_PROGRAM_CODE_HASH, SUM_PROGRAM,
-    SUM_PROGRAM_CODE_HASH,
+    new_block_info, DummyChainStore, ACCOUNT_OP_PROGRAM, ACCOUNT_OP_PROGRAM_CODE_HASH,
+    GW_LOG_SUDT_OPERATION, SUM_PROGRAM, SUM_PROGRAM_CODE_HASH,
 };
 use gw_common::H256;
 use gw_generator::{
@@ -81,63 +81,64 @@ fn test_example_sum() {
     }
 }
 
-#[test]
-fn test_example_account_operation() {
-    enum AccountOp {
-        Load {
-            account_id: u32,
-            key: [u8; 32],
-        },
-        Store {
-            account_id: u32,
-            key: [u8; 32],
-            value: [u8; 32],
-        },
-        LoadNonce {
-            account_id: u32,
-        },
-        Log {
-            account_id: u32,
-            data: Vec<u8>,
-        },
-    }
+pub enum AccountOp {
+    Load {
+        account_id: u32,
+        key: [u8; 32],
+    },
+    Store {
+        account_id: u32,
+        key: [u8; 32],
+        value: [u8; 32],
+    },
+    LoadNonce {
+        account_id: u32,
+    },
+    Log {
+        account_id: u32,
+        data: Vec<u8>,
+    },
+}
 
-    impl AccountOp {
-        fn to_vec(&self) -> Vec<u8> {
-            match self {
-                AccountOp::Load { account_id, key } => {
-                    let mut data = vec![0xF0];
-                    data.extend(&account_id.to_le_bytes());
-                    data.extend(key);
-                    data
-                }
-                AccountOp::Store {
-                    account_id,
-                    key,
-                    value,
-                } => {
-                    let mut data = vec![0xF1];
-                    data.extend(&account_id.to_le_bytes());
-                    data.extend(key);
-                    data.extend(value);
-                    data
-                }
-                AccountOp::LoadNonce { account_id } => {
-                    let mut data = vec![0xF2];
-                    data.extend(&account_id.to_le_bytes());
-                    data
-                }
-                AccountOp::Log { account_id, data } => {
-                    let mut args_data = vec![0xF3];
-                    args_data.extend(&account_id.to_le_bytes());
-                    args_data.extend(&(data.len() as u32).to_le_bytes());
-                    args_data.extend(data);
-                    args_data
-                }
+impl AccountOp {
+    fn to_vec(&self) -> Vec<u8> {
+        match self {
+            AccountOp::Load { account_id, key } => {
+                let mut data = vec![0xF0];
+                data.extend(&account_id.to_le_bytes());
+                data.extend(key);
+                data
+            }
+            AccountOp::Store {
+                account_id,
+                key,
+                value,
+            } => {
+                let mut data = vec![0xF1];
+                data.extend(&account_id.to_le_bytes());
+                data.extend(key);
+                data.extend(value);
+                data
+            }
+            AccountOp::LoadNonce { account_id } => {
+                let mut data = vec![0xF2];
+                data.extend(&account_id.to_le_bytes());
+                data
+            }
+            AccountOp::Log { account_id, data } => {
+                let mut args_data = vec![0xF3];
+                args_data.extend(&account_id.to_le_bytes());
+                args_data.push(GW_LOG_SUDT_OPERATION);
+                args_data.extend(&(data.len() as u32).to_le_bytes());
+                args_data.extend(data);
+                args_data
             }
         }
     }
+}
 
+#[test]
+fn test_example_account_operation() {
     let mut tree = DummyState::default();
     let chain_view = DummyChainStore;
     let from_id: u32 = 2;

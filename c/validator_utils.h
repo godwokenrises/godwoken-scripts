@@ -391,8 +391,8 @@ int sys_create(gw_context_t *ctx, uint8_t *script, uint32_t script_len,
   return 0;
 }
 
-int sys_log(gw_context_t *ctx, uint32_t account_id, uint32_t data_length,
-            const uint8_t *data) {
+int sys_log(gw_context_t *ctx, uint32_t account_id, uint8_t service_flag,
+            uint32_t data_length, const uint8_t *data) {
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
   }

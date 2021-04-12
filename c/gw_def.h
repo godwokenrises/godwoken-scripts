@@ -29,6 +29,10 @@
 #define GW_MAX_WITNESS_SIZE (300 * 1024)
 #define GW_MAX_CODE_SIZE (64 * 1024)
 
+#define GW_LOG_SUDT_OPERATION   0x0
+#define GW_LOG_POLYJUICE_SYSTEM 0x1
+#define GW_LOG_POLYJUICE_USER   0x2
+
 /* Godwoken context */
 typedef struct {
   uint32_t from_id;
@@ -189,11 +193,12 @@ typedef int (*gw_get_block_hash_fn)(struct gw_context_t *ctx, uint64_t number,
  *
  * @param ctx            The godwoken context
  * @param account_id     The account to emit log
+ * @param service_flag   The service flag of log, for category different log types
  * @param data           The log data
  * @param data_length    The length of the log data
  * @return               The status code, 0 is success
  */
-typedef int (*gw_log_fn)(struct gw_context_t *ctx, uint32_t account_id,
+typedef int (*gw_log_fn)(struct gw_context_t *ctx, uint32_t account_id, uint8_t service_flag,
                          uint32_t data_length, const uint8_t *data);
 
 #endif /* GW_DEF_H_ */

@@ -1,4 +1,4 @@
-use super::{new_block_info, run_contract};
+use super::{check_transfer_logs, new_block_info, run_contract, run_contract_get_result};
 use gw_common::state::State;
 use gw_common::{h256_ext::H256Ext, H256};
 use gw_generator::dummy_state::DummyState;
@@ -124,7 +124,7 @@ fn test_sudt() {
                     .build(),
             )
             .build();
-        let return_data = run_contract(
+        let run_result = run_contract_get_result(
             &rollup_config,
             &mut tree,
             a_id,
@@ -133,7 +133,16 @@ fn test_sudt() {
             &block_info,
         )
         .expect("execute");
-        assert!(return_data.is_empty());
+        assert!(run_result.return_data.is_empty());
+        check_transfer_logs(
+            &run_result.logs,
+            sudt_id,
+            block_producer_id,
+            fee,
+            a_id,
+            b_id,
+            value,
+        );
 
         {
             let args = SUDTArgs::new_builder()
