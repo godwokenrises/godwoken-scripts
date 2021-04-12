@@ -18,7 +18,7 @@
 #define WITHDRAWAL_AMOUNT 2
 #define WITHDRAWAL_BLOCK_NUMBER 3
 
-#define SUDT_OPERATION_TRANSFER 0x00
+#define SUDT_OPERATION_TRANSFER 0x0
 
 void _sudt_id_to_key(const uint32_t account_id, uint8_t key[32]) {
   memcpy(key, (uint8_t *)&account_id, 4);
@@ -45,7 +45,7 @@ int _emit_transfer_log(gw_context_t *ctx, uint32_t sudt_id,
                        uint32_t from_id, uint32_t to_id, uint128_t amount) {
   uint32_t data_size = 1 + 4 + 4 + 16;
   uint8_t data[1 + 4 + 4 + 16] = {0};
-  data[1] = SUDT_OPERATION_TRANSFER;
+  data[0] = SUDT_OPERATION_TRANSFER;
   uint8_t *ptr = data + 1;
   memcpy(ptr, (uint8_t *)(&from_id), 4);
   ptr += 4;
