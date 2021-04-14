@@ -104,8 +104,7 @@ pub fn main() -> Result<(), Error> {
             if args
                 .reverted_block_hashes()
                 .into_iter()
-                .find(|hash| hash == &deposition_block_hash)
-                .is_some()
+                .any(|hash| hash == deposition_block_hash)
             {
                 return Ok(());
             }

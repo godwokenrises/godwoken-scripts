@@ -68,5 +68,5 @@ pub fn main() -> Result<(), Error> {
         return Ok(());
     }
 
-    return Err(Error::InvalidStakeCellUnlock);
+    Err(Error::InvalidStakeCellUnlock)
 }

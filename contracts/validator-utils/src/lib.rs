@@ -1,4 +1,6 @@
 #![no_std]
+#![allow(clippy::upper_case_acronyms)]
+#![allow(clippy::match_like_matches_macro)]
 
 extern crate alloc;
 

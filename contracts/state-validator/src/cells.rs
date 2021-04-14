@@ -328,7 +328,7 @@ pub fn collect_burn_cells(config: &RollupConfig, source: Source) -> Result<Vec<B
     QueryIter::new(load_cell_lock_hash, source)
         .enumerate()
         .filter_map(|(index, lock_hash)| {
-            let is_lock = &lock_hash == config.burn_lock_hash().as_slice();
+            let is_lock = lock_hash == config.burn_lock_hash().as_slice();
             if !is_lock {
                 return None;
             }

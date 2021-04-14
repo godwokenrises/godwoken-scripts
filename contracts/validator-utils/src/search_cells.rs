@@ -33,7 +33,7 @@ pub fn load_rollup_config(rollup_config_hash: &[u8; 32]) -> Result<RollupConfig,
     let data = load_cell_data(index, Source::CellDep)?;
     match RollupConfigReader::verify(&data, false) {
         Ok(_) => Ok(RollupConfig::new_unchecked(data.into())),
-        Err(_) => return Err(Error::Encoding),
+        Err(_) => Err(Error::Encoding),
     }
 }
 
@@ -138,7 +138,7 @@ pub fn parse_rollup_action(index: usize, source: Source) -> Result<RollupAction,
     let output_type: Bytes = witness_args
         .output_type()
         .to_opt()
-        .ok_or_else(|| Error::Encoding)?
+        .ok_or(Error::Encoding)?
         .unpack();
     match RollupActionReader::verify(&output_type, false) {
         Ok(_) => Ok(RollupAction::new_unchecked(output_type)),
