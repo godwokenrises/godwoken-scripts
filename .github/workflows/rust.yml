@@ -26,6 +26,10 @@ jobs:
       run: cargo fmt -- --check
     - name: Check contracts format
       run: cd contracts && cargo fmt -- --check
+    - name: Cargo clippy check
+      env:
+        RUSTFLAGS: -D warnings
+      run: cd contracts && cargo clippy
     - name: Init submodules
       run: git submodule init && git submodule update -r
     - name: Compile C contracts
