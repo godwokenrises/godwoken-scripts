@@ -27,7 +27,7 @@ impl KVState {
 impl State for KVState {
     fn get_raw(&self, key: &H256) -> Result<H256, Error> {
         // make sure the key must exists in the kv
-        Ok(self.kv.get(key).ok_or(Error::MissingKey)?.clone())
+        Ok(*self.kv.get(key).ok_or(Error::MissingKey)?)
     }
     fn update_raw(&mut self, key: H256, value: H256) -> Result<(), Error> {
         // make sure the key must exists in the kv

@@ -37,14 +37,10 @@ fn check_challenge_maturity(
 ) -> Result<(), Error> {
     let challenge_maturity_blocks: u64 = config.challenge_maturity_blocks().unpack();
     let since = Since::new(load_input_since(challenge_cell.index, Source::Input)?);
-    match since.extract_lock_value() {
-        Some(LockValue::BlockNumber(n)) => {
-            if since.is_relative() && n >= challenge_maturity_blocks {
-                return Ok(());
-            }
+    if let Some(LockValue::BlockNumber(n)) = since.extract_lock_value() {
+        if since.is_relative() && n >= challenge_maturity_blocks {
+            return Ok(());
         }
-
-        _ => {}
     }
     Err(Error::InvalidChallengeCell)
 }
@@ -226,7 +222,6 @@ fn check_reverted_blocks(
     // prove the target block in the post reverted block root
     let is_post_reverted_block = {
         let leaves: Vec<_> = reverted_block_hashes
-            .clone()
             .into_iter()
             .map(|hash| (hash, H256::one()))
             .collect();
@@ -240,7 +235,6 @@ fn check_reverted_blocks(
     // calculate the prev block merkle state (delete reverted block hashes)
     let block_merkle_state = {
         let leaves = reverted_block_smt_keys
-            .clone()
             .into_iter()
             .map(|smt_key| (smt_key, H256::zero()))
             .collect();

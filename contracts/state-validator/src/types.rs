@@ -97,14 +97,14 @@ impl State for BlockContext {
     fn get_raw(&self, raw_key: &H256) -> Result<H256, StateError> {
         let v = self
             .kv_pairs
-            .get(&(*raw_key).into())
+            .get(&(*raw_key))
             .cloned()
-            .unwrap_or(H256::zero());
-        Ok(v.into())
+            .unwrap_or_else(H256::zero);
+        Ok(v)
     }
 
     fn update_raw(&mut self, key: H256, value: H256) -> Result<(), StateError> {
-        self.kv_pairs.insert(key.into(), value.into());
+        self.kv_pairs.insert(key, value);
         Ok(())
     }
 
@@ -119,12 +119,12 @@ impl State for BlockContext {
 
     fn calculate_root(&self) -> Result<H256, StateError> {
         if self.kv_pairs.is_empty() && self.kv_merkle_proof.0.is_empty() {
-            return Ok(self.prev_account_root.into());
+            return Ok(self.prev_account_root);
         }
         let root = self
             .kv_merkle_proof
             .compute_root::<Blake2bHasher>(self.kv_pairs.iter().map(|(k, v)| (*k, *v)).collect())
             .map_err(|_err| StateError::MerkleProof)?;
-        Ok(root.into())
+        Ok(root)
     }
 }

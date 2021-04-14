@@ -158,7 +158,7 @@ fn verify_transaction(
 
     // verify block hash
     let raw_block = unlock_args.raw_l2block();
-    if &raw_block.hash() != lock_args.target().block_hash().as_slice() {
+    if raw_block.hash() != lock_args.target().block_hash().as_slice() {
         return Err(Error::InvalidOutput);
     }
 
@@ -242,7 +242,7 @@ fn verify_withdrawal(
 
     // verify block hash
     let raw_block = unlock_args.raw_l2block();
-    if &raw_block.hash() != lock_args.target().block_hash().as_slice() {
+    if raw_block.hash() != lock_args.target().block_hash().as_slice() {
         return Err(Error::InvalidOutput);
     }
 

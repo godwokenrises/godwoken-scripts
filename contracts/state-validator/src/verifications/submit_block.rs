@@ -226,13 +226,13 @@ fn mint_layer2_sudt(
             return Err(Error::UnknownEOAScript);
         }
         // find or create EOA
-        let id = match context.get_account_id_by_script_hash(&request.account_script_hash.into())? {
+        let id = match context.get_account_id_by_script_hash(&request.account_script_hash)? {
             Some(id) => id,
             None => context.create_account(request.account_script_hash)?,
         };
         // mint CKB
         context.mint_sudt(CKB_SUDT_ACCOUNT_ID, id, request.value.capacity.into())?;
-        if request.value.sudt_script_hash.as_slice() == &CKB_SUDT_SCRIPT_ARGS {
+        if request.value.sudt_script_hash.as_slice() == CKB_SUDT_SCRIPT_ARGS {
             if request.value.amount != 0 {
                 // SUDT amount must equals to zero if sudt script hash is equals to CKB_SUDT_SCRIPT_ARGS
                 return Err(Error::InvalidDepositCell);
@@ -336,7 +336,7 @@ fn load_l2block_context(
     if !block_merkle_proof
         .verify::<Blake2bHasher>(
             &post_block_root.into(),
-            vec![(block_smt_key.into(), block_hash.clone())],
+            vec![(block_smt_key.into(), block_hash)],
         )
         .map_err(|_| Error::MerkleProof)?
     {
@@ -356,7 +356,7 @@ fn load_l2block_context(
         })
         .collect();
     let prev_account_root: [u8; 32] = prev_global_state.account().merkle_root().unpack();
-    let is_blank_kv = kv_merkle_proof.0.len() == 0 && kv_pairs.is_empty();
+    let is_blank_kv = kv_merkle_proof.0.is_empty() && kv_pairs.is_empty();
     if !is_blank_kv
         && !kv_merkle_proof
             .verify::<Blake2bHasher>(
@@ -472,7 +472,7 @@ fn check_block_transactions(context: &BlockContext, block: &L2Block) -> Result<(
         .compacted_post_root_list()
         .into_iter()
         .last()
-        .unwrap_or(submit_transactions.compacted_prev_root_hash());
+        .unwrap_or_else(|| submit_transactions.compacted_prev_root_hash());
     let block_post_compacted_account_root: Byte32 = {
         let account = raw_block.post_account();
         calculate_compacted_account_root(&account.merkle_root().unpack(), account.count().unpack())
