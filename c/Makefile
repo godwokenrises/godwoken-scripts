@@ -16,7 +16,7 @@ BUILDER_DOCKER := nervos/ckb-riscv-gnu-toolchain@sha256:aae8a3f79705f67d505d1f1d
 
 GENERATORS := build/meta-contract-generator build/sudt-generator build/examples/sum-generator build/examples/account-operation-generator
 VALIDATORS := build/meta-contract-validator build/sudt-validator build/examples/sum-validator build/examples/account-operation-validator
-ACCOUNT_LOCKS := build/account_locks/eth-account-lock
+ACCOUNT_LOCKS := build/account_locks/eth-account-lock build/account_locks/tron-account-lock
 SECP256K1_HELPER := deps/ckb-miscellaneous-scripts/build/secp256k1_data_info.h
 
 BINS := $(GENERATORS) $(VALIDATORS) $(ACCOUNT_LOCKS)
@@ -63,6 +63,11 @@ build/sudt-validator: contracts/sudt.c sudt_utils.h gw_def.h validator_utils.h
 	$(OBJCOPY) --strip-debug --strip-all $@
 
 build/account_locks/eth-account-lock: account_locks/eth_account_lock.c
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+	$(OBJCOPY) --only-keep-debug $@ $@.debug
+	$(OBJCOPY) --strip-debug --strip-all $@
+
+build/account_locks/tron-account-lock: account_locks/tron_account_lock.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
