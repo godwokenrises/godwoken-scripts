@@ -7,16 +7,16 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-gw-types = { git = "https://github.com/zeroqn/godwoken.git", branch = "test-script-runnable" }
-gw-common = { git = "https://github.com/zeroqn/godwoken.git", branch = "test-script-runnable" }
-gw-config = { git = "https://github.com/zeroqn/godwoken.git", branch = "test-script-runnable" }
-gw-db = { git = "https://github.com/zeroqn/godwoken.git", branch = "test-script-runnable" }
-gw-store = { git = "https://github.com/zeroqn/godwoken.git", branch = "test-script-runnable" }
-gw-traits = { git = "https://github.com/zeroqn/godwoken.git", branch = "test-script-runnable" }
-gw-generator = { git = "https://github.com/zeroqn/godwoken.git", branch = "test-script-runnable" }
-gw-chain = { git = "https://github.com/zeroqn/godwoken.git", branch = "test-script-runnable" }
-gw-mem-pool = { git = "https://github.com/zeroqn/godwoken.git", branch = "test-script-runnable" }
-gw-block-producer = { git = "https://github.com/zeroqn/godwoken.git", branch = "test-script-runnable" }
+gw-types = { git = "https://github.com/nervosnetwork/godwoken.git", branch = "master" }
+gw-common = { git = "https://github.com/nervosnetwork/godwoken.git", branch = "master" }
+gw-config = { git = "https://github.com/nervosnetwork/godwoken.git", branch = "master" }
+gw-db = { git = "https://github.com/nervosnetwork/godwoken.git", branch = "master" }
+gw-store = { git = "https://github.com/nervosnetwork/godwoken.git", branch = "master" }
+gw-traits = { git = "https://github.com/nervosnetwork/godwoken.git", branch = "master" }
+gw-generator = { git = "https://github.com/nervosnetwork/godwoken.git", branch = "master" }
+gw-chain = { git = "https://github.com/nervosnetwork/godwoken.git", branch = "master" }
+gw-mem-pool = { git = "https://github.com/nervosnetwork/godwoken.git", branch = "master" }
+gw-block-producer = { git = "https://github.com/nervosnetwork/godwoken.git", branch = "master" }
 parking_lot = "0.11"
 anyhow = "1.0"
 blake2b-rs = "0.2"
