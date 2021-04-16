@@ -141,9 +141,10 @@ int recover_pubkey(unsigned char recovered_pubkey[PUBKEY_SIZE],
     return ret;
   }
 
+  unsigned char recover_param = sig[RECID_INDEX] == 28 ? 1 : 0;
   secp256k1_ecdsa_recoverable_signature signature;
   if (secp256k1_ecdsa_recoverable_signature_parse_compact(
-          &context, &signature, sig, sig[RECID_INDEX]) == 0) {
+          &context, &signature, sig, recover_param) == 0) {
     return ERROR_SECP_PARSE_SIGNATURE;
   }
 
