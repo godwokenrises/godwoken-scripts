@@ -17,7 +17,8 @@ const ERROR_PUBKEY_BLAKE160_HASH: i8 = -31;
 
 lazy_static! {
     pub static ref TRON_ACCOUNT_LOCK: Bytes = Bytes::from(
-        &include_bytes!("../../../../../godwoken-scripts/c/build/account_locks/tron-account-lock")[..]
+        &include_bytes!("../../../../../godwoken-scripts/c/build/account_locks/tron-account-lock")
+            [..]
     );
 }
 
