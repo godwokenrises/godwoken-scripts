@@ -128,6 +128,7 @@ fn sign_message(key: &Privkey, message: [u8; 32]) -> gw_types::packed::Signature
     let sig = key.sign_recoverable(&message).expect("sign");
     let mut signature = [0u8; 65];
     signature.copy_from_slice(&sig.serialize());
+    signature[64] = sig.v() + 27;
     signature.pack()
 }
 
