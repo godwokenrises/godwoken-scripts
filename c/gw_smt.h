@@ -6,7 +6,7 @@
 typedef struct {
   uint8_t key[GW_KEY_BYTES];
   uint8_t value[GW_VALUE_BYTES];
-  uint8_t order;
+  uint32_t order;
 } gw_pair_t;
 
 typedef struct {
@@ -69,7 +69,7 @@ int _gw_pair_cmp(const void *a, const void *b) {
       return cmp_result;
     }
   }
-  return pa->order - pb->order;
+  return pb->order - pa->order;
 }
 
 void gw_state_normalize(gw_state_t *state) {
