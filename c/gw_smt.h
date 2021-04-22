@@ -69,12 +69,12 @@ int _gw_pair_cmp(const void *a, const void *b) {
       return cmp_result;
     }
   }
-  return pb->order - pa->order;
+  return pa->order - pb->order;
 }
 
 void gw_state_normalize(gw_state_t *state) {
   for (uint32_t i = 0; i < state->len; i++) {
-    state->pairs[i].order = i;
+    state->pairs[i].order = state->len - i;
   }
   qsort(state->pairs, state->len, sizeof(gw_pair_t), _gw_pair_cmp);
   /* Remove duplicate ones */
