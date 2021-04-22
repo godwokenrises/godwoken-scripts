@@ -6,7 +6,7 @@
 typedef struct {
   uint8_t key[GW_KEY_BYTES];
   uint8_t value[GW_VALUE_BYTES];
-  uint8_t order;
+  uint32_t order;
 } gw_pair_t;
 
 typedef struct {
@@ -74,7 +74,7 @@ int _gw_pair_cmp(const void *a, const void *b) {
 
 void gw_state_normalize(gw_state_t *state) {
   for (uint32_t i = 0; i < state->len; i++) {
-    state->pairs[i].order = i;
+    state->pairs[i].order = state->len - i;
   }
   qsort(state->pairs, state->len, sizeof(gw_pair_t), _gw_pair_cmp);
   /* Remove duplicate ones */
