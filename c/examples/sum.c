@@ -1,11 +1,6 @@
 /*
- * The Sum is a layer2 contract example.
- *
- * The Godwoken layer2 contract must be implemented as a shared library.
- * We expose two interfaces as the requirement asked:
- * - `gw_construct`: contract constructor, be invoked when the contract created
- * - `gw_handle_message`: call handler, invoked when a transaction/message send
- * to this contract
+ * The Sum is a layer2 contract example demostrate how to read & write to the
+ * account state.
  */
 
 #include "ckb_syscalls.h"
