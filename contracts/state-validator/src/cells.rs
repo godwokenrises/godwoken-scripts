@@ -16,10 +16,8 @@ use gw_types::{
     bytes::Bytes,
     core::ScriptHashType,
     packed::{
-        Byte32, ChallengeLockArgs, ChallengeLockArgsReader, CustodianLockArgs,
-        CustodianLockArgsReader, DepositionLockArgs, DepositionLockArgsReader, GlobalState,
-        GlobalStateReader, RollupConfig, Script, StakeLockArgs, StakeLockArgsReader,
-        WithdrawalLockArgs, WithdrawalLockArgsReader,
+        Byte32, DepositionLockArgs, GlobalState, GlobalStateReader, RollupConfig, Script,
+        StakeLockArgs, WithdrawalLockArgs, WithdrawalLockArgsReader,
     },
     prelude::*,
 };
@@ -52,6 +50,28 @@ fn fetch_sudt_script_hash(
         }
         None => Ok(None),
     }
+}
+
+/// used in filter_map
+fn extract_args_from_lock<ArgsType: Entity>(
+    lock: &crate::ckb_std::ckb_types::packed::Script,
+    rollup_type_hash: &H256,
+    lock_script_type_hash: &Byte32,
+) -> Option<Result<ArgsType, Error>> {
+    let lock_args: Bytes = lock.args().unpack();
+    let is_lock = lock_args.len() > 32
+        && &lock_args[..32] == rollup_type_hash.as_slice()
+        && lock.code_hash().as_slice() == lock_script_type_hash.as_slice()
+        && lock.hash_type() == ScriptHashType::Type.into();
+
+    // return none to skip this cell
+    if !is_lock {
+        return None;
+    }
+
+    // parse the remaining lock_args
+    let raw_args = lock_args[32..].to_vec();
+    Some(ArgsType::from_slice(&raw_args).map_err(|_err| Error::Encoding))
 }
 
 /// fetch capacity and SUDT value of a cell
@@ -97,21 +117,15 @@ pub fn collect_stake_cells(
 ) -> Result<Vec<StakeCell>, Error> {
     let iter = QueryIter::new(load_cell_lock, source)
         .enumerate()
-        .filter_map(|(index, lock)| {
-            let lock_args: Bytes = lock.args().unpack();
-            let is_lock = lock_args.len() >= 32
-                && &lock_args[..32] == rollup_type_hash.as_slice()
-                && lock.code_hash().as_slice() == config.stake_script_type_hash().as_slice()
-                && lock.hash_type() == ScriptHashType::Type.into();
-            if !is_lock {
-                return None;
-            }
-            let raw_args = lock_args[32..].to_vec();
-            let args = match StakeLockArgsReader::verify(&raw_args, false) {
-                Ok(_) => StakeLockArgs::new_unchecked(raw_args.into()),
-                Err(_) => {
-                    return Some(Err(Error::Encoding));
-                }
+        .filter_map(|(index, lock)| -> Option<Result<StakeCell, _>> {
+            let args = match extract_args_from_lock::<StakeLockArgs>(
+                &lock,
+                rollup_type_hash,
+                &config.stake_script_type_hash(),
+            ) {
+                Some(Ok(args)) => args,
+                Some(Err(err)) => return Some(Err(err)),
+                None => return None,
             };
             let value = match fetch_capacity_and_sudt_value(config, index, source) {
                 Ok(value) => value,
@@ -164,20 +178,14 @@ pub fn find_challenge_cell(
     let iter = QueryIter::new(load_cell_lock, source)
         .enumerate()
         .filter_map(|(index, lock)| {
-            let lock_args: Bytes = lock.args().unpack();
-            let is_lock = lock_args.len() >= 32
-                && &lock_args[..32] == rollup_type_hash.as_slice()
-                && lock.code_hash().as_slice() == config.challenge_script_type_hash().as_slice()
-                && lock.hash_type() == ScriptHashType::Type.into();
-            if !is_lock {
-                return None;
-            }
-            let raw_args = lock_args[32..].to_vec();
-            let args = match ChallengeLockArgsReader::verify(&raw_args, false) {
-                Ok(_) => ChallengeLockArgs::new_unchecked(raw_args.into()),
-                Err(_) => {
-                    return Some(Err(Error::Encoding));
-                }
+            let args = match extract_args_from_lock(
+                &lock,
+                rollup_type_hash,
+                &config.challenge_script_type_hash(),
+            ) {
+                Some(Ok(args)) => args,
+                Some(Err(err)) => return Some(Err(err)),
+                None => return None,
             };
             let value = match fetch_capacity_and_sudt_value(config, index, source) {
                 Ok(value) => value,
@@ -186,6 +194,7 @@ pub fn find_challenge_cell(
                 }
             };
             if value.sudt_script_hash != CKB_SUDT_SCRIPT_ARGS.into() || value.amount != 0 {
+                debug!("found a challenge cell with simple UDT");
                 return None;
             }
             let cell = ChallengeCell { index, args, value };
@@ -258,20 +267,14 @@ pub fn collect_custodian_locks(
     QueryIter::new(load_cell_lock, source)
         .enumerate()
         .filter_map(|(index, lock)| {
-            let lock_args: Bytes = lock.args().unpack();
-            let is_lock = lock_args.len() > 32
-                && &lock_args[..32] == rollup_type_hash.as_slice()
-                && lock.code_hash().as_slice() == config.custodian_script_type_hash().as_slice()
-                && lock.hash_type() == ScriptHashType::Type.into();
-            if !is_lock {
-                return None;
-            }
-            let raw_args = lock_args[32..].to_vec();
-            let args = match CustodianLockArgsReader::verify(&raw_args, false) {
-                Ok(_) => CustodianLockArgs::new_unchecked(raw_args.into()),
-                Err(_) => {
-                    return Some(Err(Error::Encoding));
-                }
+            let args = match extract_args_from_lock(
+                &lock,
+                rollup_type_hash,
+                &config.custodian_script_type_hash(),
+            ) {
+                Some(Ok(args)) => args,
+                Some(Err(err)) => return Some(Err(err)),
+                None => return None,
             };
             let value = match fetch_capacity_and_sudt_value(config, index, source) {
                 Ok(value) => value,
@@ -291,20 +294,14 @@ pub fn collect_deposition_locks(
     QueryIter::new(load_cell_lock, source)
         .enumerate()
         .filter_map(|(index, lock)| {
-            let lock_args: Bytes = lock.args().unpack();
-            let is_lock = lock_args.len() > 32
-                && &lock_args[..32] == rollup_type_hash.as_slice()
-                && lock.code_hash().as_slice() == config.deposition_script_type_hash().as_slice()
-                && lock.hash_type() == ScriptHashType::Type.into();
-            if !is_lock {
-                return None;
-            }
-            let raw_args = lock_args[32..].to_vec();
-            let args = match DepositionLockArgsReader::verify(&raw_args, false) {
-                Ok(_) => DepositionLockArgs::new_unchecked(raw_args.into()),
-                Err(_) => {
-                    return Some(Err(Error::Encoding));
-                }
+            let args: DepositionLockArgs = match extract_args_from_lock(
+                &lock,
+                rollup_type_hash,
+                &config.deposition_script_type_hash(),
+            ) {
+                Some(Ok(args)) => args,
+                Some(Err(err)) => return Some(Err(err)),
+                None => return None,
             };
             let value = match fetch_capacity_and_sudt_value(config, index, source) {
                 Ok(value) => value,
