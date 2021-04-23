@@ -319,7 +319,7 @@ int sys_create(gw_context_t *ctx, uint8_t *script, uint32_t script_len,
   }
 
   /* return failure if scripts slots is full */
-  if (ctx->script_entries_size == GW_MAX_SCRIPT_ENTRIES_SIZE) {
+  if (ctx->script_entries_size >= GW_MAX_SCRIPT_ENTRIES_SIZE) {
     ckb_debug("script slots is full");
     return GW_ERROR_INSUFFICIENT_CAPACITY;
   }
