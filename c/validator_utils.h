@@ -760,10 +760,13 @@ int _load_verify_transaction_witness(
   block_info->timestamp = *((uint64_t *)timestamp_seg.ptr);
   block_info->block_producer_id = *((uint32_t *)block_producer_id_seg.ptr);
 
+  /* Load VerifyTransactionContext */
+  mol_seg_t verify_tx_ctx_seg =
+      MolReader_VerifyTransactionWitness_get_context(&verify_tx_witness_seg);
+
   /* load block hashes */
   mol_seg_t block_hashes_seg =
-      MolReader_VerifyTransactionWitness_get_block_hashes(
-          &verify_tx_witness_seg);
+      MolReader_VerifyTransactionContext_get_block_hashes(&verify_tx_ctx_seg);
   uint32_t block_hashes_size =
       MolReader_BlockHashEntryVec_length(&block_hashes_seg);
   gw_state_init(block_hashes_state, block_hashes_pairs,
@@ -817,7 +820,7 @@ int _load_verify_transaction_witness(
 
   /* load kv state */
   mol_seg_t kv_state_seg =
-      MolReader_VerifyTransactionWitness_get_kv_state(&verify_tx_witness_seg);
+      MolReader_VerifyTransactionContext_get_kv_state(&verify_tx_ctx_seg);
   uint32_t kv_pairs_len = MolReader_KVPairVec_length(&kv_state_seg);
   if (kv_pairs_len > GW_MAX_KV_PAIRS) {
     ckb_debug("too many key/value pair");
@@ -874,7 +877,7 @@ int _load_verify_transaction_witness(
 
   /* load scripts */
   mol_seg_t scripts_seg =
-      MolReader_VerifyTransactionWitness_get_scripts(&verify_tx_witness_seg);
+      MolReader_VerifyTransactionContext_get_scripts(&verify_tx_ctx_seg);
   uint32_t entries_size = MolReader_ScriptVec_length(&scripts_seg);
   if (entries_size > GW_MAX_SCRIPT_ENTRIES_SIZE) {
     ckb_debug("script size is exceeded maximum");
@@ -910,7 +913,7 @@ int _load_verify_transaction_witness(
 
   /* load return data hash */
   mol_seg_t return_data_hash_seg =
-      MolReader_VerifyTransactionWitness_get_return_data_hash(
+      MolReader_VerifyTransactionContext_get_return_data_hash(
           &verify_tx_witness_seg);
   memcpy(return_data_hash, return_data_hash_seg.ptr, 32);
 

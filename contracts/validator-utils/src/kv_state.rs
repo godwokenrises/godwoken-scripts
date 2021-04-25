@@ -14,7 +14,7 @@ impl KVState {
             kv: kv_pairs
                 .into_iter()
                 .map(|kv_pair| {
-                    let (k, v): ([u8; 32], [u8; 32]) = kv_pair.unpack();
+                    let (k, v): (H256, H256) = kv_pair.unpack();
                     (k.into(), v.into())
                 })
                 .collect(),

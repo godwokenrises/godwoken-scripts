@@ -96,6 +96,7 @@ pub fn setup_chain_with_account_lock_manage(
         meta_contract_validator_type_hash: Default::default(),
         rollup_type_hash: rollup_script_hash.clone().0.into(),
         rollup_config: rollup_config.clone().into(),
+        secp_data_dep: Default::default(),
     };
     let rollup_context = RollupContext {
         rollup_script_hash: rollup_script_hash.0.into(),
@@ -106,7 +107,13 @@ pub fn setup_chain_with_account_lock_manage(
         account_lock_manage,
         rollup_context,
     ));
-    init_genesis(&store, &genesis_config, genesis_l2block_committed_info).unwrap();
+    init_genesis(
+        &store,
+        &genesis_config,
+        genesis_l2block_committed_info,
+        Default::default(),
+    )
+    .unwrap();
     let mem_pool = MemPool::create(store.clone(), Arc::clone(&generator)).unwrap();
     Chain::create(
         &rollup_config,
@@ -174,6 +181,7 @@ pub fn construct_block(
 ) -> anyhow::Result<ProduceBlockResult> {
     let block_producer_id = 0u32;
     let timestamp = 0;
+    let stake_cell_owner_lock_hash = gw_common::H256::zero();
     let max_withdrawal_capacity = std::u128::MAX;
     let db = chain.store().begin_transaction();
     let generator = chain.generator();
@@ -194,6 +202,7 @@ pub fn construct_block(
         db,
         generator,
         block_producer_id,
+        stake_cell_owner_lock_hash,
         timestamp,
         txs,
         deposition_requests,

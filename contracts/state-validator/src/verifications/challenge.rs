@@ -55,7 +55,7 @@ pub fn verify_enter_challenge(
         .map_err(|_| Error::InvalidChallengeTarget)?;
     let target_index: u32 = challenge_target.target_index().unpack();
     match target_type {
-        ChallengeTargetType::Transaction => {
+        ChallengeTargetType::TxExecution | ChallengeTargetType::TxSignature => {
             let tx_count: u32 = challenged_block.submit_transactions().tx_count().unpack();
             if target_index >= tx_count {
                 return Err(Error::InvalidChallengeTarget);

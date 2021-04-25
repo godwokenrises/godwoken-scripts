@@ -26,7 +26,7 @@ use gw_common::{
     builtins::CKB_SUDT_ACCOUNT_ID,
     error::Error as StateError,
     h256_ext::H256Ext,
-    merkle_utils::{calculate_compacted_account_root, calculate_merkle_root},
+    merkle_utils::{calculate_merkle_root, calculate_state_checkpoint},
     smt::{Blake2bHasher, CompiledMerkleProof},
     state::State,
     CKB_SUDT_SCRIPT_ARGS, H256,
@@ -440,85 +440,130 @@ fn verify_block_producer(
     Ok(())
 }
 
-fn check_block_transactions(context: &BlockContext, block: &L2Block) -> Result<(), Error> {
-    // check tx_witness_root
+fn check_state_checkpoints(block: &L2Block) -> Result<(), Error> {
     let raw_block = block.raw();
-    let submit_transactions = raw_block.submit_transactions();
-    let tx_witness_root: [u8; 32] = submit_transactions.tx_witness_root().unpack();
-    let tx_count: u32 = submit_transactions.tx_count().unpack();
-    let compacted_post_root_list = submit_transactions.compacted_post_root_list();
+    let checkpoint_list = raw_block.state_checkpoint_list();
 
-    if tx_count != compacted_post_root_list.item_count() as u32
-        || tx_count != block.transactions().len() as u32
-    {
+    let transactions = block.transactions();
+    let withdrawals = block.withdrawals();
+
+    if checkpoint_list.len() != withdrawals.len() + transactions.len() {
         debug!(
-            "Invalid txs count, tx_count: {}, checkpoint list: {}, block txs: {}",
-            tx_count,
-            compacted_post_root_list.item_count(),
-            block.transactions().len()
+            "Wrong checkpoint length, checkpoints_list: {}, withdrawals: {} transactions: {}",
+            checkpoint_list.len(),
+            withdrawals.len(),
+            transactions.len()
         );
-        return Err(Error::InvalidTxsState);
+        return Err(Error::InvalidStateCheckpoint);
     }
 
-    let leaves = block
-        .transactions()
-        .into_iter()
-        .map(|tx| tx.witness_hash())
-        .collect();
-    let merkle_root: [u8; 32] = calculate_merkle_root(leaves)?;
-    if tx_witness_root != merkle_root {
-        return Err(Error::MerkleProof);
-    }
-
-    // check current account tree state
-    let compacted_prev_root_hash: H256 = submit_transactions.compacted_prev_root_hash().unpack();
-    if context.calculate_compacted_account_root()? != compacted_prev_root_hash {
-        debug!(
-            "Invalid prev state, calculated root: {:?}, prev root: {:?}",
-            context.calculate_compacted_account_root()?,
-            compacted_prev_root_hash
-        );
-        return Err(Error::InvalidTxsState);
-    }
-
-    // check post account tree state
-    let post_compacted_account_root = submit_transactions
-        .compacted_post_root_list()
-        .into_iter()
-        .last()
-        .unwrap_or_else(|| submit_transactions.compacted_prev_root_hash());
-    let block_post_compacted_account_root: Byte32 = {
-        let account = raw_block.post_account();
-        calculate_compacted_account_root(&account.merkle_root().unpack(), account.count().unpack())
-            .pack()
+    // check post state
+    let last_state_checkpoint = if transactions.is_empty() {
+        raw_block.submit_transactions().prev_state_checkpoint()
+    } else {
+        // return last transaction state checkpoint
+        checkpoint_list
+            .into_iter()
+            .last()
+            .ok_or(Error::InvalidStateCheckpoint)?
     };
-    if post_compacted_account_root != block_post_compacted_account_root {
+    let block_state_checkpoint: Byte32 = {
+        let post_account_state = raw_block.post_account();
+        calculate_state_checkpoint(
+            &post_account_state.merkle_root().unpack(),
+            post_account_state.count().unpack(),
+        )
+        .pack()
+    };
+    if last_state_checkpoint != block_state_checkpoint {
         debug!(
-            "Invalid post state, calculated root: {:?}, post root: {:?}",
-            block_post_compacted_account_root, post_compacted_account_root
+            "Mismatch last_state_checkpoint: {:?}, block_state_checkpoint: {:?}",
+            last_state_checkpoint, block_state_checkpoint
         );
-        return Err(Error::InvalidTxsState);
+        return Err(Error::InvalidStateCheckpoint);
     }
 
     Ok(())
 }
 
-fn check_block_withdrawals_root(block: &L2Block) -> Result<(), Error> {
+fn check_block_transactions(context: &BlockContext, block: &L2Block) -> Result<(), Error> {
+    // check tx_witness_root
+    let raw_block = block.raw();
+
+    let submit_transactions = raw_block.submit_transactions();
+    let tx_witness_root: H256 = submit_transactions.tx_witness_root().unpack();
+    let tx_count: u32 = submit_transactions.tx_count().unpack();
+
+    if tx_count != block.transactions().len() as u32 {
+        debug!(
+            "Mismatch tx_count, tx_count: {} block.transactions.len: {}",
+            tx_count,
+            block.transactions().len()
+        );
+        return Err(Error::InvalidBlock);
+    }
+
+    let leaves = block
+        .transactions()
+        .into_iter()
+        .map(|tx| tx.witness_hash().into())
+        .collect();
+    let merkle_root = calculate_merkle_root(leaves)?;
+    if tx_witness_root != merkle_root {
+        return Err(Error::MerkleProof);
+    }
+
+    // check current account tree state
+    let prev_state_checkpoint: H256 = submit_transactions.prev_state_checkpoint().unpack();
+    if context.calculate_state_checkpoint()? != prev_state_checkpoint {
+        debug!("submit_transactions.prev_state_checkpoint isn't equals to the state checkpoint calculated from context");
+        return Err(Error::InvalidStateCheckpoint);
+    }
+
+    // check post account tree state
+    let last_checkpoint_root = raw_block
+        .state_checkpoint_list()
+        .into_iter()
+        .last()
+        .map(|checkpoint| checkpoint.unpack())
+        .unwrap_or_else(|| prev_state_checkpoint);
+    let block_post_state_root = {
+        let account = raw_block.post_account();
+        calculate_state_checkpoint(&account.merkle_root().unpack(), account.count().unpack())
+    };
+    if last_checkpoint_root != block_post_state_root {
+        debug!(
+            "Invalid post state, last_checkpoint_root: {:?}, block_post_state_root: {:?}",
+            last_checkpoint_root, block_post_state_root
+        );
+        return Err(Error::InvalidStateCheckpoint);
+    }
+
+    Ok(())
+}
+
+fn check_block_withdrawals(block: &L2Block) -> Result<(), Error> {
     // check withdrawal_witness_root
     let submit_withdrawals = block.raw().submit_withdrawals();
-    let withdrawal_witness_root: [u8; 32] = submit_withdrawals.withdrawal_witness_root().unpack();
+
+    let withdrawal_witness_root: H256 = submit_withdrawals.withdrawal_witness_root().unpack();
     let withdrawal_count: u32 = submit_withdrawals.withdrawal_count().unpack();
 
     if withdrawal_count != block.withdrawals().len() as u32 {
+        debug!(
+            "Mismatch withdrawal_count, withdrawal_count: {} block.withdrawals.len: {}",
+            withdrawal_count,
+            block.withdrawals().len()
+        );
         return Err(Error::InvalidBlock);
     }
 
     let leaves = block
         .withdrawals()
         .into_iter()
-        .map(|withdrawal| withdrawal.witness_hash())
+        .map(|withdrawal| withdrawal.witness_hash().into())
         .collect();
-    let merkle_root: [u8; 32] = calculate_merkle_root(leaves)?;
+    let merkle_root = calculate_merkle_root(leaves)?;
     if withdrawal_witness_root != merkle_root {
         return Err(Error::MerkleProof);
     }
@@ -535,8 +580,13 @@ pub fn verify(
     post_global_state: &GlobalState,
 ) -> Result<(), Error> {
     check_status(&prev_global_state, Status::Running)?;
+
+    // check checkpoints
+    check_state_checkpoints(block)?;
+
     // Check withdrawals root
-    check_block_withdrawals_root(block)?;
+    check_block_withdrawals(block)?;
+
     let mut context = load_l2block_context(
         rollup_type_hash,
         config,
