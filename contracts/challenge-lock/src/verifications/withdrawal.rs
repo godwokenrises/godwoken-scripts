@@ -70,7 +70,7 @@ fn verify_withdrawal_proof(
     let sender_nonce = kv_state.get_nonce(sender_id)?;
     if nonce != sender_nonce {
         debug!(
-            "invalid nonce, tx.nonce {} sender.nonce {}",
+            "invalid nonce, withdrawal.nonce {} sender.nonce {}",
             nonce, sender_nonce
         );
         return Err(Error::UnexpectedTxNonce);
@@ -124,7 +124,10 @@ fn verify_withdrawal_proof(
                 withdrawal_witness_hash.into(),
             )],
         )
-        .map_err(|_| Error::MerkleProof)?;
+        .map_err(|_err| {
+            debug!("withdrawal_witness_root merkle proof error: {:?}", _err);
+            Error::MerkleProof
+        })?;
     if !valid {
         debug!("Wrong withdrawal merkle proof");
         return Err(Error::MerkleProof);
@@ -147,7 +150,13 @@ fn verify_withdrawal_proof(
         }
     };
 
-    let state_root = kv_state.calculate_root().map_err(|_| Error::MerkleProof)?;
+    let state_root = kv_state.calculate_root().map_err(|_err| {
+        debug!(
+            "verify_withdrawal kv_state calculate_root error: {:?}",
+            _err
+        );
+        Error::MerkleProof
+    })?;
     let account_count = kv_state.get_account_count()?;
     let calculated_prev_state_checkpoint: H256 =
         calculate_state_checkpoint(&state_root.into(), account_count).into();

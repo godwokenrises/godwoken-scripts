@@ -13,10 +13,7 @@ impl KVState {
         KVState {
             kv: kv_pairs
                 .into_iter()
-                .map(|kv_pair| {
-                    let (k, v): (H256, H256) = kv_pair.unpack();
-                    (k.into(), v.into())
-                })
+                .map(|kv_pair| kv_pair.unpack())
                 .collect(),
             proof,
             account_count,

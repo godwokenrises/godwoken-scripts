@@ -6,6 +6,7 @@ use validator_utils::{
     ckb_std::{
         ckb_constants::Source,
         ckb_types::{bytes::Bytes, prelude::Unpack as CKBUnpack},
+        debug,
         high_level::load_script,
     },
     error::Error,
@@ -63,6 +64,7 @@ pub fn main() -> Result<(), Error> {
         }
         RollupActionUnion::RollupCancelChallenge(_) => {}
         _ => {
+            debug!("unsupport action {:?}", action.to_enum());
             return Err(Error::InvalidArgs);
         }
     }

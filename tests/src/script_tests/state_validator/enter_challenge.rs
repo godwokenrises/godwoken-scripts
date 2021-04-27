@@ -133,7 +133,7 @@ fn test_enter_challenge() {
             .target(
                 ChallengeTarget::new_builder()
                     .target_index(Pack::pack(&0u32))
-                    .target_type(ChallengeTargetType::Transaction.into())
+                    .target_type(ChallengeTargetType::TxExecution.into())
                     .block_hash(Pack::pack(&challenged_block.hash()))
                     .build(),
             )

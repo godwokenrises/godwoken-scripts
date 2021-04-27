@@ -508,7 +508,7 @@ fn check_block_transactions(context: &BlockContext, block: &L2Block) -> Result<(
         .into_iter()
         .map(|tx| tx.witness_hash().into())
         .collect();
-    let merkle_root = calculate_merkle_root(leaves)?;
+    let merkle_root: H256 = calculate_merkle_root(leaves)?;
     if tx_witness_root != merkle_root {
         return Err(Error::MerkleProof);
     }
