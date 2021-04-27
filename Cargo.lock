@@ -1792,6 +1792,7 @@ dependencies = [
  "ckb-traits",
  "ckb-types",
  "ckb-vm 0.19.1",
+ "env_logger",
  "gw-block-producer",
  "gw-chain",
  "gw-common",

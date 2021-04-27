@@ -85,10 +85,7 @@ pub fn main() -> Result<(), Error> {
 
     match target_type {
         ChallengeTargetType::TxExecution => {
-            crate::verifications::tx_state_transaction::verify_tx_state_transition(
-                &rollup_config,
-                &lock_args,
-            )?;
+            crate::verifications::tx_execution::verify_tx_execution(&rollup_config, &lock_args)?;
         }
         ChallengeTargetType::TxSignature => {
             crate::verifications::tx_signature::verify_tx_signature(&rollup_config, &lock_args)?;

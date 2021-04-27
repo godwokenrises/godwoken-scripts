@@ -53,6 +53,7 @@ pub struct CellContextParam {
     custodian_lock_type: ckb_types::packed::Script,
     withdrawal_lock_type: ckb_types::packed::Script,
     eoa_lock_type: ckb_types::packed::Script,
+    l2_sudt_type: ckb_types::packed::Script,
 }
 
 pub struct CellContext {
@@ -66,6 +67,7 @@ pub struct CellContext {
     withdrawal_lock_dep: CellDep,
     always_success_dep: CellDep,
     eoa_lock_dep: CellDep,
+    l2_sudt_dep: CellDep,
 }
 
 impl CellContext {
@@ -129,6 +131,20 @@ impl CellContext {
                 ),
             );
             CellDep::new_builder().out_point(eoa_lock_out_point).build()
+        };
+        let l2_sudt_dep = {
+            let l2_sudt_out_point = random_out_point();
+            data_loader.cells.insert(
+                l2_sudt_out_point.clone(),
+                (
+                    CellOutput::new_builder()
+                        .capacity(CKBPack::pack(&(ALWAYS_SUCCESS_PROGRAM.len() as u64)))
+                        .type_(CKBPack::pack(&Some(param.l2_sudt_type.clone())))
+                        .build(),
+                    ALWAYS_SUCCESS_PROGRAM.clone(),
+                ),
+            );
+            CellDep::new_builder().out_point(l2_sudt_out_point).build()
         };
         let stake_lock_dep = {
             let stake_out_point = random_out_point();
@@ -211,6 +227,7 @@ impl CellContext {
             custodian_lock_dep,
             withdrawal_lock_dep,
             eoa_lock_dep,
+            l2_sudt_dep,
         }
     }
 

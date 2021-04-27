@@ -47,12 +47,14 @@ pub fn verify_tx_context(input: TxContextInput) -> Result<TxContext, Error> {
     // verify tx account's script
     let sender_id: u32 = raw_tx.from_id().unpack();
     let receiver_id: u32 = raw_tx.to_id().unpack();
-    let sender_script_hash = kv_state
-        .get_script_hash(sender_id)
-        .map_err(|_| Error::SMTKeyMissing)?;
-    let receiver_script_hash = kv_state
-        .get_script_hash(receiver_id)
-        .map_err(|_| Error::SMTKeyMissing)?;
+    let sender_script_hash = kv_state.get_script_hash(sender_id).map_err(|_| {
+        debug!("get sender script_hash");
+        Error::SMTKeyMissing
+    })?;
+    let receiver_script_hash = kv_state.get_script_hash(receiver_id).map_err(|_| {
+        debug!("get receiver script_hash");
+        Error::SMTKeyMissing
+    })?;
 
     // check tx.nonce
     let nonce: u32 = raw_tx.nonce().unpack();
@@ -131,7 +133,10 @@ pub fn verify_tx_context(input: TxContextInput) -> Result<TxContext, Error> {
             &tx_witness_root,
             vec![(H256::from_u32(tx_index), tx_witness_hash.into())],
         )
-        .map_err(|_| Error::MerkleProof)?;
+        .map_err(|_err| {
+            debug!("verify_tx_context, merkle proof error: {}", _err);
+            Error::MerkleProof
+        })?;
     if !valid {
         debug!("wrong tx merkle proof");
         return Err(Error::MerkleProof);
@@ -153,7 +158,10 @@ pub fn verify_tx_context(input: TxContextInput) -> Result<TxContext, Error> {
             .prev_state_checkpoint()
             .unpack(),
     };
-    let state_root = kv_state.calculate_root().map_err(|_| Error::MerkleProof)?;
+    let state_root = kv_state.calculate_root().map_err(|_err| {
+        debug!("verify_tx_context, calculate merkle root error: {:?}", _err);
+        Error::MerkleProof
+    })?;
     let account_count = kv_state.get_account_count()?;
     let calculated_state_checkpoint: H256 =
         calculate_state_checkpoint(&state_root.into(), account_count).into();

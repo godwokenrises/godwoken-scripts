@@ -11,6 +11,7 @@ use validator_utils::{
     ckb_std::{
         ckb_constants::Source,
         ckb_types::{bytes::Bytes, prelude::Unpack as CKBUnpack},
+        debug,
         high_level::load_witness_args,
     },
     error::Error,
@@ -18,8 +19,8 @@ use validator_utils::{
     search_cells::search_lock_hash,
 };
 
-/// Verify tx state transition
-pub fn verify_tx_state_transition(
+/// Verify tx execution
+pub fn verify_tx_execution(
     rollup_config: &RollupConfig,
     lock_args: &ChallengeLockArgs,
 ) -> Result<(), Error> {
@@ -62,6 +63,10 @@ pub fn verify_tx_state_transition(
     // verify backend script is in the input
     // the backend will do the post state verification
     if search_lock_hash(&receiver_script_hash.into(), Source::Input).is_none() {
+        debug!(
+            "verify tx execution, can't find receiver_script_hash from the input: {:?}",
+            &receiver_script_hash
+        );
         return Err(Error::InvalidOutput);
     }
 
