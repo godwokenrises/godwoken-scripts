@@ -18,8 +18,6 @@
 #define WITHDRAWAL_AMOUNT 2
 #define WITHDRAWAL_BLOCK_NUMBER 3
 
-#define SUDT_OPERATION_TRANSFER 0x0
-
 void _sudt_id_to_key(const uint32_t account_id, uint8_t key[32]) {
   memcpy(key, (uint8_t *)&account_id, 4);
 }
@@ -41,19 +39,20 @@ int _account_exists(gw_context_t *ctx, uint32_t account_id, bool *exists) {
   return 0;
 }
 
-int _emit_transfer_log(gw_context_t *ctx, uint32_t sudt_id,
-                       uint32_t from_id, uint32_t to_id, uint128_t amount) {
-  uint32_t data_size = 1 + 4 + 4 + 16;
-  uint8_t data[1 + 4 + 4 + 16] = {0};
-  data[0] = SUDT_OPERATION_TRANSFER;
-  uint8_t *ptr = data + 1;
-  memcpy(ptr, (uint8_t *)(&from_id), 4);
-  ptr += 4;
-  memcpy(ptr, (uint8_t *)(&to_id), 4);
-  ptr += 4;
-  memcpy(ptr, (uint8_t *)(&amount), 16);
-
-  return ctx->sys_log(ctx, sudt_id, GW_LOG_SUDT_OPERATION, data_size, data);
+int _sudt_emit_transfer_log(gw_context_t *ctx, uint32_t sudt_id,
+                            uint32_t from_id, uint32_t to_id,
+                            uint128_t amount) {
+#ifdef GW_VALIDATOR
+  uint32_t data_size = 0;
+  uint8_t *data = NULL;
+#else
+  static const uint32_t data_size = 4 + 4 + 16;
+  uint8_t data[4 + 4 + 16] = {0};
+  memcpy(data, (uint8_t *)(&from_id), 4);
+  memcpy(data + 4, (uint8_t *)(&to_id), 4);
+  memcpy(data + 4 + 4, (uint8_t *)(&amount), 16);
+#endif
+  return ctx->sys_log(ctx, sudt_id, GW_LOG_SUDT_TRANSFER, data_size, data);
 }
 
 int _sudt_get_balance(gw_context_t *ctx, uint32_t sudt_id,
@@ -140,5 +139,5 @@ int sudt_transfer(gw_context_t *ctx, uint32_t sudt_id, uint32_t from_id,
   if (ret != 0) {
     return ret;
   }
-  return _emit_transfer_log(ctx, sudt_id, from_id, to_id, amount);
+  return _sudt_emit_transfer_log(ctx, sudt_id, from_id, to_id, amount);
 }

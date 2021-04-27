@@ -241,4 +241,15 @@ int gw_finalize(gw_context_t *ctx) {
   /* do nothing */
   return 0;
 }
+
+int gw_emit_pay_fee_log(gw_context_t *ctx, uint32_t sudt_id,
+                        uint32_t from_id, uint32_t to_id,
+                        uint128_t amount) {
+  static const uint32_t data_size = 4 + 4 + 16;
+  uint8_t data[4 + 4 + 16] = {0};
+  memcpy(data, (uint8_t *)(&from_id), 4);
+  memcpy(data + 4, (uint8_t *)(&to_id), 4);
+  memcpy(data + 4 + 4, (uint8_t *)(&amount), 16);
+  return ctx->sys_log(ctx, sudt_id, GW_LOG_PAY_FEE, data_size, data);
+}
 #endif

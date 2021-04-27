@@ -84,6 +84,10 @@ int main() {
     if (ret != 0) {
       return ret;
     }
+    ret = gw_emit_pay_fee_log(&ctx, sudt_id, from_id, ctx.block_info.block_producer_id, fee);
+    if (ret != 0){
+      return ret;
+    }
     /* transfer */
     ret = sudt_transfer(&ctx, sudt_id, from_id, to_id, amount);
     if (ret != 0) {
