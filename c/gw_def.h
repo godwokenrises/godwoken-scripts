@@ -30,9 +30,9 @@
 #define GW_MAX_CODE_SIZE (64 * 1024)
 
 #define GW_LOG_SUDT_TRANSFER    0x0
-#define GW_LOG_POLYJUICE_SYSTEM 0x1
-#define GW_LOG_POLYJUICE_USER   0x2
-#define GW_LOG_PAY_FEE          0x3
+#define GW_LOG_SUDT_PAY_FEE     0x1
+#define GW_LOG_POLYJUICE_SYSTEM 0x2
+#define GW_LOG_POLYJUICE_USER   0x3
 
 /* Godwoken context */
 typedef struct {
@@ -49,7 +49,6 @@ typedef struct {
 } gw_block_info_t;
 
 struct gw_context_t;
-typedef unsigned __int128 uint128_t;
 
 /**
  * Initialize Godwoken context
@@ -60,15 +59,6 @@ int gw_context_init(struct gw_context_t *ctx);
  * Finalize Godwoken state
  */
 int gw_finalize(struct gw_context_t *ctx);
-
-/**
- * Emit pay fee log
- */
-int gw_emit_pay_fee_log(struct gw_context_t *ctx,
-                        uint32_t sudt_id,
-                        uint32_t from_id,
-                        uint32_t block_producer_id,
-                        uint128_t amount);
 
 
 /* layer2 syscalls */

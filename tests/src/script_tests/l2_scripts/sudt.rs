@@ -134,6 +134,7 @@ fn test_sudt() {
         )
         .expect("execute");
         assert!(run_result.return_data.is_empty());
+        assert_eq!(run_result.logs.len(), 2);
         check_transfer_logs(
             &run_result.logs,
             sudt_id,

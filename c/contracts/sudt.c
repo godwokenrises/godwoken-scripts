@@ -79,13 +79,8 @@ int main() {
     uint128_t amount = *(uint128_t *)amount_seg.ptr;
     uint128_t fee = *(uint128_t *)fee_seg.ptr;
     /* pay fee */
-    int ret = sudt_transfer(&ctx, sudt_id, from_id,
-                            ctx.block_info.block_producer_id, fee);
+    int ret = sudt_pay_fee(&ctx, sudt_id, from_id, fee);
     if (ret != 0) {
-      return ret;
-    }
-    ret = gw_emit_pay_fee_log(&ctx, sudt_id, from_id, ctx.block_info.block_producer_id, fee);
-    if (ret != 0){
       return ret;
     }
     /* transfer */

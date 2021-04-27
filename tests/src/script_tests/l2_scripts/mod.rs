@@ -78,11 +78,11 @@ impl ChainStore for DummyChainStore {
 }
 
 pub const GW_LOG_SUDT_TRANSFER: u8 = 0x0;
+pub const GW_LOG_SUDT_PAY_FEE: u8 = 0x1;
 #[allow(dead_code)]
-pub const GW_LOG_POLYJUICE_SYSTEM: u8 = 0x1;
+pub const GW_LOG_POLYJUICE_SYSTEM: u8 = 0x2;
 #[allow(dead_code)]
-pub const GW_LOG_POLYJUICE_USER: u8 = 0x2;
-pub const GW_LOG_PAY_FEE: u8 = 0x3;
+pub const GW_LOG_POLYJUICE_USER: u8 = 0x3;
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum SudtLogType {
@@ -94,7 +94,7 @@ impl SudtLogType {
     fn from_u8(service_flag: u8) -> Result<SudtLogType, String> {
         match service_flag {
             GW_LOG_SUDT_TRANSFER => Ok(Self::Transfer),
-            GW_LOG_PAY_FEE => Ok(Self::PayFee),
+            GW_LOG_SUDT_PAY_FEE => Ok(Self::PayFee),
             _ => Err(format!(
                 "Not a sudt transfer/payfee prefix: {}",
                 service_flag
@@ -151,27 +151,20 @@ pub fn check_transfer_logs(
     to_id: u32,
     amount: u128,
 ) {
-    // transfer to block producer
-    let sudt_transfer_log1 = SudtLog::from_log_item(&logs[0]).unwrap();
-    assert_eq!(sudt_transfer_log1.sudt_id, sudt_id);
-    assert_eq!(sudt_transfer_log1.from_id, from_id);
-    assert_eq!(sudt_transfer_log1.to_id, block_producer_id);
-    assert_eq!(sudt_transfer_log1.amount, fee);
-    assert_eq!(sudt_transfer_log1.log_type, SudtLogType::Transfer);
     // pay fee log
-    let sudt_fee_log = SudtLog::from_log_item(&logs[1]).unwrap();
+    let sudt_fee_log = SudtLog::from_log_item(&logs[0]).unwrap();
     assert_eq!(sudt_fee_log.sudt_id, sudt_id);
     assert_eq!(sudt_fee_log.from_id, from_id);
     assert_eq!(sudt_fee_log.to_id, block_producer_id);
     assert_eq!(sudt_fee_log.amount, fee);
     assert_eq!(sudt_fee_log.log_type, SudtLogType::PayFee);
     // transfer to `to_id`
-    let sudt_transfer_log2 = SudtLog::from_log_item(&logs[2]).unwrap();
-    assert_eq!(sudt_transfer_log2.sudt_id, sudt_id);
-    assert_eq!(sudt_transfer_log2.from_id, from_id);
-    assert_eq!(sudt_transfer_log2.to_id, to_id);
-    assert_eq!(sudt_transfer_log2.amount, amount);
-    assert_eq!(sudt_transfer_log2.log_type, SudtLogType::Transfer);
+    let sudt_transfer_log = SudtLog::from_log_item(&logs[1]).unwrap();
+    assert_eq!(sudt_transfer_log.sudt_id, sudt_id);
+    assert_eq!(sudt_transfer_log.from_id, from_id);
+    assert_eq!(sudt_transfer_log.to_id, to_id);
+    assert_eq!(sudt_transfer_log.amount, amount);
+    assert_eq!(sudt_transfer_log.log_type, SudtLogType::Transfer);
 }
 
 pub fn run_contract_get_result<S: State + CodeStore>(

@@ -39,9 +39,10 @@ int _account_exists(gw_context_t *ctx, uint32_t account_id, bool *exists) {
   return 0;
 }
 
-int _sudt_emit_transfer_log(gw_context_t *ctx, uint32_t sudt_id,
-                            uint32_t from_id, uint32_t to_id,
-                            uint128_t amount) {
+int _sudt_emit_log(gw_context_t *ctx, uint32_t sudt_id,
+                   uint32_t from_id, uint32_t to_id,
+                   uint128_t amount,
+                   uint8_t service_flag) {
 #ifdef GW_VALIDATOR
   uint32_t data_size = 0;
   uint8_t *data = NULL;
@@ -52,7 +53,7 @@ int _sudt_emit_transfer_log(gw_context_t *ctx, uint32_t sudt_id,
   memcpy(data + 4, (uint8_t *)(&to_id), 4);
   memcpy(data + 4 + 4, (uint8_t *)(&amount), 16);
 #endif
-  return ctx->sys_log(ctx, sudt_id, GW_LOG_SUDT_TRANSFER, data_size, data);
+  return ctx->sys_log(ctx, sudt_id, service_flag, data_size, data);
 }
 
 int _sudt_get_balance(gw_context_t *ctx, uint32_t sudt_id,
@@ -87,8 +88,9 @@ int sudt_get_balance(gw_context_t *ctx, uint32_t sudt_id, uint32_t account_id,
 }
 
 /* Transfer Simple UDT */
-int sudt_transfer(gw_context_t *ctx, uint32_t sudt_id, uint32_t from_id,
-                  uint32_t to_id, uint128_t amount) {
+int _sudt_transfer(gw_context_t *ctx, uint32_t sudt_id, uint32_t from_id,
+                   uint32_t to_id, uint128_t amount,
+                   uint8_t service_flag) {
   int ret;
   if (from_id == to_id) {
     return ERROR_TO_ID;
@@ -139,5 +141,16 @@ int sudt_transfer(gw_context_t *ctx, uint32_t sudt_id, uint32_t from_id,
   if (ret != 0) {
     return ret;
   }
-  return _sudt_emit_transfer_log(ctx, sudt_id, from_id, to_id, amount);
+  return _sudt_emit_log(ctx, sudt_id, from_id, to_id, amount, service_flag);
+}
+
+int sudt_transfer(gw_context_t *ctx, uint32_t sudt_id, uint32_t from_id,
+                  uint32_t to_id, uint128_t amount) {
+  return _sudt_transfer(ctx, sudt_id, from_id, to_id, amount, GW_LOG_SUDT_TRANSFER);
+}
+
+/* Pay fee */
+int sudt_pay_fee(gw_context_t *ctx, uint32_t sudt_id, uint32_t from_id, uint128_t amount) {
+  uint32_t to_id = ctx->block_info.block_producer_id;
+  return _sudt_transfer(ctx, sudt_id, from_id, to_id, amount, GW_LOG_SUDT_PAY_FEE);
 }

@@ -1102,12 +1102,4 @@ int gw_finalize(gw_context_t *ctx) {
   }
   return 0;
 }
-
-int gw_emit_pay_fee_log(gw_context_t *ctx, uint32_t sudt_id,
-                        uint32_t from_id, uint32_t to_id,
-                        uint128_t amount) {
-  uint32_t data_size = 0;
-  uint8_t *data = NULL;
-  return ctx->sys_log(ctx, sudt_id, GW_LOG_PAY_FEE, data_size, data);
-}
 #endif
