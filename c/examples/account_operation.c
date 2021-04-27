@@ -124,6 +124,7 @@ int main() {
     handler = handle_sys_log;
     break;
   default:
+    ckb_debug("invalid flag");
     return -1;
   }
   uint8_t rv[64 * 1024];
@@ -133,6 +134,10 @@ int main() {
     ckb_debug("call handler failed");
     return ret;
   }
-  ctx.sys_set_program_return_data(&ctx, rv, rv_len);
+  ret = ctx.sys_set_program_return_data(&ctx, rv, rv_len);
+  if (ret != 0) {
+    ckb_debug("set return data failed");
+    return ret;
+  }
   return gw_finalize(&ctx);
 }

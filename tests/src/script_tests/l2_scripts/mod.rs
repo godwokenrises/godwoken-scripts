@@ -77,32 +77,51 @@ impl ChainStore for DummyChainStore {
     }
 }
 
-pub const GW_LOG_SUDT_OPERATION: u8 = 0x0;
-pub const GW_LOG_POLYJUICE_SYSTEM: u8 = 0x1;
-pub const GW_LOG_POLYJUICE_USER: u8 = 0x2;
-pub const SUDT_OPERATION_TRANSFER: u8 = 0x0;
+pub const GW_LOG_SUDT_TRANSFER: u8 = 0x0;
+pub const GW_LOG_SUDT_PAY_FEE: u8 = 0x1;
+#[allow(dead_code)]
+pub const GW_LOG_POLYJUICE_SYSTEM: u8 = 0x2;
+#[allow(dead_code)]
+pub const GW_LOG_POLYJUICE_USER: u8 = 0x3;
+
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
+pub enum SudtLogType {
+    Transfer,
+    PayFee,
+}
+
+impl SudtLogType {
+    fn from_u8(service_flag: u8) -> Result<SudtLogType, String> {
+        match service_flag {
+            GW_LOG_SUDT_TRANSFER => Ok(Self::Transfer),
+            GW_LOG_SUDT_PAY_FEE => Ok(Self::PayFee),
+            _ => Err(format!(
+                "Not a sudt transfer/payfee prefix: {}",
+                service_flag
+            )),
+        }
+    }
+}
 
 #[derive(Debug)]
-pub struct SudtTransferLog {
+pub struct SudtLog {
     sudt_id: u32,
     from_id: u32,
     to_id: u32,
     amount: u128,
+    log_type: SudtLogType,
 }
 
-impl SudtTransferLog {
-    fn from_log_item(item: &LogItem) -> Result<SudtTransferLog, String> {
+impl SudtLog {
+    fn from_log_item(item: &LogItem) -> Result<SudtLog, String> {
         let sudt_id: u32 = item.account_id().unpack();
+        let service_flag: u8 = item.service_flag().into();
         let raw_data = item.data().raw_data();
-        let log_data: &[u8] = raw_data.as_ref();
-        if log_data[0] != SUDT_OPERATION_TRANSFER {
-            return Err(format!("Not a sudt transfer prefix: {}", log_data[1]));
+        let data: &[u8] = raw_data.as_ref();
+        let log_type = SudtLogType::from_u8(service_flag)?;
+        if data.len() != (4 + 4 + 16) {
+            return Err(format!("Invalid data length: {}", data.len()));
         }
-        if log_data.len() != (1 + 4 + 4 + 16) {
-            return Err(format!("Invalid data length: {}", log_data.len()));
-        }
-        let data = &log_data[1..];
-
         let mut u32_bytes = [0u8; 4];
         u32_bytes.copy_from_slice(&data[0..4]);
         let from_id = u32::from_le_bytes(u32_bytes.clone());
@@ -113,11 +132,12 @@ impl SudtTransferLog {
         let mut u128_bytes = [0u8; 16];
         u128_bytes.copy_from_slice(&data[8..24]);
         let amount = u128::from_le_bytes(u128_bytes);
-        Ok(SudtTransferLog {
+        Ok(SudtLog {
             sudt_id,
             from_id,
             to_id,
             amount,
+            log_type,
         })
     }
 }
@@ -131,16 +151,20 @@ pub fn check_transfer_logs(
     to_id: u32,
     amount: u128,
 ) {
-    let sudt_fee_log = SudtTransferLog::from_log_item(&logs[0]).unwrap();
+    // pay fee log
+    let sudt_fee_log = SudtLog::from_log_item(&logs[0]).unwrap();
     assert_eq!(sudt_fee_log.sudt_id, sudt_id);
     assert_eq!(sudt_fee_log.from_id, from_id);
     assert_eq!(sudt_fee_log.to_id, block_producer_id);
     assert_eq!(sudt_fee_log.amount, fee);
-    let sudt_transfer_log = SudtTransferLog::from_log_item(&logs[1]).unwrap();
+    assert_eq!(sudt_fee_log.log_type, SudtLogType::PayFee);
+    // transfer to `to_id`
+    let sudt_transfer_log = SudtLog::from_log_item(&logs[1]).unwrap();
     assert_eq!(sudt_transfer_log.sudt_id, sudt_id);
     assert_eq!(sudt_transfer_log.from_id, from_id);
     assert_eq!(sudt_transfer_log.to_id, to_id);
     assert_eq!(sudt_transfer_log.amount, amount);
+    assert_eq!(sudt_transfer_log.log_type, SudtLogType::Transfer);
 }
 
 pub fn run_contract_get_result<S: State + CodeStore>(

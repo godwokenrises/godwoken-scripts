@@ -29,9 +29,10 @@
 #define GW_MAX_WITNESS_SIZE (300 * 1024)
 #define GW_MAX_CODE_SIZE (64 * 1024)
 
-#define GW_LOG_SUDT_OPERATION   0x0
-#define GW_LOG_POLYJUICE_SYSTEM 0x1
-#define GW_LOG_POLYJUICE_USER   0x2
+#define GW_LOG_SUDT_TRANSFER    0x0
+#define GW_LOG_SUDT_PAY_FEE     0x1
+#define GW_LOG_POLYJUICE_SYSTEM 0x2
+#define GW_LOG_POLYJUICE_USER   0x3
 
 /* Godwoken context */
 typedef struct {
@@ -58,6 +59,7 @@ int gw_context_init(struct gw_context_t *ctx);
  * Finalize Godwoken state
  */
 int gw_finalize(struct gw_context_t *ctx);
+
 
 /* layer2 syscalls */
 

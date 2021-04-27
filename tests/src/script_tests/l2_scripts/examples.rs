@@ -1,8 +1,8 @@
 use crate::testing_tool::chain::build_backend_manage;
 
 use super::{
-    new_block_info, DummyChainStore, ACCOUNT_OP_PROGRAM, ACCOUNT_OP_PROGRAM_CODE_HASH,
-    GW_LOG_SUDT_OPERATION, SUM_PROGRAM, SUM_PROGRAM_CODE_HASH,
+    new_block_info, DummyChainStore, SudtLog, SudtLogType, ACCOUNT_OP_PROGRAM,
+    ACCOUNT_OP_PROGRAM_CODE_HASH, GW_LOG_SUDT_TRANSFER, SUM_PROGRAM, SUM_PROGRAM_CODE_HASH,
 };
 use gw_common::H256;
 use gw_generator::{
@@ -96,6 +96,7 @@ pub enum AccountOp {
     },
     Log {
         account_id: u32,
+        service_flag: u8,
         data: Vec<u8>,
     },
 }
@@ -125,10 +126,14 @@ impl AccountOp {
                 data.extend(&account_id.to_le_bytes());
                 data
             }
-            AccountOp::Log { account_id, data } => {
+            AccountOp::Log {
+                account_id,
+                service_flag,
+                data,
+            } => {
                 let mut args_data = vec![0xF3];
                 args_data.extend(&account_id.to_le_bytes());
-                args_data.push(GW_LOG_SUDT_OPERATION);
+                args_data.push(*service_flag);
                 args_data.extend(&(data.len() as u32).to_le_bytes());
                 args_data.extend(data);
                 args_data
@@ -278,9 +283,18 @@ fn test_example_account_operation() {
 
     // Log: success
     {
+        let account_id = 0;
+        let from_id: u32 = 33;
+        let to_id: u32 = 44;
+        let amount: u128 = 101;
+        let mut data = vec![0u8; 24];
+        data[0..4].copy_from_slice(&from_id.to_le_bytes()[..]);
+        data[4..8].copy_from_slice(&to_id.to_le_bytes()[..]);
+        data[8..24].copy_from_slice(&amount.to_le_bytes()[..]);
         let args = AccountOp::Log {
-            account_id: 0,
-            data: vec![3u8; 22],
+            service_flag: GW_LOG_SUDT_TRANSFER,
+            account_id,
+            data,
         };
         let raw_tx = RawL2Transaction::new_builder()
             .from_id(from_id.pack())
@@ -290,12 +304,19 @@ fn test_example_account_operation() {
         let run_result = generator
             .execute_transaction(&chain_view, &tree, &block_info, &raw_tx)
             .expect("result");
+        let log = SudtLog::from_log_item(&run_result.logs[0]).unwrap();
+        assert_eq!(log.sudt_id, account_id);
+        assert_eq!(log.from_id, from_id);
+        assert_eq!(log.to_id, to_id);
+        assert_eq!(log.amount, amount);
+        assert_eq!(log.log_type, SudtLogType::Transfer);
         assert_eq!(run_result.return_data, Vec::<u8>::new());
     }
     // Log: account not found
     {
         let args = AccountOp::Log {
             account_id: 0xff33,
+            service_flag: GW_LOG_SUDT_TRANSFER,
             data: vec![3u8; 22],
         };
         let raw_tx = RawL2Transaction::new_builder()
