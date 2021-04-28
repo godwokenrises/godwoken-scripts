@@ -258,15 +258,10 @@ fn test_cancel_withdrawal() {
             ))
             .capacity(CKBPack::pack(&42u64))
             .build();
-        let message = {
-            let mut hasher = new_blake2b();
-            hasher.update(&rollup_type_script.hash());
-            hasher.update(withdrawal.raw().as_slice());
-            let mut hash = [0u8; 32];
-            hasher.finalize(&mut hash);
-            hash
-        };
-        let out_point = ctx.insert_cell(cell, Bytes::from(message.to_vec()));
+        let message = withdrawal
+            .raw()
+            .calc_message(&rollup_type_script.hash().into());
+        let out_point = ctx.insert_cell(cell, Bytes::from(message.as_slice().to_vec()));
         CellInput::new_builder().previous_output(out_point).build()
     };
     let rollup_cell_data = global_state
