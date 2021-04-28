@@ -1,4 +1,4 @@
-use crate::{error::Error, search_cells::search_lock_hashes};
+use crate::{cells::utils::search_lock_hashes, error::Error};
 use ckb_std::{ckb_constants::Source, syscalls::load_cell_data};
 use gw_common::H256;
 

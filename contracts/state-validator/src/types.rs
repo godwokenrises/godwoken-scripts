@@ -5,12 +5,7 @@ use alloc::collections::BTreeMap;
 use gw_common::smt::Blake2bHasher;
 use gw_common::sparse_merkle_tree::{CompiledMerkleProof, H256};
 use gw_common::{error::Error as StateError, state::State};
-use gw_types::packed::{
-    ChallengeLockArgs, CustodianLockArgs, DepositionLockArgs, Script, StakeLockArgs,
-    WithdrawalLockArgs,
-};
 use validator_utils::gw_common;
-use validator_utils::gw_types;
 
 #[derive(Clone)]
 pub struct DepositionRequest {
@@ -20,53 +15,6 @@ pub struct DepositionRequest {
     pub amount: u128,
     pub sudt_script_hash: H256,
     pub account_script_hash: H256,
-}
-
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub struct CellValue {
-    pub sudt_script_hash: H256,
-    pub amount: u128,
-    pub capacity: u64,
-}
-
-#[derive(Debug)]
-pub struct WithdrawalCell {
-    pub index: usize,
-    pub args: WithdrawalLockArgs,
-    pub value: CellValue,
-}
-
-#[derive(Clone)]
-pub struct DepositionRequestCell {
-    pub index: usize,
-    pub args: DepositionLockArgs,
-    pub value: CellValue,
-    pub account_script: Script,
-    pub account_script_hash: H256,
-}
-
-#[derive(Debug)]
-pub struct CustodianCell {
-    pub index: usize,
-    pub args: CustodianLockArgs,
-    pub value: CellValue,
-}
-
-pub struct StakeCell {
-    pub index: usize,
-    pub args: StakeLockArgs,
-    pub capacity: u64,
-}
-
-pub struct ChallengeCell {
-    pub index: usize,
-    pub args: ChallengeLockArgs,
-    pub value: CellValue,
-}
-
-pub struct BurnCell {
-    pub index: usize,
-    pub value: CellValue,
 }
 
 #[derive(Clone)]

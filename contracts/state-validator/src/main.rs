@@ -10,7 +10,6 @@
 #![feature(panic_info_message)]
 
 // define modules
-mod cells;
 mod entry;
 mod types;
 mod verifications;

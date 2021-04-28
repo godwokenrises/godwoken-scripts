@@ -7,20 +7,23 @@ use alloc::{collections::BTreeMap, vec, vec::Vec};
 
 // Import CKB syscalls and structures
 // https://nervosnetwork.github.io/ckb-std/riscv64imac-unknown-none-elf/doc/ckb_std/index.html
-use crate::{
-    cells::{
-        build_l2_sudt_script, collect_custodian_locks, collect_deposition_locks,
-        collect_withdrawal_locks, find_block_producer_stake_cell, find_challenge_cell,
-    },
-    ckb_std::{ckb_constants::Source, debug},
-    types::{CellValue, DepositionRequestCell, WithdrawalCell},
-};
+use crate::ckb_std::{ckb_constants::Source, debug};
 use validator_utils::gw_common;
 use validator_utils::gw_types;
 
 use super::check_status;
 use crate::types::BlockContext;
-use validator_utils::error::Error;
+use validator_utils::{
+    cells::{
+        lock_cells::{
+            collect_custodian_locks, collect_deposition_locks, collect_withdrawal_locks,
+            find_block_producer_stake_cell, find_challenge_cell,
+        },
+        types::{CellValue, DepositionRequestCell, WithdrawalCell},
+        utils::build_l2_sudt_script,
+    },
+    error::Error,
+};
 
 use gw_common::{
     builtins::CKB_SUDT_ACCOUNT_ID,

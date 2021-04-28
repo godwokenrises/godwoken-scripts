@@ -8,6 +8,7 @@ use gw_types::{
 };
 use validator_utils::gw_types;
 use validator_utils::{
+    cells::utils::search_lock_hash,
     ckb_std::{
         ckb_constants::Source,
         ckb_types::{bytes::Bytes, prelude::Unpack as CKBUnpack},
@@ -16,7 +17,6 @@ use validator_utils::{
     },
     error::Error,
     kv_state::KVState,
-    search_cells::search_lock_hash,
 };
 
 /// Verify tx execution

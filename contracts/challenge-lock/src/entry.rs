@@ -3,6 +3,9 @@ use core::{convert::TryInto, result::Result};
 
 use validator_utils::gw_types;
 use validator_utils::{
+    cells::rollup::{
+        load_rollup_config, parse_rollup_action, search_rollup_cell, search_rollup_state,
+    },
     ckb_std::{
         ckb_constants::Source,
         ckb_types::{bytes::Bytes, prelude::Unpack as CKBUnpack},
@@ -10,9 +13,6 @@ use validator_utils::{
         high_level::load_script,
     },
     error::Error,
-    search_cells::{
-        load_rollup_config, parse_rollup_action, search_rollup_cell, search_rollup_state,
-    },
 };
 
 use gw_types::{

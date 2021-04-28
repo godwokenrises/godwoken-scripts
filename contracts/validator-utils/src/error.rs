@@ -47,6 +47,8 @@ pub enum Error {
     AccountLockCellNotFound,
     InvalidTypeID,
     UnexpectedTxNonce,
+    // raise from signature verification script
+    WrongSignature,
 }
 
 impl From<SysError> for Error {

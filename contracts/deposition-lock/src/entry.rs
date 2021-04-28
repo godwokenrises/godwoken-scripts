@@ -21,7 +21,7 @@ use crate::ckb_std::{
     since::Since,
 };
 
-use validator_utils::search_cells::{search_lock_hash, search_rollup_cell};
+use validator_utils::cells::{rollup::search_rollup_cell, utils::search_lock_hash};
 
 use gw_types::{
     packed::{DepositionLockArgs, DepositionLockArgsReader},

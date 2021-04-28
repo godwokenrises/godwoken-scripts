@@ -1,22 +1,37 @@
 // Import from `core` instead of from `std` since we are in no-std mode
 use core::result::Result;
 
-// Import heap related library from `alloc`
-// https://doc.rust-lang.org/alloc/index.html
-use alloc::{vec, vec::Vec};
-
 // Import CKB syscalls and structures
 // https://nervosnetwork.github.io/ckb-std/riscv64imac-unknown-none-elf/doc/ckb_std/index.html
-use crate::ckb_std::{
-    ckb_constants::Source,
-    ckb_types::{bytes::Bytes, prelude::*},
-    debug,
-    high_level::{load_script, load_tx_hash},
-    syscalls::load_cell_data,
+use crate::{
+    ckb_std::{
+        ckb_constants::Source,
+        ckb_types::{bytes::Bytes, prelude::Unpack as CKBUnpack},
+        debug,
+        high_level::load_script,
+        syscalls::load_cell_data,
+    },
+    eth_signature::{extract_eth_lock_args, ETHAddress, Secp256k1Eth},
 };
-use validator_utils::{search_cells::search_lock_hash, signature::SignatureType};
-
-use crate::error::Error;
+use validator_utils::{
+    cells::{
+        lock_cells::find_challenge_cell,
+        rollup::{load_rollup_config, search_rollup_state},
+        utils::search_lock_hash,
+    },
+    ckb_std::high_level::load_witness_args,
+    error::Error,
+    gw_common::{state::State, H256},
+    gw_types::{
+        packed::{
+            VerifyTransactionWitness, VerifyTransactionWitnessReader, VerifyWithdrawalWitness,
+            VerifyWithdrawalWitnessReader,
+        },
+        prelude::*,
+    },
+    kv_state::KVState,
+    signature::SignatureType,
+};
 
 /// Eth account lock
 /// script args: rollup_script_hash(32 bytes) | eth_address(20 bytes)
@@ -24,14 +39,12 @@ use crate::error::Error;
 pub fn main() -> Result<(), Error> {
     // parse args
     let script = load_script()?;
-    let args: Bytes = script.args().unpack();
-    if args.len() != 52 {
-        debug!("Invalid args len: {}", args.len());
-        return Err(Error::InvalidArgs);
-    }
-    let rollup_script_hash = &args[..32];
-    let eth_address = &args[32..];
-    debug!("script args is {:?}", args);
+    let args: Bytes = CKBUnpack::unpack(&script.args());
+    let (rollup_script_hash, eth_address) = extract_eth_lock_args(args)?;
+    debug!(
+        "rollup script hash: {:?} eth_address {:?}",
+        &rollup_script_hash, &eth_address
+    );
 
     // parse data
     let (owner_lock_hash, sig_type) = parse_data()?;
@@ -39,21 +52,101 @@ pub fn main() -> Result<(), Error> {
     // check owner lock hash cell
     // to prevent others unlock this cell
     if search_lock_hash(&owner_lock_hash, Source::Input).is_none() {
-        return Err(Error::OwnerLockCellNotFound);
+        return Err(Error::OwnerCellNotFound);
     }
 
     // verify signature
     match sig_type {
         SignatureType::Transaction => {
             debug!("Verify tx signature");
-            verify_tx_signature()?;
+            verify_tx_signature(rollup_script_hash, eth_address)?;
         }
         SignatureType::Message(msg) => {
             debug!("Verify message signature {:?}", msg);
-            verify_message_signature()?;
+            verify_message_signature(rollup_script_hash, eth_address, msg)?;
         }
     }
 
+    Ok(())
+}
+
+fn verify_tx_signature(rollup_script_hash: H256, eth_address: ETHAddress) -> Result<(), Error> {
+    // load tx
+    let verify_tx_witness = {
+        let witness_lock = load_challenge_witness_args_lock(&rollup_script_hash)?;
+        match VerifyTransactionWitnessReader::verify(&witness_lock, false) {
+            Ok(()) => VerifyTransactionWitness::new_unchecked(witness_lock),
+            Err(_err) => {
+                debug!("Invalid VerifyTransactionWitness");
+                return Err(Error::InvalidArgs);
+            }
+        }
+    };
+    let tx = verify_tx_witness.l2tx();
+    let raw_tx = tx.raw();
+    let ctx = verify_tx_witness.context();
+    let kv_state = KVState::new(
+        ctx.kv_state(),
+        verify_tx_witness.kv_state_proof().unpack(),
+        ctx.account_count().unpack(),
+    );
+    let sender_script = {
+        let sender_script_hash = kv_state.get_script_hash(raw_tx.from_id().unpack())?;
+        ctx.scripts()
+            .into_iter()
+            .find(|script| sender_script_hash == script.hash().into())
+            .ok_or_else(|| {
+                debug!("can't find sender script: {:?}", sender_script_hash);
+                Error::ScriptNotFound
+            })?
+    };
+    let receiver_script = {
+        let receiver_script_hash = kv_state.get_script_hash(raw_tx.to_id().unpack())?;
+        ctx.scripts()
+            .into_iter()
+            .find(|script| receiver_script_hash == script.hash().into())
+            .ok_or_else(|| {
+                debug!("can't find receiver script: {:?}", receiver_script_hash);
+                Error::ScriptNotFound
+            })?
+    };
+    // verify message
+    let secp256k1_eth = Secp256k1Eth::default();
+    let valid = secp256k1_eth.verify_tx(
+        rollup_script_hash,
+        eth_address,
+        sender_script,
+        receiver_script,
+        tx,
+    )?;
+    if !valid {
+        return Err(Error::WrongSignature);
+    }
+    Ok(())
+}
+fn verify_message_signature(
+    rollup_script_hash: H256,
+    eth_address: ETHAddress,
+    message: H256,
+) -> Result<(), Error> {
+    // load signature
+    let signature = {
+        let witness_lock = load_challenge_witness_args_lock(&rollup_script_hash)?;
+        let verify_withdrawal = match VerifyWithdrawalWitnessReader::verify(&witness_lock, false) {
+            Ok(()) => VerifyWithdrawalWitness::new_unchecked(witness_lock),
+            Err(_err) => {
+                debug!("Invalid VerifyWithdrawalWitness");
+                return Err(Error::InvalidArgs);
+            }
+        };
+        verify_withdrawal.context().signature()
+    };
+    // verify message
+    let secp256k1_eth = Secp256k1Eth::default();
+    let valid = secp256k1_eth.verify_message(eth_address, signature, message)?;
+    if !valid {
+        return Err(Error::WrongSignature);
+    }
     Ok(())
 }
 
@@ -79,16 +172,29 @@ fn parse_data() -> Result<([u8; 32], SignatureType), Error> {
     Ok((owner_lock_hash, sig_type))
 }
 
-fn verify_tx_signature() -> Result<(), Error> {
-    // load signature
-    // compute signing message
-    // recover pubkey
-    // compare with eth address
-    Ok(())
-}
-fn verify_message_signature() -> Result<(), Error> {
-    // load signature
-    // recover pubkey
-    // compare with eth address
-    Ok(())
+// locate challenge cell index and load the witness_args.lock
+fn load_challenge_witness_args_lock(rollup_script_hash: &H256) -> Result<Bytes, Error> {
+    // read global state from rollup cell
+    let global_state = match search_rollup_state(&(*rollup_script_hash).into(), Source::Input)? {
+        Some(state) => state,
+        None => return Err(Error::RollupCellNotFound),
+    };
+
+    // read rollup config
+    let config = load_rollup_config(&global_state.rollup_config_hash().unpack())?;
+
+    // find challenge cell
+    let challenge_cell = find_challenge_cell(rollup_script_hash, &config, Source::Input)?
+        .ok_or_else(|| {
+            debug!("not found challenge cell");
+            Error::InvalidChallengeCell
+        })?;
+
+    // load witness
+    let witness_args = load_witness_args(challenge_cell.index, Source::Input)?;
+    Ok(witness_args
+        .lock()
+        .to_opt()
+        .map(|lock_bytes| CKBUnpack::unpack(&lock_bytes))
+        .unwrap_or_default())
 }

@@ -11,22 +11,23 @@ use gw_types::{
 use validator_utils::gw_common;
 use validator_utils::gw_types;
 use validator_utils::{
+    cells::{
+        lock_cells::{
+            collect_burn_cells, collect_stake_cells, fetch_capacity_and_sudt_value,
+            find_challenge_cell,
+        },
+        types::ChallengeCell,
+        utils::search_lock_hashes,
+    },
     ckb_std::{
         ckb_constants::Source,
         debug,
         high_level::load_input_since,
         since::{LockValue, Since},
     },
-    search_cells::search_lock_hashes,
 };
 
 use super::{check_rollup_lock_cells_except_stake, check_status};
-use crate::{
-    cells::{
-        collect_burn_cells, collect_stake_cells, fetch_capacity_and_sudt_value, find_challenge_cell,
-    },
-    types::ChallengeCell,
-};
 use alloc::{collections::BTreeSet, vec::Vec};
 use validator_utils::error::Error;
 

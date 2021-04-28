@@ -9,12 +9,12 @@ use gw_types::{
 use validator_utils::gw_common;
 use validator_utils::gw_types;
 use validator_utils::{
+    cells::lock_cells::find_challenge_cell,
     ckb_std::{ckb_constants::Source, debug},
     error::Error,
 };
 
 use super::{check_rollup_lock_cells, check_status};
-use crate::cells::find_challenge_cell;
 
 pub fn verify_enter_challenge(
     rollup_type_hash: H256,

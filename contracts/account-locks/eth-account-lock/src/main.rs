@@ -12,7 +12,8 @@
 
 // define modules
 mod entry;
-mod error;
+mod eth_signature;
+mod secp256k1_util;
 
 pub use validator_utils::ckb_std;
 
