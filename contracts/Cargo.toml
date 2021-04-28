@@ -8,6 +8,7 @@ members = [
   "state-validator",
   "validator-utils",
   "always-success",
+  "account-locks/eth-account-lock"
 ]
 
 [profile.release]

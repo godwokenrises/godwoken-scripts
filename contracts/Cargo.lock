@@ -86,6 +86,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "eth-account-lock"
+version = "0.1.0"
+dependencies = [
+ "validator-utils",
+]
+
+[[package]]
 name = "gw-common"
 version = "0.1.0"
 source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#39f7b716e12b43d0829e11af56113eb9166cb091"
