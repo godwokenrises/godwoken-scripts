@@ -17,10 +17,11 @@ BUILDER_DOCKER := nervos/ckb-riscv-gnu-toolchain@sha256:aae8a3f79705f67d505d1f1d
 
 GENERATORS := build/meta-contract-generator build/sudt-generator build/examples/sum-generator build/examples/account-operation-generator
 VALIDATORS := build/meta-contract-validator build/sudt-validator build/examples/sum-validator build/examples/account-operation-validator
-ACCOUNT_LOCKS := build/account_locks/eth-account-lock
 SECP256K1_HELPER := deps/ckb-miscellaneous-scripts/build/secp256k1_data_info.h
 
-BINS := $(GENERATORS) $(VALIDATORS) $(ACCOUNT_LOCKS)
+LIBS := build/libckb-secp256k1.a
+
+BINS := $(GENERATORS) $(VALIDATORS)
 
 all-via-docker: generate-protocol $(SECP256K1_HELPER)
 	docker run --rm -v `pwd`:/code -w /code ${BUILDER_DOCKER} bash -c "make all"
@@ -28,13 +29,15 @@ all-via-docker: generate-protocol $(SECP256K1_HELPER)
 debug-all-via-docker: generate-protocol $(SECP256K1_HELPER)
 	docker run --rm -v `pwd`:/code -w /code ${BUILDER_DOCKER} bash -c "make debug-all"
 
-all: $(BINS)
+all: $(BINS) $(LIBS)
 
 clean:
 	rm -f $(BINS)
 	rm -f build/*.debug
 	rm -f build/*.h
 	rm -f build/*.mol
+	rm -f build/*.o
+	rm -f build/*.a
 
 debug-all: CFLAGS += -DCKB_C_STDLIB_PRINTF 
 debug-all: all
@@ -60,11 +63,6 @@ build/sudt-generator: contracts/sudt.c sudt_utils.h gw_def.h generator_utils.h
 
 build/sudt-validator: contracts/sudt.c sudt_utils.h gw_def.h validator_utils.h
 	$(CC) $(CFLAGS) -DGW_VALIDATOR $(LDFLAGS) -o $@ $<
-	$(OBJCOPY) --only-keep-debug $@ $@.debug
-	$(OBJCOPY) --strip-debug --strip-all $@
-
-build/account_locks/eth-account-lock: account_locks/eth_account_lock.c
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
 
@@ -112,3 +110,10 @@ install-tools:
 		cargo install --force --version "${MOLC_VERSION}" "${MOLC}"; \
 	fi
 
+# build account locks lib
+
+build/libckb-secp256k1.a: build/secp256k1.o
+	$(AR) rcs $@ $^
+
+build/secp256k1.o: account_lock_lib/secp256k1.c
+	$(CC) $(CFLAGS) -D __SHARED_LIBRARY__ -c -o $@ $<
