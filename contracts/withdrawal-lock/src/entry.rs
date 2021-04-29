@@ -114,8 +114,8 @@ pub fn main() -> Result<(), Error> {
                     let custodian_lock = load_cell_lock(custodian_cell_index, Source::Output)?;
                     let custodian_lock_args = {
                         let args: Bytes = custodian_lock.args().unpack();
-                        match CustodianLockArgsReader::verify(&args, false) {
-                            Ok(_) => CustodianLockArgs::new_unchecked(args),
+                        match CustodianLockArgsReader::verify(&args.slice(32..), false) {
+                            Ok(_) => CustodianLockArgs::new_unchecked(args.slice(32..)),
                             Err(_) => return Err(Error::InvalidOutput),
                         }
                     };
