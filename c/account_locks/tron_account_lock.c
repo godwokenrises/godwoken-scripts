@@ -13,6 +13,8 @@
 #define MAX_WITNESS_SIZE 32768
 #define PUBKEY_SIZE 65
 #define SIGNATURE_SIZE 65
+#define ROLLUP_TYPE_HASH_SIZE 32
+#define LOCK_ARGS_SIZE 52
 /* Errors */
 #define ERROR_ARGUMENTS_LEN -1
 #define ERROR_ENCODING -2
@@ -54,10 +56,10 @@ int load_pubkey_hash(uint8_t pubkey_hash[BLAKE160_SIZE]) {
 
   mol_seg_t args_seg = MolReader_Script_get_args(&script_seg);
   mol_seg_t args_bytes_seg = MolReader_Bytes_raw_bytes(&args_seg);
-  if (args_bytes_seg.size != BLAKE160_SIZE) {
+  if (args_bytes_seg.size != LOCK_ARGS_SIZE) {
     return ERROR_ARGUMENTS_LEN;
   }
-  memcpy(pubkey_hash, args_bytes_seg.ptr, BLAKE160_SIZE);
+  memcpy(pubkey_hash, args_bytes_seg.ptr + ROLLUP_TYPE_HASH_SIZE, BLAKE160_SIZE);
   return 0;
 }
 

@@ -149,9 +149,11 @@ fn test_sign_tron_message() {
     let mut message = [0u8; 32];
     rng.fill(&mut message);
     let signature = sign_message(&privkey, message);
+    let mut lock_args = vec![0u8; 32];
+    lock_args.extend(pubkey_hash.clone());
     let tx = gen_tx(
         &mut data_loader,
-        pubkey_hash.clone(),
+        lock_args.into(),
         Bytes::from(message.to_vec()),
     );
     let tx = tx
@@ -175,7 +177,7 @@ fn test_sign_tron_message() {
 }
 
 #[test]
-fn test_wrong_signature() {
+fn test_wrong_tron_signature() {
     let mut data_loader = DummyDataLoader::new();
     let privkey = Generator::random_privkey();
     let pubkey = privkey.pubkey().expect("pubkey");
@@ -188,9 +190,11 @@ fn test_wrong_signature() {
         rng.fill(&mut wrong_message);
         sign_message(&privkey, wrong_message)
     };
+    let mut lock_args = vec![0u8; 32];
+    lock_args.extend(pubkey_hash.clone());
     let tx = gen_tx(
         &mut data_loader,
-        pubkey_hash.clone(),
+        lock_args.into(),
         Bytes::from(message.to_vec()),
     );
     let tx = tx
