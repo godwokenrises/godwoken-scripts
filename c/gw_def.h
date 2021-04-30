@@ -60,6 +60,11 @@ int gw_context_init(struct gw_context_t *ctx);
  */
 int gw_finalize(struct gw_context_t *ctx);
 
+/**
+ * Verify sudt account
+ */
+int gw_verify_sudt_account(struct gw_context_t *ctx, uint32_t sudt_id);
+
 
 /* layer2 syscalls */
 

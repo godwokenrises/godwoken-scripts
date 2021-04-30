@@ -29,6 +29,7 @@
 #define GW_SYS_LOAD_DATA 4057
 #define GW_SYS_GET_BLOCK_HASH 4058
 #define GW_SYS_LOG 4061
+#define GW_SYS_LOAD_ROLLUP_CONFIG 4062
 
 typedef struct gw_context_t {
   /* verification context */
@@ -239,6 +240,50 @@ int gw_context_init(gw_context_t *ctx) {
 
 int gw_finalize(gw_context_t *ctx) {
   /* do nothing */
+  return 0;
+}
+
+int gw_verify_sudt_account(gw_context_t *ctx, uint32_t sudt_id) {
+  uint8_t script_buffer[GW_MAX_SCRIPT_SIZE];
+  uint32_t script_len = GW_MAX_SCRIPT_SIZE;
+  int ret = sys_get_account_script(ctx, sudt_id, &script_len, 0, script_buffer);
+  if (ret != 0) {
+    return ret;
+  }
+  if (script_len > GW_MAX_SCRIPT_SIZE) {
+    return GW_ERROR_INVALID_SUDT_SCRIPT;
+  }
+  mol_seg_t script_seg;
+  script_seg.ptr = script_buffer;
+  script_seg.size = script_len;
+  if (MolReader_Script_verify(&script_seg, false) != MOL_OK) {
+    ckb_debug("load account script: invalid script");
+    return GW_ERROR_INVALID_SUDT_SCRIPT;
+  }
+  mol_seg_t code_hash_seg = MolReader_Script_get_code_hash(&script_seg);
+  mol_seg_t hash_type_seg = MolReader_Script_get_hash_type(&script_seg);
+
+  uint8_t config_buffer[GW_MAX_ROLLUP_CONFIG_SIZE];
+  uint32_t config_len = GW_MAX_ROLLUP_CONFIG_SIZE;
+  ret = syscall(GW_SYS_LOAD_ROLLUP_CONFIG, config_buffer, &config_len, 0, 0, 0, 0);
+  if (ret != 0) {
+    return ret;
+  }
+  mol_seg_t config_seg;
+  config_seg.ptr = config_buffer;
+  config_seg.size = config_len;
+  if (MolReader_RollupConfig_verify(&config_seg, false) != MOL_OK) {
+    ckb_debug("rollup config cell data is not RollupConfig format");
+    return GW_ERROR_INVALID_DATA;
+  }
+  mol_seg_t l2_sudt_validator_script_type_hash =
+    MolReader_RollupConfig_get_l2_sudt_validator_script_type_hash(&config_seg);
+  if (memcmp(l2_sudt_validator_script_type_hash.ptr, code_hash_seg.ptr, 32) != 0) {
+    return GW_ERROR_INVALID_SUDT_SCRIPT;
+  }
+  if (*hash_type_seg.ptr != 1) {
+    return GW_ERROR_INVALID_SUDT_SCRIPT;
+  }
   return 0;
 }
 #endif

@@ -77,8 +77,12 @@ int _sudt_set_balance(gw_context_t *ctx, uint32_t sudt_id, uint8_t key[32],
 
 int sudt_get_balance(gw_context_t *ctx, uint32_t sudt_id, uint32_t account_id,
                      uint128_t *balance) {
+  int ret = gw_verify_sudt_account(ctx, sudt_id);
+  if (ret != 0) {
+    return ret;
+  }
   bool exists = false;
-  int ret = _account_exists(ctx, account_id, &exists);
+  ret = _account_exists(ctx, account_id, &exists);
   if (ret != 0 || !exists) {
     return ERROR_ACCOUNT_NOT_EXISTS;
   }
@@ -94,6 +98,10 @@ int _sudt_transfer(gw_context_t *ctx, uint32_t sudt_id, uint32_t from_id,
   int ret;
   if (from_id == to_id) {
     return ERROR_TO_ID;
+  }
+  ret = gw_verify_sudt_account(ctx, sudt_id);
+  if (ret != 0) {
+    return ret;
   }
 
   bool exists = false;
