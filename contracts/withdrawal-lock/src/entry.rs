@@ -117,7 +117,7 @@ pub fn main() -> Result<(), Error> {
                         if args.len() < rollup_type_hash.len() {
                             return Err(Error::InvalidArgs);
                         }
-                        if &args[..32] != rollup_type_hash {
+                        if args[..32] != rollup_type_hash {
                             return Err(Error::InvalidArgs);
                         }
 
