@@ -23,8 +23,7 @@ use crate::ckb_std::{
     ckb_constants::Source,
     ckb_types::{self, bytes::Bytes, prelude::Unpack as CKBUnpack},
     high_level::{
-        load_cell_capacity, load_cell_data_hash, load_cell_type_hash, load_script,
-        load_witness_args,
+        load_cell_capacity, load_cell_data, load_cell_type_hash, load_script, load_witness_args,
     },
 };
 
