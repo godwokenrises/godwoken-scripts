@@ -6,9 +6,10 @@ members = [
   "challenge-lock",
   "stake-lock",
   "state-validator",
-  "validator-utils",
   "always-success",
-  "account-locks/eth-account-lock"
+  "account-locks/eth-account-lock",
+  "validator-utils",
+  "secp256k1-utils",
 ]
 
 [profile.release]

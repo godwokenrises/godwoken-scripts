@@ -8,8 +8,6 @@ fn main() {
         .unwrap()
         .parent()
         .unwrap()
-        .parent()
-        .unwrap()
         .join("c/build");
     println!("cargo:rustc-link-search=native={}", dir.display());
     println!("cargo:rustc-link-lib=static=ckb-secp256k1");

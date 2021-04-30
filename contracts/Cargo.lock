@@ -121,6 +121,7 @@ name = "eth-account-lock"
 version = "0.1.0"
 dependencies = [
  "rlp",
+ "secp256k1-utils",
  "sha3",
  "validator-utils",
 ]
@@ -200,6 +201,10 @@ name = "rustc-hex"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3e75f6a532d0fd9f7f13144f392b6ad56a32696bfcd9c78f797f16bbb6f072d6"
+
+[[package]]
+name = "secp256k1-utils"
+version = "0.1.0"
 
 [[package]]
 name = "sha3"

@@ -1,7 +1,7 @@
 //! Secp256k1 Eth implementation
 
-use crate::secp256k1_util::recover_uncompressed_key;
 use alloc::vec;
+use secp256k1_utils::recover_uncompressed_key;
 use sha3::{Digest, Keccak256};
 use validator_utils::{
     ckb_std::debug,
