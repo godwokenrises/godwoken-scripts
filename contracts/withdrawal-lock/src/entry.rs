@@ -217,9 +217,10 @@ fn check_output_cell_has_same_content(output_index: usize) -> Result<(), Error> 
         return Err(Error::InvalidOutput);
     }
 
-    if load_cell_data_hash(0, Source::GroupInput)?
-        != load_cell_data_hash(output_index, Source::Output)?
-    {
+    // TODO: use load_cell_data_hash
+    // NOTE: load_cell_data_hash from inputs throw ItemMissing error. Comparing data directly
+    // as temporary workaround. Right now data should be sudt amount only, 16 bytes long.
+    if load_cell_data(0, Source::GroupInput)? != load_cell_data(output_index, Source::Output)? {
         return Err(Error::InvalidOutput);
     }
 
