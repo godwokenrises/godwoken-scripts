@@ -8,8 +8,8 @@ use alloc::{collections::BTreeMap, vec, vec::Vec};
 // Import CKB syscalls and structures
 // https://nervosnetwork.github.io/ckb-std/riscv64imac-unknown-none-elf/doc/ckb_std/index.html
 use crate::ckb_std::{ckb_constants::Source, debug};
-use validator_utils::gw_common;
 use validator_utils::gw_types;
+use validator_utils::{gw_common, kv_state::KVState};
 
 use super::check_status;
 use crate::types::BlockContext;
@@ -73,6 +73,7 @@ fn check_withdrawal_cells(
         if withdrawal_block_hash != context.block_hash
             || cell.args.withdrawal_block_number().unpack() != context.number
         {
+            debug!("withdrawal cell mismatch block_hash");
             return Err(Error::InvalidWithdrawalCell);
         }
 
@@ -94,12 +95,17 @@ fn check_withdrawal_cells(
                 withdrawal_requests.remove(index);
             }
             None => {
+                debug!("withdrawal cell mismatch the amount of assets");
                 return Err(Error::InvalidWithdrawalCell);
             }
         }
     }
     // Some withdrawal requests hasn't has a corresponded withdrawal cell
     if !withdrawal_requests.is_empty() {
+        debug!(
+            "withdrawal requests has no corresponded withdrawal cells: {}",
+            withdrawal_requests.len()
+        );
         return Err(Error::InvalidWithdrawalCell);
     }
     Ok(())
@@ -212,7 +218,7 @@ fn check_output_custodian_cells(
 fn mint_layer2_sudt(
     rollup_type_hash: &H256,
     config: &RollupConfig,
-    context: &mut BlockContext,
+    kv_state: &mut KVState,
     deposit_cells: &[DepositionRequestCell],
 ) -> Result<(), Error> {
     for request in deposit_cells {
@@ -229,12 +235,12 @@ fn mint_layer2_sudt(
             return Err(Error::UnknownEOAScript);
         }
         // find or create EOA
-        let id = match context.get_account_id_by_script_hash(&request.account_script_hash)? {
+        let id = match kv_state.get_account_id_by_script_hash(&request.account_script_hash)? {
             Some(id) => id,
-            None => context.create_account(request.account_script_hash)?,
+            None => kv_state.create_account(request.account_script_hash)?,
         };
         // mint CKB
-        context.mint_sudt(CKB_SUDT_ACCOUNT_ID, id, request.value.capacity.into())?;
+        kv_state.mint_sudt(CKB_SUDT_ACCOUNT_ID, id, request.value.capacity.into())?;
         if request.value.sudt_script_hash.as_slice() == CKB_SUDT_SCRIPT_ARGS {
             if request.value.amount != 0 {
                 // SUDT amount must equals to zero if sudt script hash is equals to CKB_SUDT_SCRIPT_ARGS
@@ -246,16 +252,16 @@ fn mint_layer2_sudt(
         let l2_sudt_script =
             build_l2_sudt_script(rollup_type_hash, config, &request.value.sudt_script_hash);
         let l2_sudt_script_hash: [u8; 32] = l2_sudt_script.hash();
-        let sudt_id = match context.get_account_id_by_script_hash(&l2_sudt_script_hash.into())? {
+        let sudt_id = match kv_state.get_account_id_by_script_hash(&l2_sudt_script_hash.into())? {
             Some(id) => id,
-            None => context.create_account(l2_sudt_script_hash.into())?,
+            None => kv_state.create_account(l2_sudt_script_hash.into())?,
         };
         // prevent fake CKB SUDT, the caller should filter these invalid depositions
         if sudt_id == CKB_SUDT_ACCOUNT_ID {
             return Err(Error::InvalidDepositCell);
         }
         // mint SUDT
-        context.mint_sudt(sudt_id, id, request.value.amount)?;
+        kv_state.mint_sudt(sudt_id, id, request.value.amount)?;
     }
 
     Ok(())
@@ -264,7 +270,7 @@ fn mint_layer2_sudt(
 fn burn_layer2_sudt(
     rollup_type_hash: &H256,
     config: &RollupConfig,
-    context: &mut BlockContext,
+    kv_state: &mut KVState,
     block: &L2Block,
 ) -> Result<(), Error> {
     for request in block.withdrawals() {
@@ -272,36 +278,36 @@ fn burn_layer2_sudt(
         let l2_sudt_script_hash: [u8; 32] =
             build_l2_sudt_script(rollup_type_hash, config, &raw.sudt_script_hash().unpack()).hash();
         // find EOA
-        let id = context
+        let id = kv_state
             .get_account_id_by_script_hash(&raw.account_script_hash().unpack())?
             .ok_or(StateError::MissingKey)?;
         // burn CKB
-        context.burn_sudt(CKB_SUDT_ACCOUNT_ID, id, raw.capacity().unpack() as u128)?;
+        kv_state.burn_sudt(CKB_SUDT_ACCOUNT_ID, id, raw.capacity().unpack() as u128)?;
         // find Simple UDT account
-        let sudt_id = context
+        let sudt_id = kv_state
             .get_account_id_by_script_hash(&l2_sudt_script_hash.into())?
             .ok_or(StateError::MissingKey)?;
         // burn sudt
-        context.burn_sudt(sudt_id, id, raw.amount().unpack())?;
+        kv_state.burn_sudt(sudt_id, id, raw.amount().unpack())?;
         // update nonce
-        let nonce = context.get_nonce(id)?;
+        let nonce = kv_state.get_nonce(id)?;
         let withdrawal_nonce: u32 = raw.nonce().unpack();
         if nonce != withdrawal_nonce {
             return Err(Error::InvalidWithdrawalRequest);
         }
-        context.set_nonce(id, nonce.saturating_add(1))?;
+        kv_state.set_nonce(id, nonce.saturating_add(1))?;
     }
 
     Ok(())
 }
 
-fn load_l2block_context(
+fn load_block_context_and_state(
     rollup_type_hash: H256,
     config: &RollupConfig,
     l2block: &L2Block,
     prev_global_state: &GlobalState,
     post_global_state: &GlobalState,
-) -> Result<BlockContext, Error> {
+) -> Result<(BlockContext, KVState), Error> {
     let raw_block = l2block.raw();
 
     // Check pre block merkle proof
@@ -346,31 +352,6 @@ fn load_l2block_context(
         return Err(Error::MerkleProof);
     }
 
-    // Check pre account merkle proof
-    let kv_state_proof: Bytes = l2block.kv_state_proof().unpack();
-    let kv_merkle_proof = CompiledMerkleProof(kv_state_proof.to_vec());
-    let kv_pairs: BTreeMap<_, _> = l2block
-        .kv_state()
-        .into_iter()
-        .map(|kv| {
-            let k: [u8; 32] = kv.k().unpack();
-            let v: [u8; 32] = kv.v().unpack();
-            (k.into(), v.into())
-        })
-        .collect();
-    let prev_account_root: [u8; 32] = prev_global_state.account().merkle_root().unpack();
-    let is_blank_kv = kv_merkle_proof.0.is_empty() && kv_pairs.is_empty();
-    if !is_blank_kv
-        && !kv_merkle_proof
-            .verify::<Blake2bHasher>(
-                &prev_account_root.into(),
-                kv_pairs.iter().map(|(k, v)| (*k, *v)).collect(),
-            )
-            .map_err(|_| Error::MerkleProof)?
-    {
-        return Err(Error::MerkleProof);
-    }
-
     // Check prev account state
     if raw_block.prev_account().as_slice() != prev_global_state.account().as_slice() {
         return Err(Error::InvalidBlock);
@@ -386,18 +367,28 @@ fn load_l2block_context(
     let account_count: u32 = prev_global_state.account().count().unpack();
     let prev_account_root = prev_global_state.account().merkle_root().unpack();
     let finalized_number = number.saturating_sub(config.finality_blocks().unpack());
+
+    // Check pre account merkle proof
+    let kv_state = KVState::new(
+        l2block.kv_state(),
+        l2block.kv_state_proof().unpack(),
+        account_count,
+        Some(prev_account_root),
+    );
+    if !kv_state.is_empty() && kv_state.calculate_root()? != prev_account_root {
+        debug!("Block context wrong, kv state doesn't match the prev_account_root");
+        return Err(Error::MerkleProof);
+    }
+
     let context = BlockContext {
         number,
         finalized_number,
-        kv_pairs,
-        kv_merkle_proof,
-        account_count,
         rollup_type_hash,
         block_hash,
         prev_account_root,
     };
 
-    Ok(context)
+    Ok((context, kv_state))
 }
 
 fn verify_block_producer(
@@ -489,7 +480,7 @@ fn check_state_checkpoints(block: &L2Block) -> Result<(), Error> {
     Ok(())
 }
 
-fn check_block_transactions(context: &BlockContext, block: &L2Block) -> Result<(), Error> {
+fn check_block_transactions(block: &L2Block, kv_state: &KVState) -> Result<(), Error> {
     // check tx_witness_root
     let raw_block = block.raw();
 
@@ -518,7 +509,7 @@ fn check_block_transactions(context: &BlockContext, block: &L2Block) -> Result<(
 
     // check current account tree state
     let prev_state_checkpoint: H256 = submit_transactions.prev_state_checkpoint().unpack();
-    if context.calculate_state_checkpoint()? != prev_state_checkpoint {
+    if kv_state.calculate_state_checkpoint()? != prev_state_checkpoint {
         debug!("submit_transactions.prev_state_checkpoint isn't equals to the state checkpoint calculated from context");
         return Err(Error::InvalidStateCheckpoint);
     }
@@ -590,7 +581,7 @@ pub fn verify(
     // Check withdrawals root
     check_block_withdrawals(block)?;
 
-    let mut context = load_l2block_context(
+    let (context, mut kv_state) = load_block_context_and_state(
         rollup_type_hash,
         config,
         block,
@@ -622,16 +613,16 @@ pub fn verify(
     }
 
     // Withdrawal token: Layer2 SUDT -> withdrawals
-    burn_layer2_sudt(&rollup_type_hash, config, &mut context, block)?;
+    burn_layer2_sudt(&rollup_type_hash, config, &mut kv_state, block)?;
     // Mint token: deposition requests -> layer2 SUDT
-    mint_layer2_sudt(&rollup_type_hash, config, &mut context, &deposit_cells)?;
+    mint_layer2_sudt(&rollup_type_hash, config, &mut kv_state, &deposit_cells)?;
     // Check transactions
-    check_block_transactions(&context, block)?;
+    check_block_transactions(&block, &kv_state)?;
 
     // Verify Post state
     let actual_post_global_state = {
-        let root = context.calculate_root()?;
-        let count = context.get_account_count()?;
+        let root = kv_state.calculate_root()?;
+        let count = kv_state.get_account_count()?;
         // calculate new account merkle state from block_context
         let account_merkle_state = AccountMerkleState::new_builder()
             .merkle_root(root.pack())
