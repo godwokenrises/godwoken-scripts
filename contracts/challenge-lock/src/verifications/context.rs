@@ -131,7 +131,7 @@ pub fn verify_tx_context(input: TxContextInput) -> Result<TxContext, Error> {
     let valid = CompiledMerkleProof(tx_proof.unpack())
         .verify::<Blake2bHasher>(
             &tx_witness_root,
-            vec![(H256::from_u32(tx_index), tx_witness_hash.into())],
+            vec![(H256::from_u32(tx_index), tx_witness_hash)],
         )
         .map_err(|_err| {
             debug!("verify_tx_context, merkle proof error: {}", _err);
@@ -163,8 +163,7 @@ pub fn verify_tx_context(input: TxContextInput) -> Result<TxContext, Error> {
         Error::MerkleProof
     })?;
     let account_count = kv_state.get_account_count()?;
-    let calculated_state_checkpoint: H256 =
-        calculate_state_checkpoint(&state_root.into(), account_count).into();
+    let calculated_state_checkpoint: H256 = calculate_state_checkpoint(&state_root, account_count);
     if prev_state_checkpoint != calculated_state_checkpoint {
         debug!(
             "TxContext mismatch prev_state_checkpoint: {:?}, calculated_state_checkpoint: {:?}",

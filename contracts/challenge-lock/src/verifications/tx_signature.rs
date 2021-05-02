@@ -40,6 +40,7 @@ pub fn verify_tx_signature(
         ctx.kv_state(),
         unlock_args.kv_state_proof().unpack(),
         account_count,
+        None,
     );
     let scripts = ctx.scripts();
     let target = lock_args.target();

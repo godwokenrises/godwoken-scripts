@@ -14,9 +14,9 @@ use validator_utils::{
     },
 };
 
-pub type ETHAddress = [u8; 20];
+pub type EthAddress = [u8; 20];
 
-pub fn extract_eth_lock_args(lock_args: Bytes) -> Result<(H256, ETHAddress), Error> {
+pub fn extract_eth_lock_args(lock_args: Bytes) -> Result<(H256, EthAddress), Error> {
     if lock_args.len() != 52 {
         debug!("Invalid lock args len: {}", lock_args.len());
         return Err(Error::InvalidArgs);
@@ -40,7 +40,7 @@ pub struct Secp256k1Eth;
 impl Secp256k1Eth {
     fn verify_alone(
         &self,
-        eth_address: ETHAddress,
+        eth_address: EthAddress,
         signature: Signature,
         message: H256,
     ) -> Result<bool, Error> {
@@ -66,7 +66,7 @@ impl Secp256k1Eth {
     pub fn verify_tx(
         &self,
         rollup_type_hash: H256,
-        sender_eth_address: ETHAddress,
+        sender_eth_address: EthAddress,
         sender_script: Script,
         receiver_script: Script,
         tx: L2Transaction,
@@ -96,7 +96,7 @@ impl Secp256k1Eth {
     // do not exist in Ethereum. Personal sign is thus used here.
     pub fn verify_message(
         &self,
-        eth_address: ETHAddress,
+        eth_address: EthAddress,
         signature: Signature,
         message: H256,
     ) -> Result<bool, Error> {

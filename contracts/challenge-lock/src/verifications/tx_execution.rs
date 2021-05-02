@@ -39,6 +39,7 @@ pub fn verify_tx_execution(
         ctx.kv_state(),
         unlock_args.kv_state_proof().unpack(),
         ctx.account_count().unpack(),
+        None,
     );
     let scripts = ctx.scripts();
     let raw_block = unlock_args.raw_l2block();

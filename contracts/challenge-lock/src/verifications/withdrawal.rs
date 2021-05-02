@@ -60,6 +60,7 @@ fn verify_withdrawal_proof(
         ctx.kv_state(),
         unlock_args.kv_state_proof().unpack(),
         ctx.account_count().unpack(),
+        None,
     );
 
     // withdrawal nonce
@@ -78,7 +79,6 @@ fn verify_withdrawal_proof(
 
     // find sender script
     let sender_script = scripts
-        .clone()
         .into_iter()
         .find(|script| H256::from(script.hash()) == sender_script_hash)
         .ok_or(Error::ScriptNotFound)?;
@@ -146,7 +146,6 @@ fn verify_withdrawal_proof(
                 &prev_account.merkle_root().unpack(),
                 prev_account.count().unpack(),
             )
-            .into()
         }
     };
 
@@ -159,7 +158,7 @@ fn verify_withdrawal_proof(
     })?;
     let account_count = kv_state.get_account_count()?;
     let calculated_prev_state_checkpoint: H256 =
-        calculate_state_checkpoint(&state_root.into(), account_count).into();
+        calculate_state_checkpoint(&state_root, account_count);
     if prev_state_checkpoint != calculated_prev_state_checkpoint {
         debug!("verify_withdrawal mismatch prev_state_checkpoint: {:?}, calculated_prev_state_checkpoint: {:?}", prev_state_checkpoint, calculated_prev_state_checkpoint);
         return Err(Error::MerkleProof);

@@ -11,7 +11,7 @@ use crate::{
         high_level::load_script,
         syscalls::load_cell_data,
     },
-    eth_signature::{extract_eth_lock_args, ETHAddress, Secp256k1Eth},
+    eth_signature::{extract_eth_lock_args, EthAddress, Secp256k1Eth},
 };
 use validator_utils::{
     cells::{
@@ -70,7 +70,7 @@ pub fn main() -> Result<(), Error> {
     Ok(())
 }
 
-fn verify_tx_signature(rollup_script_hash: H256, eth_address: ETHAddress) -> Result<(), Error> {
+fn verify_tx_signature(rollup_script_hash: H256, eth_address: EthAddress) -> Result<(), Error> {
     // load tx
     let verify_tx_witness = {
         let witness_lock = load_challenge_witness_args_lock(&rollup_script_hash)?;
@@ -89,6 +89,7 @@ fn verify_tx_signature(rollup_script_hash: H256, eth_address: ETHAddress) -> Res
         ctx.kv_state(),
         verify_tx_witness.kv_state_proof().unpack(),
         ctx.account_count().unpack(),
+        None,
     );
     let sender_script = {
         let sender_script_hash = kv_state.get_script_hash(raw_tx.from_id().unpack())?;
@@ -126,7 +127,7 @@ fn verify_tx_signature(rollup_script_hash: H256, eth_address: ETHAddress) -> Res
 }
 fn verify_message_signature(
     rollup_script_hash: H256,
-    eth_address: ETHAddress,
+    eth_address: EthAddress,
     message: H256,
 ) -> Result<(), Error> {
     // load signature

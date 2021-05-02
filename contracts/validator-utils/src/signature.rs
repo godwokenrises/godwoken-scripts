@@ -31,7 +31,7 @@ pub fn check_l2_account_signature_cell(
                 if len != data.len() {
                     continue;
                 }
-                if &data == message.as_slice() {
+                if data == message.as_slice() {
                     return Ok(());
                 }
             }
