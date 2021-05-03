@@ -1,7 +1,7 @@
+use crate::testing_tool::programs::ALWAYS_SUCCESS_CODE_HASH;
 use ckb_types::H256;
 use gw_block_producer::produce_block::{produce_block, ProduceBlockParam, ProduceBlockResult};
 use gw_chain::chain::{Chain, L1Action, L1ActionContext, SyncEvent, SyncParam};
-use gw_common::blake2b::new_blake2b;
 use gw_config::{BackendConfig, GenesisConfig};
 use gw_generator::{
     account_lock_manage::{always_success::AlwaysSuccess, AccountLockManage},
@@ -13,38 +13,14 @@ use gw_generator::{
 use gw_mem_pool::pool::MemPool;
 use gw_store::Store;
 use gw_types::{
-    bytes::Bytes,
     packed::{
         CellOutput, DepositionRequest, L2BlockCommittedInfo, RawTransaction, RollupConfig, Script,
         Transaction, WitnessArgs,
     },
     prelude::*,
 };
-use lazy_static::lazy_static;
 use parking_lot::Mutex;
-use std::{fs, io::Read, path::PathBuf, sync::Arc};
-
-const SCRIPT_DIR: &'static str = "../build/debug";
-const ALWAYS_SUCCESS_PATH: &'static str = "always-success";
-
-lazy_static! {
-    pub static ref ALWAYS_SUCCESS_PROGRAM: Bytes = {
-        let mut buf = Vec::new();
-        let mut path = PathBuf::new();
-        path.push(&SCRIPT_DIR);
-        path.push(&ALWAYS_SUCCESS_PATH);
-        let mut f = fs::File::open(&path).expect("load program");
-        f.read_to_end(&mut buf).expect("read program");
-        Bytes::from(buf.to_vec())
-    };
-    pub static ref ALWAYS_SUCCESS_CODE_HASH: [u8; 32] = {
-        let mut buf = [0u8; 32];
-        let mut hasher = new_blake2b();
-        hasher.update(&ALWAYS_SUCCESS_PROGRAM);
-        hasher.finalize(&mut buf);
-        buf
-    };
-}
+use std::sync::Arc;
 
 // meta contract
 pub const META_VALIDATOR_PATH: &str = "../../godwoken-scripts/c/build/meta-contract-validator";
@@ -52,8 +28,8 @@ pub const META_GENERATOR_PATH: &str = "../../godwoken-scripts/c/build/meta-contr
 pub const META_VALIDATOR_SCRIPT_TYPE_HASH: [u8; 32] = [1u8; 32];
 
 // simple UDT
-pub const SUDT_VALIDATOR_PATH: &str = "../../godwoken-scripts/c/build/sudt-validator";
-pub const SUDT_GENERATOR_PATH: &str = "../../godwoken-scripts/c/build/sudt-generator";
+pub const SUDT_VALIDATOR_PATH: &str = "../c/build/sudt-validator";
+pub const SUDT_GENERATOR_PATH: &str = "../c/build/sudt-generator";
 
 pub fn build_backend_manage(rollup_config: &RollupConfig) -> BackendManage {
     let sudt_validator_script_type_hash: [u8; 32] =

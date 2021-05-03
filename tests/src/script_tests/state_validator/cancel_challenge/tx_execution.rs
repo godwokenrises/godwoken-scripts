@@ -1,10 +1,15 @@
-use super::super::*;
 use crate::script_tests::utils::layer1::build_simple_tx_with_out_point;
+use crate::script_tests::utils::layer1::random_out_point;
+use crate::script_tests::utils::rollup::{
+    build_always_success_cell, build_rollup_locked_cell, build_type_id_script,
+    calculate_state_validator_type_id, CellContext, CellContextParam,
+};
 use crate::testing_tool::chain::{
     apply_block_result, construct_block, setup_chain_with_account_lock_manage,
 };
+use crate::testing_tool::programs::STATE_VALIDATOR_CODE_HASH;
 use ckb_types::{
-    packed::CellInput,
+    packed::{CellInput, CellOutput},
     prelude::{Pack as CKBPack, Unpack},
 };
 use gw_common::{
@@ -13,6 +18,7 @@ use gw_common::{
 use gw_generator::account_lock_manage::{always_success::AlwaysSuccess, AccountLockManage};
 use gw_store::state_db::{StateDBTransaction, StateDBVersion};
 use gw_traits::CodeStore;
+use gw_types::prelude::*;
 use gw_types::{
     bytes::Bytes,
     core::{ChallengeTargetType, ScriptHashType, Status},

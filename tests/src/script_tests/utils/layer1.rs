@@ -1,5 +1,4 @@
-use crate::testing_tool::chain::ALWAYS_SUCCESS_CODE_HASH;
-use blake2b::new_blake2b;
+use crate::testing_tool::programs::ALWAYS_SUCCESS_CODE_HASH;
 use ckb_traits::{CellDataProvider, HeaderProvider};
 use ckb_types::{
     bytes::Bytes,
@@ -10,32 +9,8 @@ use ckb_types::{
     packed::{Byte32, CellInput, CellOutput, OutPoint, Script, Transaction},
     prelude::*,
 };
-use gw_common::blake2b;
-use lazy_static::lazy_static;
 use rand::{thread_rng, Rng};
-use std::{collections::HashMap, fs, io::Read, path::PathBuf};
-
-const SCRIPT_DIR: &'static str = "../../godwoken-scripts/build/debug";
-const CHALLENGE_LOCK_PATH: &'static str = "challenge-lock";
-
-lazy_static! {
-    pub static ref CHALLENGE_LOCK_PROGRAM: Bytes = {
-        let mut buf = Vec::new();
-        let mut path = PathBuf::new();
-        path.push(&SCRIPT_DIR);
-        path.push(&CHALLENGE_LOCK_PATH);
-        let mut f = fs::File::open(&path).expect("load program");
-        f.read_to_end(&mut buf).expect("read program");
-        Bytes::from(buf.to_vec())
-    };
-    pub static ref CHALLENGE_LOCK_CODE_HASH: [u8; 32] = {
-        let mut buf = [0u8; 32];
-        let mut hasher = new_blake2b();
-        hasher.update(&CHALLENGE_LOCK_PROGRAM);
-        hasher.finalize(&mut buf);
-        buf
-    };
-}
+use std::collections::HashMap;
 
 pub const MAX_CYCLES: u64 = std::u64::MAX;
 
@@ -44,12 +19,6 @@ pub struct DummyDataLoader {
     pub cells: HashMap<OutPoint, (CellOutput, Bytes)>,
     pub headers: HashMap<Byte32, HeaderView>,
     pub epoches: HashMap<Byte32, EpochExt>,
-}
-
-impl DummyDataLoader {
-    pub fn new() -> Self {
-        Self::default()
-    }
 }
 
 impl CellDataProvider for DummyDataLoader {

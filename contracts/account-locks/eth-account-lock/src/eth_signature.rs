@@ -65,12 +65,16 @@ impl Secp256k1Eth {
 
     pub fn verify_tx(
         &self,
-        rollup_type_hash: H256,
-        sender_eth_address: EthAddress,
         sender_script: Script,
         receiver_script: Script,
         tx: L2Transaction,
     ) -> Result<bool, Error> {
+        let (rollup_type_hash, sender_eth_address) =
+            extract_eth_lock_args(sender_script.args().unpack())?;
+        debug!(
+            "sender_args, rollup script hash: {:?} eth_address {:?}",
+            &rollup_type_hash, &sender_eth_address
+        );
         // verify polyjuice tx
         if let Some(rlp_data) = try_assemble_polyjuice_args(tx.raw(), receiver_script.clone()) {
             let mut hasher = Keccak256::new();
@@ -83,8 +87,13 @@ impl Secp256k1Eth {
         }
 
         // fallback to the tx message
-        let message =
-            calc_godwoken_signing_message(&rollup_type_hash, &sender_script, &receiver_script, &tx);
+        let message = calc_godwoken_signing_message(
+            &rollup_type_hash,
+            &sender_script,
+            &receiver_script,
+            &tx.raw(),
+        );
+        debug!("fallback to the normal message: {:?}", message);
         self.verify_message(sender_eth_address, tx.signature(), message)
     }
 
@@ -190,13 +199,13 @@ fn calc_godwoken_signing_message(
     rollup_type_hash: &H256,
     sender_script: &Script,
     receiver_script: &Script,
-    tx: &L2Transaction,
+    raw_tx: &RawL2Transaction,
 ) -> H256 {
     let mut hasher = new_blake2b();
     hasher.update(rollup_type_hash.as_slice());
     hasher.update(&sender_script.hash());
     hasher.update(&receiver_script.hash());
-    hasher.update(tx.as_slice());
+    hasher.update(raw_tx.as_slice());
     let mut message = [0u8; 32];
     hasher.finalize(&mut message);
     message.into()

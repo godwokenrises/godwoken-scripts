@@ -24,8 +24,8 @@ use validator_utils::{
     gw_common::{state::State, H256},
     gw_types::{
         packed::{
-            VerifyTransactionWitness, VerifyTransactionWitnessReader, VerifyWithdrawalWitness,
-            VerifyWithdrawalWitnessReader,
+            VerifyTransactionSignatureWitness, VerifyTransactionSignatureWitnessReader,
+            VerifyWithdrawalWitness, VerifyWithdrawalWitnessReader,
         },
         prelude::*,
     },
@@ -59,7 +59,7 @@ pub fn main() -> Result<(), Error> {
     match sig_type {
         SignatureType::Transaction => {
             debug!("Verify tx signature");
-            verify_tx_signature(rollup_script_hash, eth_address)?;
+            verify_tx_signature(rollup_script_hash)?;
         }
         SignatureType::Message(msg) => {
             debug!("Verify message signature {:?}", msg);
@@ -70,14 +70,14 @@ pub fn main() -> Result<(), Error> {
     Ok(())
 }
 
-fn verify_tx_signature(rollup_script_hash: H256, eth_address: EthAddress) -> Result<(), Error> {
+fn verify_tx_signature(rollup_script_hash: H256) -> Result<(), Error> {
     // load tx
     let verify_tx_witness = {
         let witness_lock = load_challenge_witness_args_lock(&rollup_script_hash)?;
-        match VerifyTransactionWitnessReader::verify(&witness_lock, false) {
-            Ok(()) => VerifyTransactionWitness::new_unchecked(witness_lock),
+        match VerifyTransactionSignatureWitnessReader::verify(&witness_lock, false) {
+            Ok(()) => VerifyTransactionSignatureWitness::new_unchecked(witness_lock),
             Err(_err) => {
-                debug!("Invalid VerifyTransactionWitness");
+                debug!("Invalid VerifyTransactionSignatureWitness");
                 return Err(Error::InvalidArgs);
             }
         }
@@ -113,14 +113,9 @@ fn verify_tx_signature(rollup_script_hash: H256, eth_address: EthAddress) -> Res
     };
     // verify message
     let secp256k1_eth = Secp256k1Eth::default();
-    let valid = secp256k1_eth.verify_tx(
-        rollup_script_hash,
-        eth_address,
-        sender_script,
-        receiver_script,
-        tx,
-    )?;
+    let valid = secp256k1_eth.verify_tx(sender_script, receiver_script, tx)?;
     if !valid {
+        debug!("verify tx wrong");
         return Err(Error::WrongSignature);
     }
     Ok(())
@@ -140,12 +135,13 @@ fn verify_message_signature(
                 return Err(Error::InvalidArgs);
             }
         };
-        verify_withdrawal.context().signature()
+        verify_withdrawal.withdrawal_request().signature()
     };
     // verify message
     let secp256k1_eth = Secp256k1Eth::default();
     let valid = secp256k1_eth.verify_message(eth_address, signature, message)?;
     if !valid {
+        debug!("Wrong signature, message: {:?}", message);
         return Err(Error::WrongSignature);
     }
     Ok(())

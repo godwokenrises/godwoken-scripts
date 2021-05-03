@@ -8,23 +8,25 @@
 #define RECID_INDEX 64
 
 /* errors */
-#define ERROR_SECP_SERIALIZE_PUBKEY 40
-#define ERROR_SECP_RECOVER_PUBKEY 41
-#define ERROR_SECP_PARSE_SIGNATURE 42
+#define ERROR_SECP_SERIALIZE_PUBKEY 140
+#define ERROR_SECP_RECOVER_PUBKEY 141
+#define ERROR_SECP_PARSE_SIGNATURE 142
 
-int recover_secp256k1_uncompressed_key(
-    uint8_t message[32], uint8_t signature[SIGNATURE_SIZE],
-    uint8_t output_uncompressed_pubkey[65]) {
+int recover_secp256k1_uncompressed_key(uint8_t message[32],
+                                       uint8_t signature[SIGNATURE_SIZE],
+                                       uint8_t output_uncompressed_pubkey[65]) {
 
   // Setup secp256k1 data
   secp256k1_context context;
   uint8_t secp_data[CKB_SECP256K1_DATA_SIZE];
   int ret = ckb_secp256k1_custom_load_data(secp_data);
   if (ret != 0) {
+    printf("Error occured when loading secp256k1 data");
     return ret;
   }
   ret = ckb_secp256k1_custom_verify_only_initialize(&context, secp_data);
   if (ret != 0) {
+    printf("Error occured when initializing secp256k1");
     return ret;
   }
 
@@ -32,7 +34,7 @@ int recover_secp256k1_uncompressed_key(
   if (secp256k1_ecdsa_recoverable_signature_parse_compact(
           &context, &recoverable_signature, signature,
           signature[RECID_INDEX]) == 0) {
-    printf("Error parsing recoverable signature");
+    printf("Error occured when parsing recoverable signature");
     return ERROR_SECP_PARSE_SIGNATURE;
   }
 
