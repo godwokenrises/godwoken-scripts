@@ -35,6 +35,8 @@ typedef struct gw_context_t {
   /* verification context */
   gw_transaction_context_t transaction_context;
   gw_block_info_t block_info;
+  uint8_t rollup_config[GW_MAX_ROLLUP_CONFIG_SIZE];
+  uint64_t rollup_config_size;
   /* layer2 syscalls */
   gw_load_fn sys_load;
   gw_load_nonce_fn sys_load_nonce;
@@ -192,10 +194,23 @@ int sys_log(gw_context_t *ctx, uint32_t account_id, uint8_t service_flag,
   return syscall(GW_SYS_LOG, account_id, service_flag, data_length, data, 0, 0);
 }
 
-int _sys_load_rollup_config(uint64_t *len, uint8_t *data) {
+int _sys_load_rollup_config(uint8_t *addr, uint64_t *len) {
   volatile uint64_t inner_len = *len;
-  int ret = syscall(GW_SYS_LOAD_ROLLUP_CONFIG, data, &inner_len, 0, 0, 0, 0);
+  int ret = syscall(GW_SYS_LOAD_ROLLUP_CONFIG, addr, &inner_len, 0, 0, 0, 0);
   *len = inner_len;
+
+  if (*len > GW_MAX_ROLLUP_CONFIG_SIZE) {
+    ckb_debug("length too long");
+    return GW_ERROR_INVALID_DATA;
+  }
+  mol_seg_t config_seg;
+  config_seg.ptr = addr;
+  config_seg.size = *len;
+  if (MolReader_RollupConfig_verify(&config_seg, false) != MOL_OK) {
+    ckb_debug("rollup config cell data is not RollupConfig format");
+    return GW_ERROR_INVALID_DATA;
+  }
+
   return ret;
 }
 
@@ -249,6 +264,12 @@ int gw_context_init(gw_context_t *ctx) {
     return ret;
   }
 
+  ctx->rollup_config_size = GW_MAX_ROLLUP_CONFIG_SIZE;
+  ret = _sys_load_rollup_config(ctx->rollup_config, &ctx->rollup_config_size);
+  if (ret != 0) {
+    return ret;
+  }
+
   return 0;
 }
 
@@ -277,24 +298,11 @@ int gw_verify_sudt_account(gw_context_t *ctx, uint32_t sudt_id) {
   mol_seg_t code_hash_seg = MolReader_Script_get_code_hash(&script_seg);
   mol_seg_t hash_type_seg = MolReader_Script_get_hash_type(&script_seg);
 
-  uint8_t config_buffer[GW_MAX_ROLLUP_CONFIG_SIZE];
-  uint64_t config_len = GW_MAX_ROLLUP_CONFIG_SIZE;
-  ret = _sys_load_rollup_config(&config_len, config_buffer);
-  if (ret != 0) {
-    return ret;
-  }
-  if (config_len > GW_MAX_ROLLUP_CONFIG_SIZE) {
-    return GW_ERROR_INVALID_DATA;
-  }
-  mol_seg_t config_seg;
-  config_seg.ptr = config_buffer;
-  config_seg.size = config_len;
-  if (MolReader_RollupConfig_verify(&config_seg, false) != MOL_OK) {
-    ckb_debug("rollup config cell data is not RollupConfig format");
-    return GW_ERROR_INVALID_DATA;
-  }
+  mol_seg_t rollup_config_seg;
+  rollup_config_seg.ptr = ctx->rollup_config;
+  rollup_config_seg.size = ctx->rollup_config_size;
   mol_seg_t l2_sudt_validator_script_type_hash =
-    MolReader_RollupConfig_get_l2_sudt_validator_script_type_hash(&config_seg);
+    MolReader_RollupConfig_get_l2_sudt_validator_script_type_hash(&rollup_config_seg);
   if (memcmp(l2_sudt_validator_script_type_hash.ptr, code_hash_seg.ptr, 32) != 0) {
     return GW_ERROR_INVALID_SUDT_SCRIPT;
   }
