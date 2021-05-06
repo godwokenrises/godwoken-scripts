@@ -137,7 +137,10 @@ int sys_get_script_hash_by_account_id(gw_context_t *ctx,
 /* Get account script by account id */
 int sys_get_account_script(gw_context_t *ctx, uint32_t account_id,
                            uint64_t *len, uint64_t offset, uint8_t *script) {
-  return syscall(GW_SYS_LOAD_ACCOUNT_SCRIPT, script, len, offset, account_id, 0, 0);
+  volatile uint64_t inner_len = *len;
+  int ret = syscall(GW_SYS_LOAD_ACCOUNT_SCRIPT, script, &inner_len, offset, account_id, 0, 0);
+  *len = inner_len;
+  return ret;
 }
 /* Store data by data hash */
 int sys_store_data(gw_context_t *ctx, uint64_t data_len, uint8_t *data) {
@@ -146,15 +149,24 @@ int sys_store_data(gw_context_t *ctx, uint64_t data_len, uint8_t *data) {
 /* Load data by data hash */
 int sys_load_data(gw_context_t *ctx, uint8_t data_hash[32], uint64_t *len,
                   uint64_t offset, uint8_t *data) {
-  return syscall(GW_SYS_LOAD_DATA, data, len, offset, data_hash, 0, 0);
+  volatile uint64_t inner_len = *len;
+  int ret = syscall(GW_SYS_LOAD_DATA, data, &inner_len, offset, data_hash, 0, 0);
+  *len = inner_len;
+  return ret;
 }
 
 int _sys_load_l2transaction(void *addr, uint64_t *len) {
-  return syscall(GW_SYS_LOAD_TRANSACTION, addr, len, 0, 0, 0, 0);
+  volatile uint64_t inner_len = *len;
+  int ret = syscall(GW_SYS_LOAD_TRANSACTION, addr, &inner_len, 0, 0, 0, 0);
+  *len = inner_len;
+  return ret;
 }
 
 int _sys_load_block_info(void *addr, uint64_t *len) {
-  return syscall(GW_SYS_LOAD_BLOCKINFO, addr, len, 0, 0, 0, 0);
+  volatile uint64_t inner_len = *len;
+  int ret = syscall(GW_SYS_LOAD_BLOCKINFO, addr, &inner_len, 0, 0, 0, 0);
+  *len = inner_len;
+  return ret;
 }
 
 int sys_get_block_hash(gw_context_t *ctx, uint64_t number,
@@ -181,7 +193,10 @@ int sys_log(gw_context_t *ctx, uint32_t account_id, uint8_t service_flag,
 }
 
 int _sys_load_rollup_config(uint64_t *len, uint8_t *data) {
-  return syscall(GW_SYS_LOAD_ROLLUP_CONFIG, data, len, 0, 0, 0, 0);
+  volatile uint64_t inner_len = *len;
+  int ret = syscall(GW_SYS_LOAD_ROLLUP_CONFIG, data, &inner_len, 0, 0, 0, 0);
+  *len = inner_len;
+  return ret;
 }
 
 int gw_context_init(gw_context_t *ctx) {
