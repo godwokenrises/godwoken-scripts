@@ -146,7 +146,7 @@ int sys_load_nonce(gw_context_t *ctx, uint32_t account_id,
 
 /* set call return data */
 int sys_set_program_return_data(gw_context_t *ctx, uint8_t *data,
-                                uint32_t len) {
+                                uint64_t len) {
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
   }
@@ -189,8 +189,7 @@ int sys_get_script_hash_by_account_id(gw_context_t *ctx, uint32_t account_id,
 }
 
 /* Get nonce by account id */
-int sys_get_account_nonce(gw_context_t *ctx, uint32_t account_id,
-                          uint32_t *nonce) {
+int sys_get_account_nonce(gw_context_t *ctx, uint32_t account_id, uint32_t *nonce) {
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
   }
@@ -207,7 +206,7 @@ int sys_get_account_nonce(gw_context_t *ctx, uint32_t account_id,
 
 /* Get account script by account id */
 int sys_get_account_script(gw_context_t *ctx, uint32_t account_id,
-                           uint32_t *len, uint32_t offset, uint8_t *script) {
+                           uint64_t *len, uint64_t offset, uint8_t *script) {
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
   }
@@ -251,7 +250,7 @@ int sys_get_account_script(gw_context_t *ctx, uint32_t account_id,
   return 0;
 }
 /* Store data by data hash */
-int sys_store_data(gw_context_t *ctx, uint32_t data_len, uint8_t *data) {
+int sys_store_data(gw_context_t *ctx, uint64_t data_len, uint8_t *data) {
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
   }
@@ -260,8 +259,8 @@ int sys_store_data(gw_context_t *ctx, uint32_t data_len, uint8_t *data) {
   return 0;
 }
 /* Load data by data hash */
-int sys_load_data(gw_context_t *ctx, uint8_t data_hash[32], uint32_t *len,
-                  uint32_t offset, uint8_t *data) {
+int sys_load_data(gw_context_t *ctx, uint8_t data_hash[32], uint64_t *len,
+                  uint64_t offset, uint8_t *data) {
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
   }
@@ -312,7 +311,7 @@ int sys_get_block_hash(gw_context_t *ctx, uint64_t number,
   return gw_state_fetch(&ctx->block_hashes_state, key, block_hash);
 }
 
-int sys_create(gw_context_t *ctx, uint8_t *script, uint32_t script_len,
+int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
                uint32_t *account_id) {
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
@@ -392,7 +391,7 @@ int sys_create(gw_context_t *ctx, uint8_t *script, uint32_t script_len,
 }
 
 int sys_log(gw_context_t *ctx, uint32_t account_id, uint8_t service_flag,
-            uint32_t data_length, const uint8_t *data) {
+            uint64_t data_length, const uint8_t *data) {
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
   }
@@ -1099,6 +1098,37 @@ int gw_finalize(gw_context_t *ctx) {
   if (ret != 0) {
     ckb_debug("failed to merkle verify post account merkle root");
     return ret;
+  }
+  return 0;
+}
+
+int gw_verify_sudt_account(gw_context_t *ctx, uint32_t sudt_id) {
+  uint8_t script_buffer[GW_MAX_SCRIPT_SIZE];
+  uint64_t script_len = GW_MAX_SCRIPT_SIZE;
+  int ret = sys_get_account_script(ctx, sudt_id, &script_len, 0, script_buffer);
+  if (ret != 0) {
+    return ret;
+  }
+  mol_seg_t script_seg;
+  script_seg.ptr = script_buffer;
+  script_seg.size = script_len;
+  if (MolReader_Script_verify(&script_seg, false) != MOL_OK) {
+    ckb_debug("load account script: invalid script");
+    return GW_ERROR_INVALID_SUDT_SCRIPT;
+  }
+  mol_seg_t code_hash_seg = MolReader_Script_get_code_hash(&script_seg);
+  mol_seg_t hash_type_seg = MolReader_Script_get_hash_type(&script_seg);
+
+  mol_seg_t rollup_config_seg;
+  rollup_config_seg.ptr = ctx->rollup_config;
+  rollup_config_seg.size = ctx->rollup_config_size;
+  mol_seg_t l2_sudt_validator_script_type_hash =
+    MolReader_RollupConfig_get_l2_sudt_validator_script_type_hash(&rollup_config_seg);
+  if (memcmp(l2_sudt_validator_script_type_hash.ptr, code_hash_seg.ptr, 32) != 0) {
+    return GW_ERROR_INVALID_SUDT_SCRIPT;
+  }
+  if (*hash_type_seg.ptr != 1) {
+    return GW_ERROR_INVALID_SUDT_SCRIPT;
   }
   return 0;
 }

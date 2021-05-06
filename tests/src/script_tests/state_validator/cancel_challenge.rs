@@ -82,7 +82,7 @@ fn test_cancel_challenge_via_withdrawal() {
                 .build(),
         ];
         let produce_block_result = {
-            let mem_pool = chain.mem_pool.lock();
+            let mem_pool = chain.mem_pool().lock();
             construct_block(&chain, &mem_pool, deposition_requests.clone()).unwrap()
         };
         let rollup_cell = gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes());
@@ -104,7 +104,7 @@ fn test_cancel_challenge_via_withdrawal() {
             )
             .build();
         let produce_block_result = {
-            let mut mem_pool = chain.mem_pool.lock();
+            let mut mem_pool = chain.mem_pool().lock();
             mem_pool.push_withdrawal_request(withdrawal).unwrap();
             construct_block(&chain, &mem_pool, Vec::default()).unwrap()
         };
@@ -120,7 +120,7 @@ fn test_cancel_challenge_via_withdrawal() {
     };
     let mut ctx = CellContext::new(&rollup_config, param);
     let challenge_capacity = 10000_00000000u64;
-    let challenged_block = chain.local_state.tip().clone();
+    let challenged_block = chain.local_state().tip().clone();
     let challenge_target_index = 0u32;
     let input_challenge_cell = {
         let lock_args = ChallengeLockArgs::new_builder()
@@ -142,7 +142,7 @@ fn test_cancel_challenge_via_withdrawal() {
         CellInput::new_builder().previous_output(out_point).build()
     };
     let global_state = chain
-        .local_state
+        .local_state()
         .last_global_state()
         .clone()
         .as_builder()

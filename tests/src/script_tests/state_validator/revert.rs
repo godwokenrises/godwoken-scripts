@@ -11,7 +11,7 @@ use gw_common::{
     builtins::CKB_SUDT_ACCOUNT_ID, h256_ext::H256Ext,
     sparse_merkle_tree::default_store::DefaultStore, state::State, H256,
 };
-use gw_store::state_db::StateDBVersion;
+use gw_store::state_db::{StateDBTransaction, StateDBVersion};
 use gw_types::{
     bytes::Bytes,
     core::{ChallengeTargetType, ScriptHashType, Status},
@@ -87,7 +87,7 @@ fn test_revert() {
                 .build(),
         ];
         let produce_block_result = {
-            let mem_pool = chain.mem_pool.lock();
+            let mem_pool = chain.mem_pool().lock();
             construct_block(&chain, &mem_pool, deposition_requests.clone()).unwrap()
         };
         let rollup_cell = gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes());
@@ -97,12 +97,14 @@ fn test_revert() {
             produce_block_result,
             deposition_requests,
         );
-        let tip_block_hash = chain.store().get_tip_block_hash().unwrap();
-        let db = chain
-            .store()
-            .state_at(StateDBVersion::from_block_hash(tip_block_hash))
-            .unwrap();
-        let tree = db.account_state_tree().unwrap();
+        let db = chain.store().begin_transaction();
+        let tip_block_hash = db.get_tip_block_hash().unwrap();
+        let state_db = StateDBTransaction::from_version(
+            &db,
+            StateDBVersion::from_history_state(&db, tip_block_hash, None).unwrap(),
+        )
+        .unwrap();
+        let tree = state_db.account_state_tree().unwrap();
         let sender_id = tree
             .get_account_id_by_script_hash(&sender_script.hash().into())
             .unwrap()
@@ -131,11 +133,11 @@ fn test_revert() {
                         .build(),
                 )
                 .build();
-            let mut mem_pool = chain.mem_pool.lock();
+            let mut mem_pool = chain.mem_pool().lock();
             mem_pool.push_transaction(tx).unwrap();
             construct_block(&chain, &mem_pool, Vec::default()).unwrap()
         };
-        let prev_block_merkle = chain.local_state.last_global_state().block();
+        let prev_block_merkle = chain.local_state().last_global_state().block();
         apply_block_result(&mut chain, rollup_cell, produce_block_result, vec![]);
         prev_block_merkle
     };
@@ -158,7 +160,7 @@ fn test_revert() {
         CellInput::new_builder().previous_output(out_point).build()
     };
     let challenge_capacity = 10000_00000000u64;
-    let challenged_block = chain.local_state.tip().clone();
+    let challenged_block = chain.local_state().tip().clone();
     let input_challenge_cell = {
         let lock_args = ChallengeLockArgs::new_builder()
             .target(
@@ -202,7 +204,7 @@ fn test_revert() {
         .lock(reward_burn_lock)
         .build();
     let global_state = chain
-        .local_state
+        .local_state()
         .last_global_state()
         .clone()
         .as_builder()

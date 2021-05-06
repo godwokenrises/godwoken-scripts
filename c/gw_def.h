@@ -60,6 +60,11 @@ int gw_context_init(struct gw_context_t *ctx);
  */
 int gw_finalize(struct gw_context_t *ctx);
 
+/**
+ * Verify sudt account
+ */
+int gw_verify_sudt_account(struct gw_context_t *ctx, uint32_t sudt_id);
+
 
 /* layer2 syscalls */
 
@@ -74,7 +79,7 @@ int gw_finalize(struct gw_context_t *ctx);
  * @return           The status code, 0 is success
  */
 typedef int (*gw_create_fn)(struct gw_context_t *ctx, uint8_t *script,
-                            uint32_t script_len, uint32_t *account_id);
+                            uint64_t script_len, uint32_t *account_id);
 
 /**
  * Load value by key from current contract account
@@ -120,7 +125,7 @@ typedef int (*gw_store_fn)(struct gw_context_t *ctx, uint32_t account_id,
  * @return       The status code, 0 is success
  */
 typedef int (*gw_set_program_return_data_fn)(struct gw_context_t *ctx,
-                                             uint8_t *data, uint32_t len);
+                                             uint8_t *data, uint64_t len);
 
 /**
  * Get account id by account script_hash
@@ -161,8 +166,8 @@ typedef int (*gw_get_account_nonce_fn)(struct gw_context_t *ctx,
  * Get account script by account id
  */
 typedef int (*gw_get_account_script_fn)(struct gw_context_t *ctx,
-                                        uint32_t account_id, uint32_t *len,
-                                        uint32_t offset, uint8_t *script);
+                                        uint32_t account_id, uint64_t *len,
+                                        uint64_t offset, uint8_t *script);
 /**
  * Load data by data hash
  *
@@ -174,9 +179,9 @@ typedef int (*gw_get_account_script_fn)(struct gw_context_t *ctx,
  * @return           The status code, 0 is success
  */
 typedef int (*gw_load_data_fn)(struct gw_context_t *ctx, uint8_t data_hash[32],
-                               uint32_t *len, uint32_t offset, uint8_t *data);
+                               uint64_t *len, uint64_t offset, uint8_t *data);
 
-typedef int (*gw_store_data_fn)(struct gw_context_t *ctx, uint32_t data_len,
+typedef int (*gw_store_data_fn)(struct gw_context_t *ctx, uint64_t data_len,
                                 uint8_t *data);
 
 /**
@@ -201,6 +206,6 @@ typedef int (*gw_get_block_hash_fn)(struct gw_context_t *ctx, uint64_t number,
  * @return               The status code, 0 is success
  */
 typedef int (*gw_log_fn)(struct gw_context_t *ctx, uint32_t account_id, uint8_t service_flag,
-                         uint32_t data_length, const uint8_t *data);
+                         uint64_t data_length, const uint8_t *data);
 
 #endif /* GW_DEF_H_ */

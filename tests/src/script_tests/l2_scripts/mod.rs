@@ -2,15 +2,12 @@ use gw_common::blake2b::new_blake2b;
 use gw_common::state::State;
 use gw_common::H256;
 use gw_generator::{account_lock_manage::AccountLockManage, Generator};
-use gw_generator::{
-    error::TransactionError,
-    traits::StateExt,
-    types::{RollupContext, RunResult},
-};
+use gw_generator::{error::TransactionError, traits::StateExt, types::RollupContext};
 use gw_traits::{ChainStore, CodeStore};
 use gw_types::packed::{RawL2Transaction, RollupConfig};
 use gw_types::{
     bytes::Bytes,
+    offchain::RunResult,
     packed::{BlockInfo, LogItem},
     prelude::*,
 };

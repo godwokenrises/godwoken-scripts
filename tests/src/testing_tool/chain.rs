@@ -15,7 +15,7 @@ use gw_store::Store;
 use gw_types::{
     bytes::Bytes,
     packed::{
-        CellOutput, DepositionRequest, HeaderInfo, RawTransaction, RollupConfig, Script,
+        CellOutput, DepositionRequest, L2BlockCommittedInfo, RawTransaction, RollupConfig, Script,
         Transaction, WitnessArgs,
     },
     prelude::*,
@@ -88,13 +88,13 @@ pub fn setup_chain_with_account_lock_manage(
     account_lock_manage: AccountLockManage,
 ) -> Chain {
     let store = Store::open_tmp().unwrap();
-    let genesis_header_info = HeaderInfo::default();
+    let genesis_l2block_committed_info = L2BlockCommittedInfo::default();
     let backend_manage = build_backend_manage(&rollup_config);
     let rollup_script_hash: H256 = rollup_type_script.hash().into();
     let genesis_config = GenesisConfig {
         timestamp: 0,
         meta_contract_validator_type_hash: Default::default(),
-        rollup_type_hash: rollup_script_hash.clone(),
+        rollup_type_hash: rollup_script_hash.clone().0.into(),
         rollup_config: rollup_config.clone().into(),
     };
     let rollup_context = RollupContext {
@@ -106,7 +106,7 @@ pub fn setup_chain_with_account_lock_manage(
         account_lock_manage,
         rollup_context,
     ));
-    init_genesis(&store, &genesis_config, genesis_header_info).unwrap();
+    init_genesis(&store, &genesis_config, genesis_l2block_committed_info).unwrap();
     let mem_pool = MemPool::create(store.clone(), Arc::clone(&generator)).unwrap();
     Chain::create(
         &rollup_config,
@@ -150,14 +150,14 @@ pub fn apply_block_result(
     deposition_requests: Vec<DepositionRequest>,
 ) {
     let transaction = build_sync_tx(rollup_cell, block_result);
-    let header_info = HeaderInfo::default();
+    let l2block_committed_info = L2BlockCommittedInfo::default();
 
     let update = L1Action {
         context: L1ActionContext::SubmitTxs {
             deposition_requests,
         },
         transaction,
-        header_info,
+        l2block_committed_info,
     };
     let param = SyncParam {
         updates: vec![update],
@@ -176,7 +176,7 @@ pub fn construct_block(
     let timestamp = 0;
     let max_withdrawal_capacity = std::u128::MAX;
     let db = chain.store().begin_transaction();
-    let generator = chain.generator.as_ref();
+    let generator = chain.generator();
     let parent_block = chain.store().get_tip_block().unwrap();
     let rollup_config_hash = chain.rollup_config_hash().clone().into();
     let mut txs = Vec::new();

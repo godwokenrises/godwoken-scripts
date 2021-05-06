@@ -73,7 +73,7 @@ fn test_submit_block() {
             rollup_type_script.as_bytes(),
         )),
     );
-    let global_state = chain.local_state.last_global_state();
+    let global_state = chain.local_state().last_global_state();
     let initial_rollup_cell_data = global_state.as_bytes();
     let tx = build_simple_tx_with_out_point(
         &mut ctx.inner,
@@ -89,7 +89,7 @@ fn test_submit_block() {
     ctx.verify_tx(tx).expect("return success");
     // submit a new block
     let block_result = {
-        let mem_pool = chain.mem_pool.lock();
+        let mem_pool = chain.mem_pool().lock();
         construct_block(&chain, &mem_pool, Vec::default()).unwrap()
     };
     // verify submit block
@@ -192,7 +192,7 @@ fn test_check_reverted_cells_in_submit_block() {
         )),
     );
 
-    let global_state = chain.local_state.last_global_state();
+    let global_state = chain.local_state().last_global_state();
     let initial_rollup_cell_data = global_state.as_bytes();
     // build reverted cells inputs and outputs
     let reverted_deposit_capacity: u64 = 200_00000000u64;
@@ -302,7 +302,7 @@ fn test_check_reverted_cells_in_submit_block() {
     };
     // submit a new block
     let block_result = {
-        let mem_pool = chain.mem_pool.lock();
+        let mem_pool = chain.mem_pool().lock();
         construct_block(&chain, &mem_pool, Vec::default()).unwrap()
     };
     // verify submit block

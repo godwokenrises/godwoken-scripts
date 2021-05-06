@@ -165,8 +165,10 @@ fn test_sign_eth_message() {
     verifier.set_debug_printer(|_script, msg| println!("[script debug] {}", msg));
     let verify_result = verifier.verify(MAX_CYCLES);
     verify_result.expect("pass verification");
+    let mut lock_args = vec![0u8; 32];
+    lock_args.extend(pubkey_hash.as_ref());
     let valid = Secp256k1Eth::default()
-        .verify_signature(pubkey_hash, signature, message.into())
+        .verify_signature(lock_args.into(), signature, message.into())
         .unwrap();
     assert!(valid);
 }
@@ -208,8 +210,10 @@ fn test_wrong_signature() {
         ScriptError::ValidationFailure(ERROR_PUBKEY_BLAKE160_HASH)
             .input_lock_script(script_cell_index)
     );
+    let mut lock_args = vec![0u8; 32];
+    lock_args.extend(pubkey_hash.as_ref());
     let valid = Secp256k1Eth::default()
-        .verify_signature(pubkey_hash, signature, message.into())
+        .verify_signature(lock_args.into(), signature, message.into())
         .unwrap();
     assert!(!valid);
 }
