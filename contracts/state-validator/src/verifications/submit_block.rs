@@ -10,7 +10,7 @@ use alloc::{collections::BTreeMap, vec, vec::Vec};
 use crate::{
     cells::{
         build_l2_sudt_script, collect_custodian_locks, collect_deposition_locks,
-        collect_withdrawal_locks, find_challenge_cell, find_one_stake_cell,
+        collect_withdrawal_locks, find_block_producer_stake_cell, find_challenge_cell,
     },
     ckb_std::{ckb_constants::Source, debug},
     types::{CellValue, DepositionRequestCell, WithdrawalCell},
@@ -404,34 +404,37 @@ fn verify_block_producer(
 ) -> Result<(), Error> {
     let raw_block = block.raw();
     let owner_lock_hash = raw_block.stake_cell_owner_lock_hash();
-    let stake_cell = find_one_stake_cell(
-        &context.rollup_type_hash,
-        config,
-        Source::Input,
-        &owner_lock_hash,
-    )?;
-    // check stake cell capacity
-    if stake_cell.value.capacity < config.required_staking_capacity().unpack() {
-        debug!("stake cell's capacity is insufficient");
-        return Err(Error::InvalidStakeCell);
-    }
-    // expected output stake args
-    let expected_stake_lock_args = stake_cell
-        .args
-        .as_builder()
-        .stake_block_number(raw_block.number())
-        .build();
-    let output_stake_cell = find_one_stake_cell(
+    // make sure we have one stake cell in the output
+    let output_stake_cell = find_block_producer_stake_cell(
         &context.rollup_type_hash,
         config,
         Source::Output,
         &owner_lock_hash,
-    )?;
-    if expected_stake_lock_args != output_stake_cell.args
-        || stake_cell.value != output_stake_cell.value
-    {
-        debug!("the output stake cell isn't corresponded to the input one");
+    )?
+    .ok_or(Error::InvalidStakeCell)?;
+    // check stake cell capacity
+    if output_stake_cell.value.capacity < config.required_staking_capacity().unpack() {
+        debug!("stake cell's capacity is insufficient");
         return Err(Error::InvalidStakeCell);
+    }
+    // make sure input stake cell is identical to the output stake cell if we have one
+    if let Some(input_stake_cell) = find_block_producer_stake_cell(
+        &context.rollup_type_hash,
+        config,
+        Source::Input,
+        &owner_lock_hash,
+    )? {
+        let expected_stake_lock_args = input_stake_cell
+            .args
+            .as_builder()
+            .stake_block_number(raw_block.number())
+            .build();
+        if expected_stake_lock_args != output_stake_cell.args
+            || input_stake_cell.value != output_stake_cell.value
+        {
+            debug!("the output stake cell isn't corresponded to the input one");
+            return Err(Error::InvalidStakeCell);
+        }
     }
 
     Ok(())
@@ -448,6 +451,12 @@ fn check_block_transactions(context: &BlockContext, block: &L2Block) -> Result<(
     if tx_count != compacted_post_root_list.item_count() as u32
         || tx_count != block.transactions().len() as u32
     {
+        debug!(
+            "Invalid txs count, tx_count: {}, checkpoint list: {}, block txs: {}",
+            tx_count,
+            compacted_post_root_list.item_count(),
+            block.transactions().len()
+        );
         return Err(Error::InvalidTxsState);
     }
 
@@ -464,6 +473,11 @@ fn check_block_transactions(context: &BlockContext, block: &L2Block) -> Result<(
     // check current account tree state
     let compacted_prev_root_hash: H256 = submit_transactions.compacted_prev_root_hash().unpack();
     if context.calculate_compacted_account_root()? != compacted_prev_root_hash {
+        debug!(
+            "Invalid prev state, calculated root: {:?}, prev root: {:?}",
+            context.calculate_compacted_account_root()?,
+            compacted_prev_root_hash
+        );
         return Err(Error::InvalidTxsState);
     }
 
@@ -479,6 +493,10 @@ fn check_block_transactions(context: &BlockContext, block: &L2Block) -> Result<(
             .pack()
     };
     if post_compacted_account_root != block_post_compacted_account_root {
+        debug!(
+            "Invalid post state, calculated root: {:?}, post root: {:?}",
+            block_post_compacted_account_root, post_compacted_account_root
+        );
         return Err(Error::InvalidTxsState);
     }
 

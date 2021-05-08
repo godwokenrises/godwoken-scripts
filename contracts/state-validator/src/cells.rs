@@ -144,30 +144,33 @@ pub fn collect_stake_cells(
     Ok(cells)
 }
 
-/// Find one stake cell
-/// this function ensure we have only 1 stake cell in the source
-/// and the cell's owner_lock_hash must matches the owner_lock_hash arg
-pub fn find_one_stake_cell(
+/// Find block producer's stake cell
+/// this function return Option<StakeCell> if we have 1 or zero stake cell,
+/// otherwise return an error.
+pub fn find_block_producer_stake_cell(
     rollup_type_hash: &H256,
     config: &RollupConfig,
     source: Source,
     owner_lock_hash: &Byte32,
-) -> Result<StakeCell, Error> {
+) -> Result<Option<StakeCell>, Error> {
     let mut cells = collect_stake_cells(rollup_type_hash, config, source)?;
-    // this function guratee only one cell in the source
-    if cells.len() != 1 {
+    // return an error if more than one stake cell returned
+    if cells.len() > 1 {
         debug!(
-            "expected 1 stake cell from {:?}, found {}",
+            "expected no more than 1 stake cell from {:?}, found {}",
             source,
             cells.len()
         );
         return Err(Error::InvalidStakeCell);
     }
-    if &cells[0].args.owner_lock_hash() != owner_lock_hash {
-        debug!("found 1 stake cell from unexpected owner_lock_hash");
+    if cells
+        .iter()
+        .any(|cell| &cell.args.owner_lock_hash() != owner_lock_hash)
+    {
+        debug!("found stake cell with unexpected owner_lock_hash");
         return Err(Error::InvalidStakeCell);
     }
-    Ok(cells.remove(0))
+    Ok(cells.pop())
 }
 
 pub fn find_challenge_cell(
