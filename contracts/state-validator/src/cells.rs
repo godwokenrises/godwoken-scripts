@@ -136,7 +136,11 @@ pub fn collect_stake_cells(
                 debug!("found a stake cell with simple UDT");
                 return Some(Err(Error::InvalidStakeCell));
             }
-            let cell = StakeCell { index, args, value };
+            let cell = StakeCell {
+                index,
+                args,
+                capacity: value.capacity,
+            };
             Some(Ok(cell))
         });
     // reject if found multiple stake cells

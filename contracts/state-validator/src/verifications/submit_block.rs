@@ -413,7 +413,7 @@ fn verify_block_producer(
     )?
     .ok_or(Error::InvalidStakeCell)?;
     // check stake cell capacity
-    if output_stake_cell.value.capacity < config.required_staking_capacity().unpack() {
+    if output_stake_cell.capacity < config.required_staking_capacity().unpack() {
         debug!("stake cell's capacity is insufficient");
         return Err(Error::InvalidStakeCell);
     }
@@ -430,7 +430,7 @@ fn verify_block_producer(
             .stake_block_number(raw_block.number())
             .build();
         if expected_stake_lock_args != output_stake_cell.args
-            || input_stake_cell.value != output_stake_cell.value
+            || input_stake_cell.capacity > output_stake_cell.capacity
         {
             debug!("the output stake cell isn't corresponded to the input one");
             return Err(Error::InvalidStakeCell);
