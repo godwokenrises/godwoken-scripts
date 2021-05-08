@@ -77,7 +77,9 @@ impl Secp256k1Eth {
             &rollup_type_hash, &sender_eth_address
         );
         // verify polyjuice tx
-        if let Some(rlp_data) = try_assemble_polyjuice_args(rollup_chain_id,tx.raw(), receiver_script.clone()) {
+        if let Some(rlp_data) =
+            try_assemble_polyjuice_args(rollup_chain_id, tx.raw(), receiver_script.clone())
+        {
             let mut hasher = Keccak256::new();
             hasher.update(&rlp_data[..]);
             let buf = hasher.finalize();
@@ -122,7 +124,11 @@ impl Secp256k1Eth {
     }
 }
 
-fn try_assemble_polyjuice_args(rollup_chain_id: u32, raw_tx: RawL2Transaction, receiver_script: Script) -> Option<Bytes> {
+fn try_assemble_polyjuice_args(
+    rollup_chain_id: u32,
+    raw_tx: RawL2Transaction,
+    receiver_script: Script,
+) -> Option<Bytes> {
     let args: Bytes = raw_tx.args().unpack();
     if args.len() < 52 {
         return None;

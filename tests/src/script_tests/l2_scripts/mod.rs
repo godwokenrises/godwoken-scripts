@@ -7,12 +7,8 @@ use gw_traits::{ChainStore, CodeStore};
 use gw_types::{
     bytes::Bytes,
     offchain::RunResult,
-    packed::{BlockInfo, LogItem},
+    packed::{BlockInfo, LogItem, RawL2Transaction, RollupConfig},
     prelude::*,
-};
-use gw_types::{
-    offchain::RunResult,
-    packed::{RawL2Transaction, RollupConfig},
 };
 use lazy_static::lazy_static;
 use std::{fs, io::Read, path::PathBuf};

@@ -1,5 +1,3 @@
-mod eth_account_lock;
-
 use ckb_types::bytes::Bytes;
 use lazy_static::lazy_static;
 

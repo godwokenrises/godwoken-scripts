@@ -24,8 +24,9 @@ use validator_utils::{
     gw_common::{state::State, H256},
     gw_types::{
         packed::{
-            VerifyTransactionSignatureWitness, VerifyTransactionSignatureWitnessReader,
-            VerifyWithdrawalWitness, VerifyWithdrawalWitnessReader, RollupConfig
+            RollupConfig, VerifyTransactionSignatureWitness,
+            VerifyTransactionSignatureWitnessReader, VerifyWithdrawalWitness,
+            VerifyWithdrawalWitnessReader,
         },
         prelude::*,
     },
@@ -58,11 +59,11 @@ pub fn main() -> Result<(), Error> {
     // read rollup config
     let rollup_config = {
         // read global state from rollup cell
-        let global_state = match search_rollup_state(&(rollup_script_hash.clone()).into(), Source::Input)?
-        {
-            Some(state) => state,
-            None => return Err(Error::RollupCellNotFound),
-        };
+        let global_state =
+            match search_rollup_state(&(rollup_script_hash.clone()).into(), Source::Input)? {
+                Some(state) => state,
+                None => return Err(Error::RollupCellNotFound),
+            };
         load_rollup_config(&global_state.rollup_config_hash().unpack())?
     };
 
