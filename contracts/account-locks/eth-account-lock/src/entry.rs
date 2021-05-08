@@ -25,7 +25,7 @@ use validator_utils::{
     gw_types::{
         packed::{
             VerifyTransactionSignatureWitness, VerifyTransactionSignatureWitnessReader,
-            VerifyWithdrawalWitness, VerifyWithdrawalWitnessReader,
+            VerifyWithdrawalWitness, VerifyWithdrawalWitnessReader, RollupConfig
         },
         prelude::*,
     },
@@ -55,25 +55,39 @@ pub fn main() -> Result<(), Error> {
         return Err(Error::OwnerCellNotFound);
     }
 
+    // read rollup config
+    let rollup_config = {
+        // read global state from rollup cell
+        let global_state = match search_rollup_state(&(rollup_script_hash.clone()).into(), Source::Input)?
+        {
+            Some(state) => state,
+            None => return Err(Error::RollupCellNotFound),
+        };
+        load_rollup_config(&global_state.rollup_config_hash().unpack())?
+    };
+
     // verify signature
     match sig_type {
         SignatureType::Transaction => {
             debug!("Verify tx signature");
-            verify_tx_signature(rollup_script_hash)?;
+            verify_tx_signature(rollup_script_hash, &rollup_config)?;
         }
         SignatureType::Message(msg) => {
             debug!("Verify message signature {:?}", msg);
-            verify_message_signature(rollup_script_hash, eth_address, msg)?;
+            verify_message_signature(rollup_script_hash, &rollup_config, eth_address, msg)?;
         }
     }
 
     Ok(())
 }
 
-fn verify_tx_signature(rollup_script_hash: H256) -> Result<(), Error> {
+fn verify_tx_signature(
+    rollup_script_hash: H256,
+    rollup_config: &RollupConfig,
+) -> Result<(), Error> {
     // load tx
     let verify_tx_witness = {
-        let witness_lock = load_challenge_witness_args_lock(&rollup_script_hash)?;
+        let witness_lock = load_challenge_witness_args_lock(&rollup_script_hash, rollup_config)?;
         match VerifyTransactionSignatureWitnessReader::verify(&witness_lock, false) {
             Ok(()) => VerifyTransactionSignatureWitness::new_unchecked(witness_lock),
             Err(_err) => {
@@ -113,7 +127,12 @@ fn verify_tx_signature(rollup_script_hash: H256) -> Result<(), Error> {
     };
     // verify message
     let secp256k1_eth = Secp256k1Eth::default();
-    let valid = secp256k1_eth.verify_tx(sender_script, receiver_script, tx)?;
+    let valid = secp256k1_eth.verify_tx(
+        rollup_config.compatible_chain_id().unpack(),
+        sender_script,
+        receiver_script,
+        tx,
+    )?;
     if !valid {
         debug!("verify tx wrong");
         return Err(Error::WrongSignature);
@@ -122,12 +141,13 @@ fn verify_tx_signature(rollup_script_hash: H256) -> Result<(), Error> {
 }
 fn verify_message_signature(
     rollup_script_hash: H256,
+    rollup_config: &RollupConfig,
     eth_address: EthAddress,
     message: H256,
 ) -> Result<(), Error> {
     // load signature
     let signature = {
-        let witness_lock = load_challenge_witness_args_lock(&rollup_script_hash)?;
+        let witness_lock = load_challenge_witness_args_lock(&rollup_script_hash, rollup_config)?;
         let verify_withdrawal = match VerifyWithdrawalWitnessReader::verify(&witness_lock, false) {
             Ok(()) => VerifyWithdrawalWitness::new_unchecked(witness_lock),
             Err(_err) => {
@@ -170,16 +190,10 @@ fn parse_data() -> Result<([u8; 32], SignatureType), Error> {
 }
 
 // locate challenge cell index and load the witness_args.lock
-fn load_challenge_witness_args_lock(rollup_script_hash: &H256) -> Result<Bytes, Error> {
-    // read global state from rollup cell
-    let global_state = match search_rollup_state(&(*rollup_script_hash).into(), Source::Input)? {
-        Some(state) => state,
-        None => return Err(Error::RollupCellNotFound),
-    };
-
-    // read rollup config
-    let config = load_rollup_config(&global_state.rollup_config_hash().unpack())?;
-
+fn load_challenge_witness_args_lock(
+    rollup_script_hash: &H256,
+    config: &RollupConfig,
+) -> Result<Bytes, Error> {
     // find challenge cell
     let challenge_cell = find_challenge_cell(rollup_script_hash, &config, Source::Input)?
         .ok_or_else(|| {

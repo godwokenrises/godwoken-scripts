@@ -1,5 +1,4 @@
 use crate::testing_tool::programs::ALWAYS_SUCCESS_CODE_HASH;
-use ckb_types::H256;
 use gw_block_producer::produce_block::{produce_block, ProduceBlockParam, ProduceBlockResult};
 use gw_chain::chain::{Chain, L1Action, L1ActionContext, SyncEvent, SyncParam};
 use gw_config::{BackendConfig, GenesisConfig};
@@ -14,8 +13,8 @@ use gw_mem_pool::pool::MemPool;
 use gw_store::Store;
 use gw_types::{
     packed::{
-        CellOutput, DepositionRequest, L2BlockCommittedInfo, RawTransaction, RollupConfig, Script,
-        Transaction, WitnessArgs,
+        CellOutput, DepositionRequest, L2BlockCommittedInfo, RawTransaction, RollupAction,
+        RollupActionUnion, RollupConfig, RollupSubmitBlock, Script, Transaction, WitnessArgs,
     },
     prelude::*,
 };
@@ -66,7 +65,7 @@ pub fn setup_chain_with_account_lock_manage(
     let store = Store::open_tmp().unwrap();
     let genesis_l2block_committed_info = L2BlockCommittedInfo::default();
     let backend_manage = build_backend_manage(&rollup_config);
-    let rollup_script_hash: H256 = rollup_type_script.hash().into();
+    let rollup_script_hash: ckb_types::H256 = rollup_type_script.hash().into();
     let genesis_config = GenesisConfig {
         timestamp: 0,
         meta_contract_validator_type_hash: Default::default(),
@@ -113,8 +112,13 @@ pub fn build_sync_tx(
     } = produce_block_result;
     assert!(unused_transactions.is_empty());
     assert!(unused_withdrawal_requests.is_empty());
+    let action = RollupAction::new_builder()
+        .set(RollupActionUnion::RollupSubmitBlock(
+            RollupSubmitBlock::new_builder().block(block).build(),
+        ))
+        .build();
     let witness = WitnessArgs::new_builder()
-        .output_type(Pack::<_>::pack(&Some(block.as_bytes())))
+        .output_type(Pack::<_>::pack(&Some(action.as_bytes())))
         .build();
     let raw = RawTransaction::new_builder()
         .outputs(vec![rollup_cell].pack())
