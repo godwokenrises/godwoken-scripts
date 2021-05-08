@@ -73,109 +73,105 @@ pub fn main() -> Result<(), Error> {
         }
     };
 
-    // read global state from rollup cell
-    match search_rollup_state(&rollup_type_hash, Source::Input)? {
-        Some(global_state) => {
+    // execute verification
+    match unlock_args.to_enum() {
+        UnlockWithdrawalWitnessUnion::UnlockWithdrawalViaRevert(unlock_args) => {
             let withdrawal_block_hash = lock_args.withdrawal_block_hash();
-
-            match unlock_args.to_enum() {
-                UnlockWithdrawalWitnessUnion::UnlockWithdrawalViaRevert(unlock_args) => {
-                    // prove the block is reverted
-                    let rollup_action = {
-                        let index = search_rollup_cell(&rollup_type_hash, Source::Output)
-                            .ok_or(Error::RollupCellNotFound)?;
-                        parse_rollup_action(index, Source::Output)?
-                    };
-                    match rollup_action.to_enum() {
-                        RollupActionUnion::RollupSubmitBlock(args) => {
-                            if args
-                                .reverted_block_hashes()
-                                .into_iter()
-                                .find(|hash| hash == &withdrawal_block_hash)
-                                .is_none()
-                            {
-                                return Err(Error::InvalidRevertedBlocks);
-                            }
-                        }
-                        _ => {
-                            return Err(Error::InvalidRevertedBlocks);
-                        }
-                    }
-                    let custodian_lock_hash: [u8; 32] = unlock_args.custodian_lock_hash().unpack();
-                    // check there are a reverted custodian lock in the output
-                    let custodian_cell_index =
-                        match search_lock_hash(&custodian_lock_hash, Source::Output) {
-                            Some(index) => index,
-                            None => return Err(Error::InvalidOutput),
-                        };
-
-                    // check reverted custodian deposition info.
-                    let custodian_lock = load_cell_lock(custodian_cell_index, Source::Output)?;
-                    let custodian_lock_args = {
-                        let args: Bytes = custodian_lock.args().unpack();
-                        if args.len() < rollup_type_hash.len() {
-                            return Err(Error::InvalidArgs);
-                        }
-                        if args[..32] != rollup_type_hash {
-                            return Err(Error::InvalidArgs);
-                        }
-
-                        match CustodianLockArgsReader::verify(&args.slice(32..), false) {
-                            Ok(_) => CustodianLockArgs::new_unchecked(args.slice(32..)),
-                            Err(_) => return Err(Error::InvalidOutput),
-                        }
-                    };
-                    let custodian_deposition_block_hash: [u8; 32] =
-                        custodian_lock_args.deposition_block_hash().unpack();
-                    let custodian_deposition_block_number: u64 =
-                        custodian_lock_args.deposition_block_number().unpack();
-                    let config = load_rollup_config(&global_state.rollup_config_hash().unpack())?;
-                    if custodian_lock.code_hash().as_slice()
-                        != config.custodian_script_type_hash().as_slice()
-                        || custodian_lock.hash_type() != ScriptHashType::Type.into()
-                        || custodian_deposition_block_hash != FINALIZED_BLOCK_HASH
-                        || custodian_deposition_block_number != FINALIZED_BLOCK_NUMBER
-                    {
-                        return Err(Error::InvalidOutput);
-                    }
-
-                    // check capacity, data_hash, type_hash
-                    check_output_cell_has_same_content(custodian_cell_index)?;
-                    Ok(())
-                }
-                UnlockWithdrawalWitnessUnion::UnlockWithdrawalViaFinalize(_unlock_args) => {
-                    // check finality
-                    let withdrawal_block_number: u64 = lock_args.withdrawal_block_number().unpack();
-                    let last_finalized_block_number: u64 =
-                        global_state.last_finalized_block_number().unpack();
-
-                    if withdrawal_block_number > last_finalized_block_number {
-                        // not yet finalized
-                        return Err(Error::InvalidArgs);
-                    }
-
-                    // withdrawal lock is finalized, unlock for owner
-                    if search_lock_hash(&lock_args.owner_lock_hash().unpack(), Source::Input)
+            // prove the block is reverted
+            let rollup_action = {
+                let index = search_rollup_cell(&rollup_type_hash, Source::Output)
+                    .ok_or(Error::RollupCellNotFound)?;
+                parse_rollup_action(index, Source::Output)?
+            };
+            match rollup_action.to_enum() {
+                RollupActionUnion::RollupSubmitBlock(args) => {
+                    if args
+                        .reverted_block_hashes()
+                        .into_iter()
+                        .find(|hash| hash == &withdrawal_block_hash)
                         .is_none()
                     {
-                        return Err(Error::OwnerCellNotFound);
+                        return Err(Error::InvalidRevertedBlocks);
                     }
-                    Ok(())
                 }
                 _ => {
-                    // unknown unlock condition
-                    Err(Error::InvalidArgs)
+                    return Err(Error::InvalidRevertedBlocks);
                 }
             }
+            let custodian_lock_hash: [u8; 32] = unlock_args.custodian_lock_hash().unpack();
+            // check there are a reverted custodian lock in the output
+            let custodian_cell_index = match search_lock_hash(&custodian_lock_hash, Source::Output)
+            {
+                Some(index) => index,
+                None => return Err(Error::InvalidOutput),
+            };
+
+            // check reverted custodian deposition info.
+            let custodian_lock = load_cell_lock(custodian_cell_index, Source::Output)?;
+            let custodian_lock_args = {
+                let args: Bytes = custodian_lock.args().unpack();
+                if args.len() < rollup_type_hash.len() {
+                    return Err(Error::InvalidArgs);
+                }
+                if args[..32] != rollup_type_hash {
+                    return Err(Error::InvalidArgs);
+                }
+
+                match CustodianLockArgsReader::verify(&args.slice(32..), false) {
+                    Ok(_) => CustodianLockArgs::new_unchecked(args.slice(32..)),
+                    Err(_) => return Err(Error::InvalidOutput),
+                }
+            };
+            let custodian_deposition_block_hash: [u8; 32] =
+                custodian_lock_args.deposition_block_hash().unpack();
+            let custodian_deposition_block_number: u64 =
+                custodian_lock_args.deposition_block_number().unpack();
+            let global_state = search_rollup_state(&rollup_type_hash, Source::Input)?
+                .ok_or(Error::RollupCellNotFound)?;
+            let config = load_rollup_config(&global_state.rollup_config_hash().unpack())?;
+            if custodian_lock.code_hash().as_slice()
+                != config.custodian_script_type_hash().as_slice()
+                || custodian_lock.hash_type() != ScriptHashType::Type.into()
+                || custodian_deposition_block_hash != FINALIZED_BLOCK_HASH
+                || custodian_deposition_block_number != FINALIZED_BLOCK_NUMBER
+            {
+                return Err(Error::InvalidOutput);
+            }
+
+            // check capacity, data_hash, type_hash
+            check_output_cell_has_same_content(custodian_cell_index)?;
+            Ok(())
         }
-        None => {
+        UnlockWithdrawalWitnessUnion::UnlockWithdrawalViaFinalize(_unlock_args) => {
+            // try search rollup state from deps
+            let global_state = match search_rollup_state(&rollup_type_hash, Source::CellDep)? {
+                Some(state) => state,
+                None => {
+                    // then try search rollup state from inputs
+                    search_rollup_state(&rollup_type_hash, Source::Input)?
+                        .ok_or(Error::RollupCellNotFound)?
+                }
+            };
+            // check finality
+            let withdrawal_block_number: u64 = lock_args.withdrawal_block_number().unpack();
+            let last_finalized_block_number: u64 =
+                global_state.last_finalized_block_number().unpack();
+
+            if withdrawal_block_number > last_finalized_block_number {
+                // not yet finalized
+                return Err(Error::InvalidArgs);
+            }
+
+            // withdrawal lock is finalized, unlock for owner
+            if search_lock_hash(&lock_args.owner_lock_hash().unpack(), Source::Input).is_none() {
+                return Err(Error::OwnerCellNotFound);
+            }
+            Ok(())
+        }
+
+        UnlockWithdrawalWitnessUnion::UnlockWithdrawalViaTrade(unlock_args) => {
             // rollup cell does not in this tx, which means this is a buying tx
             // return success if tx has enough output send to owner
-
-            let unlock_args = match unlock_args.to_enum() {
-                UnlockWithdrawalWitnessUnion::UnlockWithdrawalViaTrade(unlock_args) => unlock_args,
-                _ => return Err(Error::InvalidArgs),
-            };
             // make sure output >= input + sell_amount
             let payment_lock_hash = lock_args.payment_lock_hash().unpack();
             let sudt_script_hash: [u8; 32] = lock_args.sudt_script_hash().unpack();
