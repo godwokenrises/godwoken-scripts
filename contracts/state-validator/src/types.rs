@@ -55,7 +55,7 @@ pub struct CustodianCell {
 pub struct StakeCell {
     pub index: usize,
     pub args: StakeLockArgs,
-    pub value: CellValue,
+    pub capacity: u64,
 }
 
 pub struct ChallengeCell {

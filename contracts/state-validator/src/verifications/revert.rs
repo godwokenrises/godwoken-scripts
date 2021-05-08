@@ -109,10 +109,7 @@ fn check_rewards(
     }
 
     // calcuate rewards assets & burn assets
-    let total_stake_capacity: u128 = stake_cells
-        .iter()
-        .map(|cell| cell.value.capacity as u128)
-        .sum();
+    let total_stake_capacity: u128 = stake_cells.iter().map(|cell| cell.capacity as u128).sum();
     let reward_burn_rate: u8 = config.reward_burn_rate().into();
     let expected_reward_capacity =
         total_stake_capacity.saturating_mul(reward_burn_rate.into()) / 100;
