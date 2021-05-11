@@ -9,7 +9,7 @@ LDFLAGS := -Wl,-static -fdata-sections -ffunction-sections -Wl,--gc-sections
 MOLC := moleculec
 MOLC_VERSION := 0.6.1
 # PROTOCOL_VERSION := ed0f15135eaf1cc122d7cc02cc2cc04837b977ac
-PROTOCOL_VERSION := 910b476a123ad71f05ba1159b8a9c24a29a5252b
+PROTOCOL_VERSION := a07c239862ceeeb806443c80cb01103ff7c3a0cb
 PROTOCOL_SCHEMA_URL := https://raw.githubusercontent.com/nervosnetwork/godwoken/${PROTOCOL_VERSION}/crates/types/schemas
 
 # docker pull nervos/ckb-riscv-gnu-toolchain:gnu-bionic-20191012

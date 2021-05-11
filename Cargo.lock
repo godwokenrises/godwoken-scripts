@@ -1728,7 +1728,7 @@ dependencies = [
 [[package]]
 name = "gw-block-producer"
 version = "0.2.0-rc1"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#39f7b716e12b43d0829e11af56113eb9166cb091"
+source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -1767,7 +1767,7 @@ dependencies = [
 [[package]]
 name = "gw-chain"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#39f7b716e12b43d0829e11af56113eb9166cb091"
+source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
 dependencies = [
  "anyhow",
  "ckb-fixed-hash 0.38.0",
@@ -1789,7 +1789,7 @@ dependencies = [
 [[package]]
 name = "gw-common"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#39f7b716e12b43d0829e11af56113eb9166cb091"
+source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
 dependencies = [
  "cfg-if 0.1.10",
  "gw-hash",
@@ -1800,7 +1800,7 @@ dependencies = [
 [[package]]
 name = "gw-config"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#39f7b716e12b43d0829e11af56113eb9166cb091"
+source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
 dependencies = [
  "ckb-fixed-hash 0.38.0",
  "gw-jsonrpc-types",
@@ -1810,7 +1810,7 @@ dependencies = [
 [[package]]
 name = "gw-db"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#39f7b716e12b43d0829e11af56113eb9166cb091"
+source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
 dependencies = [
  "ckb-rocksdb",
  "libc",
@@ -1822,7 +1822,7 @@ dependencies = [
 [[package]]
 name = "gw-generator"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#39f7b716e12b43d0829e11af56113eb9166cb091"
+source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
 dependencies = [
  "anyhow",
  "blake2b-rs 0.2.0",
@@ -1843,7 +1843,7 @@ dependencies = [
 [[package]]
 name = "gw-hash"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#39f7b716e12b43d0829e11af56113eb9166cb091"
+source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
 dependencies = [
  "blake2b-ref",
 ]
@@ -1851,7 +1851,7 @@ dependencies = [
 [[package]]
 name = "gw-jsonrpc-types"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#39f7b716e12b43d0829e11af56113eb9166cb091"
+source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
 dependencies = [
  "anyhow",
  "ckb-fixed-hash 0.38.0",
@@ -1865,7 +1865,7 @@ dependencies = [
 [[package]]
 name = "gw-mem-pool"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#39f7b716e12b43d0829e11af56113eb9166cb091"
+source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
 dependencies = [
  "anyhow",
  "gw-common",
@@ -1879,7 +1879,7 @@ dependencies = [
 [[package]]
 name = "gw-rpc-server"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#39f7b716e12b43d0829e11af56113eb9166cb091"
+source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -1918,7 +1918,7 @@ dependencies = [
 [[package]]
 name = "gw-store"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#39f7b716e12b43d0829e11af56113eb9166cb091"
+source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
 dependencies = [
  "anyhow",
  "gw-common",
@@ -1971,7 +1971,7 @@ dependencies = [
 [[package]]
 name = "gw-traits"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#39f7b716e12b43d0829e11af56113eb9166cb091"
+source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
 dependencies = [
  "gw-common",
  "gw-db",
@@ -1981,7 +1981,7 @@ dependencies = [
 [[package]]
 name = "gw-types"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#39f7b716e12b43d0829e11af56113eb9166cb091"
+source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
 dependencies = [
  "cfg-if 0.1.10",
  "ckb-fixed-hash 0.38.0",
@@ -1993,7 +1993,7 @@ dependencies = [
 [[package]]
 name = "gw-web3-indexer"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#39f7b716e12b43d0829e11af56113eb9166cb091"
+source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
 dependencies = [
  "anyhow",
  "ckb-hash 0.38.0",
@@ -3578,9 +3578,9 @@ dependencies = [
 
 [[package]]
 name = "sparse-merkle-tree"
-version = "0.3.1-pre"
+version = "0.4.0-rc1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "319827f79e565c18099ef900023e7bcc3ebf8ca9ae8d5bf9b28df87f5ef19a34"
+checksum = "ec860bc00b39e71398547445bda898397ee341c97796cb65fd8a0f3bff22cc10"
 dependencies = [
  "cfg-if 0.1.10",
 ]
