@@ -19,12 +19,7 @@ int recover_secp256k1_uncompressed_key(uint8_t message[32],
   // Setup secp256k1 data
   secp256k1_context context;
   uint8_t secp_data[CKB_SECP256K1_DATA_SIZE];
-  int ret = ckb_secp256k1_custom_load_data(secp_data);
-  if (ret != 0) {
-    printf("Error occured when loading secp256k1 data");
-    return ret;
-  }
-  ret = ckb_secp256k1_custom_verify_only_initialize(&context, secp_data);
+  int ret = ckb_secp256k1_custom_verify_only_initialize(&context, secp_data);
   if (ret != 0) {
     printf("Error occured when initializing secp256k1");
     return ret;

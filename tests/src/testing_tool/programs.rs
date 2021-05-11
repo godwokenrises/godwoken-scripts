@@ -9,8 +9,7 @@ const CHALLENGE_LOCK_PATH: &'static str = "challenge-lock";
 const STATE_VALIDATOR: &'static str = "state-validator";
 const ALWAYS_SUCCESS_PATH: &'static str = "always-success";
 const ETH_LOCK_PATH: &'static str = "eth-account-lock";
-const SECP256K1_DATA_PATH: &'static str =
-    "../c/deps/ckb-miscellaneous-scripts/build/secp256k1_data";
+const SECP256K1_DATA_PATH: &'static str = "../c/deps/ckb-production-scripts/build/secp256k1_data";
 
 lazy_static! {
     pub static ref ALWAYS_SUCCESS_PROGRAM: Bytes = {

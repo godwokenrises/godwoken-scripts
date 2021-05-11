@@ -2,7 +2,7 @@ TARGET := riscv64-unknown-linux-gnu
 CC := $(TARGET)-gcc
 LD := $(TARGET)-gcc
 OBJCOPY := $(TARGET)-objcopy
-SECP256K1_INCLUDES := -I deps/ckb-miscellaneous-scripts/deps -I deps/ckb-miscellaneous-scripts/build/ -I deps/ckb-miscellaneous-scripts/deps/secp256k1/src/ -I deps/ckb-miscellaneous-scripts/deps/secp256k1/
+SECP256K1_INCLUDES := -I deps/ckb-production-scripts/c/ -I deps/ckb-production-scripts/build/ -I deps/ckb-production-scripts/deps/secp256k1/src/ -I deps/ckb-production-scripts/deps/secp256k1/
 CINCLUDES := -I deps/ckb-c-stdlib -I deps/ckb-c-stdlib/libc -I deps/molecule -I . -I build
 CFLAGS := $(CINCLUDES) $(SECP256K1_INCLUDES) -DCKB_C_STDLIB_PRINTF -fPIC -O3 -nostdinc -nostdlib -nostartfiles -fvisibility=hidden -Wall -Werror -Wno-nonnull -Wno-nonnull-compare -Wno-unused-function -g
 LDFLAGS := -Wl,-static -fdata-sections -ffunction-sections -Wl,--gc-sections
@@ -17,7 +17,7 @@ BUILDER_DOCKER := nervos/ckb-riscv-gnu-toolchain@sha256:aae8a3f79705f67d505d1f1d
 
 GENERATORS := build/meta-contract-generator build/sudt-generator build/examples/sum-generator build/examples/account-operation-generator
 VALIDATORS := build/meta-contract-validator build/sudt-validator build/examples/sum-validator build/examples/account-operation-validator
-SECP256K1_HELPER := deps/ckb-miscellaneous-scripts/build/secp256k1_data_info.h
+SECP256K1_HELPER := deps/ckb-production-scripts/build/secp256k1_data_info.h
 
 LIBS := build/libckb-secp256k1.a
 
@@ -44,7 +44,7 @@ debug-all: all
 
 # secp256k1_helper.h
 $(SECP256K1_HELPER):
-	cd deps/ckb-miscellaneous-scripts && git submodule init && git submodule update -r && make all-via-docker
+	cd deps/ckb-production-scripts && git submodule init && git submodule update -r && make all-via-docker
 
 build/meta-contract-generator: contracts/meta_contract.c gw_def.h generator_utils.h
 	$(CC) $(CFLAGS) -DGW_GENERATOR $(LDFLAGS) -o $@ $<
