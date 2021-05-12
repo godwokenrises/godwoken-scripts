@@ -2,11 +2,13 @@
 use core::result::Result;
 
 use validator_utils::{
-    ckb_std::high_level::load_cell_lock,
-    search_cells::{
-        load_rollup_config, parse_rollup_action, search_lock_hash, search_rollup_cell,
-        search_rollup_state,
+    cells::{
+        rollup::{
+            load_rollup_config, parse_rollup_action, search_rollup_cell, search_rollup_state,
+        },
+        utils::search_lock_hash,
     },
+    ckb_std::high_level::load_cell_lock,
 };
 
 // Import CKB syscalls and structures

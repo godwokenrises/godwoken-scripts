@@ -1,4 +1,9 @@
-use super::*;
+use crate::script_tests::utils::layer1::random_out_point;
+use crate::script_tests::utils::rollup::{
+    build_always_success_cell, build_rollup_locked_cell, build_type_id_script,
+    calculate_state_validator_type_id, CellContext, CellContextParam,
+};
+use crate::testing_tool::programs::{ALWAYS_SUCCESS_CODE_HASH, STATE_VALIDATOR_CODE_HASH};
 use crate::{script_tests::utils::layer1::build_simple_tx, testing_tool::chain::construct_block};
 use crate::{
     script_tests::utils::layer1::build_simple_tx_with_out_point, testing_tool::chain::setup_chain,
@@ -7,6 +12,7 @@ use ckb_types::{
     packed::CellInput,
     prelude::{Pack as CKBPack, Unpack},
 };
+use gw_types::prelude::*;
 use gw_types::{
     bytes::Bytes,
     core::ScriptHashType,

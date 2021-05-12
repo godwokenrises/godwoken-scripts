@@ -760,10 +760,13 @@ int _load_verify_transaction_witness(
   block_info->timestamp = *((uint64_t *)timestamp_seg.ptr);
   block_info->block_producer_id = *((uint32_t *)block_producer_id_seg.ptr);
 
+  /* Load VerifyTransactionContext */
+  mol_seg_t verify_tx_ctx_seg =
+      MolReader_VerifyTransactionWitness_get_context(&verify_tx_witness_seg);
+
   /* load block hashes */
   mol_seg_t block_hashes_seg =
-      MolReader_VerifyTransactionWitness_get_block_hashes(
-          &verify_tx_witness_seg);
+      MolReader_VerifyTransactionContext_get_block_hashes(&verify_tx_ctx_seg);
   uint32_t block_hashes_size =
       MolReader_BlockHashEntryVec_length(&block_hashes_seg);
   gw_state_init(block_hashes_state, block_hashes_pairs,
@@ -817,7 +820,7 @@ int _load_verify_transaction_witness(
 
   /* load kv state */
   mol_seg_t kv_state_seg =
-      MolReader_VerifyTransactionWitness_get_kv_state(&verify_tx_witness_seg);
+      MolReader_VerifyTransactionContext_get_kv_state(&verify_tx_ctx_seg);
   uint32_t kv_pairs_len = MolReader_KVPairVec_length(&kv_state_seg);
   if (kv_pairs_len > GW_MAX_KV_PAIRS) {
     ckb_debug("too many key/value pair");
@@ -874,7 +877,7 @@ int _load_verify_transaction_witness(
 
   /* load scripts */
   mol_seg_t scripts_seg =
-      MolReader_VerifyTransactionWitness_get_scripts(&verify_tx_witness_seg);
+      MolReader_VerifyTransactionContext_get_scripts(&verify_tx_ctx_seg);
   uint32_t entries_size = MolReader_ScriptVec_length(&scripts_seg);
   if (entries_size > GW_MAX_SCRIPT_ENTRIES_SIZE) {
     ckb_debug("script size is exceeded maximum");
@@ -910,7 +913,7 @@ int _load_verify_transaction_witness(
 
   /* load return data hash */
   mol_seg_t return_data_hash_seg =
-      MolReader_VerifyTransactionWitness_get_return_data_hash(
+      MolReader_VerifyTransactionContext_get_return_data_hash(
           &verify_tx_witness_seg);
   memcpy(return_data_hash, return_data_hash_seg.ptr, 32);
 
@@ -1005,7 +1008,54 @@ void _gw_block_smt_key(uint8_t key[32], uint64_t number) {
   memcpy(key, (uint8_t *)&number, 8);
 }
 
+/*
+ * To prevent others consume the cell,
+ * an owner_lock_hash(32 bytes) is put in the current cell's data,
+ * this function checks that at least an input cell's lock_hash equals to the
+ * owner_lock_hash, thus, we can make sure current cell is unlocked by the
+ * owner, otherwise this function return an error.
+ */
+int _check_owner_lock_hash() {
+  /* read data from current cell */
+  uint8_t owner_lock_hash[32] = {0};
+  uint64_t len = 32;
+  int ret =
+      ckb_load_cell_data(owner_lock_hash, &len, 0, 0, CKB_SOURCE_GROUP_INPUT);
+  if (ret != 0) {
+    printf("check owner lock hash failed, can't load cell data, ret: %d", ret);
+    return ret;
+  }
+  if (len != 32) {
+    printf("check owner lock hash failed, invalid data len: %ld", len);
+    return GW_ERROR_INVALID_DATA;
+  }
+  /* look for owner cell */
+  size_t current = 0;
+  while (true) {
+    len = 32;
+    uint8_t lock_hash[32] = {0};
+
+    ret = ckb_load_cell_by_field(lock_hash, &len, 0, current, CKB_SOURCE_INPUT,
+                                 CKB_CELL_FIELD_LOCK_HASH);
+
+    if (ret != 0) {
+      return ret;
+    }
+    if (memcmp(lock_hash, owner_lock_hash, 32) == 0) {
+      /* found owner lock cell */
+      return 0;
+    }
+    current++;
+  }
+  return CKB_INDEX_OUT_OF_BOUND;
+}
+
 int gw_context_init(gw_context_t *ctx) {
+  /* check owner lock */
+  int ret = _check_owner_lock_hash();
+  if (ret != 0) {
+    return ret;
+  }
   /* setup syscalls */
   ctx->sys_load = sys_load;
   ctx->sys_load_nonce = sys_load_nonce;
@@ -1023,7 +1073,7 @@ int gw_context_init(gw_context_t *ctx) {
 
   /* initialize context */
   uint8_t rollup_script_hash[32] = {0};
-  int ret = _load_rollup_script_hash(rollup_script_hash);
+  ret = _load_rollup_script_hash(rollup_script_hash);
   if (ret != 0) {
     ckb_debug("failed to load rollup script hash");
     return ret;

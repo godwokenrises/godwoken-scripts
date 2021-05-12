@@ -1,11 +1,15 @@
-use super::*;
 use crate::script_tests::utils::layer1::build_simple_tx_with_out_point;
-use crate::testing_tool::chain::{
-    apply_block_result, construct_block, setup_chain, ALWAYS_SUCCESS_CODE_HASH,
+use crate::script_tests::utils::layer1::random_out_point;
+use crate::script_tests::utils::rollup::{
+    build_always_success_cell, build_rollup_locked_cell, build_type_id_script,
+    calculate_state_validator_type_id, CellContext, CellContextParam,
 };
+use crate::testing_tool::chain::{apply_block_result, construct_block, setup_chain};
+use crate::testing_tool::programs::{ALWAYS_SUCCESS_CODE_HASH, STATE_VALIDATOR_CODE_HASH};
 use ckb_types::prelude::{Pack as CKBPack, Unpack};
 use gw_common::{builtins::CKB_SUDT_ACCOUNT_ID, state::State};
 use gw_store::state_db::{StateDBTransaction, StateDBVersion};
+use gw_types::prelude::*;
 use gw_types::{
     bytes::Bytes,
     core::{ChallengeTargetType, ScriptHashType, Status},
@@ -133,7 +137,7 @@ fn test_enter_challenge() {
             .target(
                 ChallengeTarget::new_builder()
                     .target_index(Pack::pack(&0u32))
-                    .target_type(ChallengeTargetType::Transaction.into())
+                    .target_type(ChallengeTargetType::TxExecution.into())
                     .block_hash(Pack::pack(&challenged_block.hash()))
                     .build(),
             )

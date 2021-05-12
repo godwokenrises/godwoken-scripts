@@ -9,8 +9,8 @@ pub use ckb_std;
 pub use gw_common;
 pub use gw_types;
 
+pub mod cells;
 pub mod error;
 pub mod kv_state;
-pub mod search_cells;
 pub mod signature;
 pub mod type_id;

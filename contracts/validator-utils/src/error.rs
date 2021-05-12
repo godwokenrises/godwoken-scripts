@@ -26,11 +26,10 @@ pub enum Error {
     InsufficientOutputFinalizedAssets,
     NotForSell,
     SMTKeyMissing,
-    InvalidTxsState,
+    InvalidStateCheckpoint,
     InvalidBlock,
     InvalidStatus,
     InvalidStakeCellUnlock,
-    InvalidAccountLockCell,
     InvalidPostGlobalState,
     InvalidChallengeCell,
     InvalidStakeCell,
@@ -45,7 +44,11 @@ pub enum Error {
     UnknownEOAScript,
     UnknownContractScript,
     ScriptNotFound,
+    AccountLockCellNotFound,
     InvalidTypeID,
+    UnexpectedTxNonce,
+    // raise from signature verification script
+    WrongSignature,
 }
 
 impl From<SysError> for Error {

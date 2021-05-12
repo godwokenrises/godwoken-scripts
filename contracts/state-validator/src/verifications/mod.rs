@@ -6,13 +6,12 @@ use gw_types::{
 use validator_utils::gw_common;
 use validator_utils::gw_types;
 use validator_utils::{
+    cells::lock_cells::{
+        collect_custodian_locks, collect_deposition_locks, collect_stake_cells,
+        collect_withdrawal_locks,
+    },
     ckb_std::{ckb_constants::Source, debug},
     error::Error,
-};
-
-use crate::cells::{
-    collect_custodian_locks, collect_deposition_locks, collect_stake_cells,
-    collect_withdrawal_locks,
 };
 
 pub mod challenge;

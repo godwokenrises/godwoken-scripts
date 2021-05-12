@@ -1,37 +1,29 @@
-//! Cells operations
+//! Lock cells
 
-use crate::types::CellValue;
-use crate::{
-    ckb_std::{
-        ckb_types::prelude::{Entity as CKBEntity, Unpack as CKBUnpack},
-        debug,
-    },
-    types::{
-        BurnCell, ChallengeCell, CustodianCell, DepositionRequestCell, StakeCell, WithdrawalCell,
+use super::types::{
+    BurnCell, CellValue, ChallengeCell, CustodianCell, DepositionRequestCell, StakeCell,
+    WithdrawalCell,
+};
+use crate::error::Error;
+use alloc::vec::Vec;
+use ckb_std::{
+    ckb_constants::Source,
+    ckb_types::prelude::{Entity as CKBEntity, Unpack as CKBUnpack},
+    debug,
+    high_level::{
+        load_cell_capacity, load_cell_data, load_cell_lock, load_cell_lock_hash, load_cell_type,
+        load_cell_type_hash, QueryIter,
     },
 };
-use alloc::vec::Vec;
 use gw_common::{CKB_SUDT_SCRIPT_ARGS, H256};
 use gw_types::{
     bytes::Bytes,
     core::ScriptHashType,
     packed::{
-        Byte32, DepositionLockArgs, GlobalState, GlobalStateReader, RollupConfig, Script,
-        StakeLockArgs, WithdrawalLockArgs, WithdrawalLockArgsReader,
+        Byte32, DepositionLockArgs, RollupConfig, StakeLockArgs, WithdrawalLockArgs,
+        WithdrawalLockArgsReader,
     },
     prelude::*,
-};
-use validator_utils::gw_common;
-use validator_utils::gw_types;
-use validator_utils::{
-    ckb_std::{
-        ckb_constants::Source,
-        high_level::{
-            load_cell_capacity, load_cell_data, load_cell_lock, load_cell_lock_hash,
-            load_cell_type, load_cell_type_hash, QueryIter,
-        },
-    },
-    error::Error,
 };
 
 fn fetch_sudt_script_hash(
@@ -100,14 +92,6 @@ pub fn fetch_capacity_and_sudt_value(
         },
     };
     Ok(value)
-}
-
-pub fn parse_global_state(source: Source) -> Result<GlobalState, Error> {
-    let data = load_cell_data(0, source)?;
-    match GlobalStateReader::verify(&data, false) {
-        Ok(_) => Ok(GlobalState::new_unchecked(data.into())),
-        Err(_) => Err(Error::Encoding),
-    }
 }
 
 pub fn collect_stake_cells(
@@ -214,24 +198,6 @@ pub fn find_challenge_cell(
         return Err(Error::InvalidChallengeCell);
     }
     Ok(cells.pop())
-}
-
-pub fn build_l2_sudt_script(
-    rollup_script_hash: &H256,
-    config: &RollupConfig,
-    l1_sudt_script_hash: &H256,
-) -> Script {
-    let args = {
-        let mut args = Vec::with_capacity(64);
-        args.extend(rollup_script_hash.as_slice());
-        args.extend(l1_sudt_script_hash.as_slice());
-        Bytes::from(args)
-    };
-    Script::new_builder()
-        .args(args.pack())
-        .code_hash(config.l2_sudt_validator_script_type_hash())
-        .hash_type(ScriptHashType::Type.into())
-        .build()
 }
 
 pub fn collect_withdrawal_locks(

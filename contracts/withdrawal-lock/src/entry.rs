@@ -1,20 +1,24 @@
 // Import from `core` instead of from `std` since we are in no-std mode
 use core::result::Result;
 
-use gw_types::{
+use validator_utils::gw_types::{
+    self,
     core::ScriptHashType,
     packed::{
         CustodianLockArgs, CustodianLockArgsReader, RollupActionUnion,
         UnlockWithdrawalWitnessUnion, WithdrawalLockArgs, WithdrawalLockArgsReader,
     },
 };
-use validator_utils::gw_types;
 use validator_utils::{
-    ckb_std::high_level::load_cell_lock,
-    search_cells::{
-        fetch_token_amount, load_rollup_config, parse_rollup_action, search_lock_hash,
-        search_rollup_cell, search_rollup_state, TokenType,
+    cells::{
+        rollup::{
+            load_rollup_config, parse_rollup_action, search_rollup_cell, search_rollup_state,
+        },
+        token::fetch_token_amount_by_lock_hash,
+        token::TokenType,
+        utils::search_lock_hash,
     },
+    ckb_std::high_level::load_cell_lock,
 };
 
 // Import CKB syscalls and structures
@@ -176,8 +180,10 @@ pub fn main() -> Result<(), Error> {
             let payment_lock_hash = lock_args.payment_lock_hash().unpack();
             let sudt_script_hash: [u8; 32] = lock_args.sudt_script_hash().unpack();
             let token_type: TokenType = sudt_script_hash.into();
-            let input_token = fetch_token_amount(&payment_lock_hash, &token_type, Source::Input)?;
-            let output_token = fetch_token_amount(&payment_lock_hash, &token_type, Source::Output)?;
+            let input_token =
+                fetch_token_amount_by_lock_hash(&payment_lock_hash, &token_type, Source::Input)?;
+            let output_token =
+                fetch_token_amount_by_lock_hash(&payment_lock_hash, &token_type, Source::Output)?;
             let sell_amount: u128 = lock_args.sell_amount().unpack();
             let sell_capacity: u64 = lock_args.sell_capacity().unpack();
             // Withdrawal cell is not for sell

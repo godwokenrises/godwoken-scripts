@@ -4,11 +4,10 @@ use gw_common::H256;
 use gw_generator::{account_lock_manage::AccountLockManage, Generator};
 use gw_generator::{error::TransactionError, traits::StateExt, types::RollupContext};
 use gw_traits::{ChainStore, CodeStore};
-use gw_types::packed::{RawL2Transaction, RollupConfig};
 use gw_types::{
     bytes::Bytes,
     offchain::RunResult,
-    packed::{BlockInfo, LogItem},
+    packed::{BlockInfo, LogItem, RawL2Transaction, RollupConfig},
     prelude::*,
 };
 use lazy_static::lazy_static;

@@ -7,30 +7,35 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-gw-types = { git = "https://github.com/nervosnetwork/godwoken.git", branch = "master" }
-gw-common = { git = "https://github.com/nervosnetwork/godwoken.git", branch = "master" }
-gw-config = { git = "https://github.com/nervosnetwork/godwoken.git", branch = "master" }
-gw-db = { git = "https://github.com/nervosnetwork/godwoken.git", branch = "master" }
-gw-store = { git = "https://github.com/nervosnetwork/godwoken.git", branch = "master" }
-gw-traits = { git = "https://github.com/nervosnetwork/godwoken.git", branch = "master" }
-gw-generator = { git = "https://github.com/nervosnetwork/godwoken.git", branch = "master" }
-gw-chain = { git = "https://github.com/nervosnetwork/godwoken.git", branch = "master" }
-gw-mem-pool = { git = "https://github.com/nervosnetwork/godwoken.git", branch = "master" }
-gw-block-producer = { git = "https://github.com/nervosnetwork/godwoken.git", branch = "master" }
+gw-types = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "3b58b50dff3f548a997417c622694831c96d72e1" }
+gw-common = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "3b58b50dff3f548a997417c622694831c96d72e1" }
+gw-config = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "3b58b50dff3f548a997417c622694831c96d72e1" }
+gw-db = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "3b58b50dff3f548a997417c622694831c96d72e1" }
+gw-store = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "3b58b50dff3f548a997417c622694831c96d72e1" }
+gw-traits = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "3b58b50dff3f548a997417c622694831c96d72e1" }
+gw-generator = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "3b58b50dff3f548a997417c622694831c96d72e1" }
+gw-chain = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "3b58b50dff3f548a997417c622694831c96d72e1" }
+gw-mem-pool = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "3b58b50dff3f548a997417c622694831c96d72e1" }
+gw-block-producer = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "3b58b50dff3f548a997417c622694831c96d72e1" }
 parking_lot = "0.11"
 anyhow = "1.0"
 blake2b-rs = "0.2"
-ckb-vm = { git = "https://github.com/nervosnetwork/ckb-vm.git", tag = "0.19.1", features = ["detect-asm"] }
 thiserror = "1.0"
 lazy_static = "1.4"
 secp256k1 = { version = "0.20", features = ["recovery"] }
 sha3 = "0.9.1"
 hex = "0.4.2"
-ckb-script = "0.37.0"
-ckb-types = "0.37.0"
-ckb-error = "0.37.0"
-ckb-crypto = "0.37.0"
-ckb-hash = "0.37.0"
-ckb-traits = "0.37.0"
-ckb-fixed-hash = "0.37.0"
+ckb-script = "0.39.0"
+ckb-types = "0.39.0"
+ckb-error = "0.39.0"
+ckb-crypto = "0.39.0"
+ckb-hash = "0.39.0"
+ckb-traits = "0.39.0"
+ckb-fixed-hash = "0.39.0"
 rand = "0.8"
+env_logger = "0.8"
+# Remove this after CKB fixed the dependencies issue
+ckb-vm = "=0.19.3"
+ckb-vm-definitions = "=0.19.3"
+tentacle-multiaddr = "=0.2.0"
+molecule = "=0.6.0"

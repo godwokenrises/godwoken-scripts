@@ -4,26 +4,37 @@ use core::result::Result;
 // Import heap related library from `alloc`
 // https://doc.rust-lang.org/alloc/index.html
 use validator_utils::{
+    cells::rollup::{load_rollup_config, parse_rollup_action},
     ckb_std::{
         ckb_types::prelude::Unpack as CKBUnpack,
-        high_level::{load_cell_capacity, load_script},
+        high_level::{load_cell_capacity, load_cell_data, load_script},
     },
-    search_cells::{load_rollup_config, parse_rollup_action},
     type_id::{check_type_id, TYPE_ID_SIZE},
 };
 
 // Import CKB syscalls and structures
 // https://nervosnetwork.github.io/ckb-std/riscv64imac-unknown-none-elf/doc/ckb_std/index.html
 use crate::{
-    cells::parse_global_state,
     ckb_std::{ckb_constants::Source, high_level::load_script_hash},
     verifications,
 };
 
-use gw_types::{bytes::Bytes, packed::RollupActionUnion, prelude::*};
+use gw_types::{
+    bytes::Bytes,
+    packed::{GlobalState, GlobalStateReader, RollupActionUnion},
+    prelude::*,
+};
 use validator_utils::gw_types;
 
 use validator_utils::error::Error;
+
+pub fn parse_global_state(source: Source) -> Result<GlobalState, Error> {
+    let data = load_cell_data(0, source)?;
+    match GlobalStateReader::verify(&data, false) {
+        Ok(_) => Ok(GlobalState::new_unchecked(data.into())),
+        Err(_) => Err(Error::Encoding),
+    }
+}
 
 /// return true if we are in the initialization, otherwise return false
 fn check_initialization() -> Result<bool, Error> {

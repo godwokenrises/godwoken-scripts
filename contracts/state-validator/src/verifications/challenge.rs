@@ -8,10 +8,13 @@ use gw_types::{
 };
 use validator_utils::gw_common;
 use validator_utils::gw_types;
-use validator_utils::{ckb_std::ckb_constants::Source, error::Error};
+use validator_utils::{
+    cells::lock_cells::find_challenge_cell,
+    ckb_std::{ckb_constants::Source, debug},
+    error::Error,
+};
 
 use super::{check_rollup_lock_cells, check_status};
-use crate::cells::find_challenge_cell;
 
 pub fn verify_enter_challenge(
     rollup_type_hash: H256,
@@ -42,6 +45,7 @@ pub fn verify_enter_challenge(
             .verify::<Blake2bHasher>(&prev_global_state.block().merkle_root().unpack(), leaves)?
     };
     if !valid {
+        debug!("enter challenge prev state merkle proof error");
         return Err(Error::MerkleProof);
     }
     let challenge_target = challenge_cell.args.target();
@@ -55,7 +59,7 @@ pub fn verify_enter_challenge(
         .map_err(|_| Error::InvalidChallengeTarget)?;
     let target_index: u32 = challenge_target.target_index().unpack();
     match target_type {
-        ChallengeTargetType::Transaction => {
+        ChallengeTargetType::TxExecution | ChallengeTargetType::TxSignature => {
             let tx_count: u32 = challenged_block.submit_transactions().tx_count().unpack();
             if target_index >= tx_count {
                 return Err(Error::InvalidChallengeTarget);
@@ -101,6 +105,7 @@ pub fn verify_cancel_challenge(
     let has_output_challenge =
         find_challenge_cell(&rollup_type_hash, config, Source::Output)?.is_some();
     if !has_input_challenge || has_output_challenge {
+        debug!("cancel challenge, invalid challenge cell");
         return Err(Error::InvalidChallengeCell);
     }
     // check rollup lock cells
@@ -115,6 +120,7 @@ pub fn verify_cancel_challenge(
             .build()
     };
     if post_global_state != &actual_post_global_state {
+        debug!("cancel challenge, mismatch post global state");
         return Err(Error::InvalidPostGlobalState);
     }
     Ok(())

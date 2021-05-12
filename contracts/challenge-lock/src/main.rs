@@ -9,6 +9,7 @@
 
 // define modules
 mod entry;
+mod verifications;
 
 use ckb_std::default_alloc;
 pub use validator_utils::ckb_std;

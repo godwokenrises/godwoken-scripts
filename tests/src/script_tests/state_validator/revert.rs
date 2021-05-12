@@ -1,10 +1,13 @@
-use super::*;
 use crate::script_tests::utils::layer1::build_simple_tx_with_out_point;
-use crate::testing_tool::chain::{
-    apply_block_result, construct_block, setup_chain, ALWAYS_SUCCESS_CODE_HASH,
+use crate::script_tests::utils::layer1::{always_success_script, random_out_point};
+use crate::script_tests::utils::rollup::{
+    build_always_success_cell, build_rollup_locked_cell, build_type_id_script,
+    calculate_state_validator_type_id, CellContext, CellContextParam,
 };
+use crate::testing_tool::chain::{apply_block_result, construct_block, setup_chain};
+use crate::testing_tool::programs::{ALWAYS_SUCCESS_CODE_HASH, STATE_VALIDATOR_CODE_HASH};
 use ckb_types::{
-    packed::CellInput,
+    packed::{CellInput, CellOutput},
     prelude::{Pack as CKBPack, Unpack as CKBUnpack},
 };
 use gw_common::{
@@ -21,6 +24,7 @@ use gw_types::{
         SUDTTransfer, Script,
     },
 };
+use gw_types::{packed::StakeLockArgs, prelude::*};
 
 #[test]
 fn test_revert() {
@@ -166,7 +170,7 @@ fn test_revert() {
             .target(
                 ChallengeTarget::new_builder()
                     .target_index(Pack::pack(&0u32))
-                    .target_type(ChallengeTargetType::Transaction.into())
+                    .target_type(ChallengeTargetType::TxExecution.into())
                     .block_hash(Pack::pack(&challenged_block.hash()))
                     .build(),
             )
