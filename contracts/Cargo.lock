@@ -139,7 +139,7 @@ dependencies = [
 [[package]]
 name = "gw-common"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=3b58b50dff3f548a997417c622694831c96d72e1#3b58b50dff3f548a997417c622694831c96d72e1"
 dependencies = [
  "cfg-if",
  "gw-hash",
@@ -149,7 +149,7 @@ dependencies = [
 [[package]]
 name = "gw-hash"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=3b58b50dff3f548a997417c622694831c96d72e1#3b58b50dff3f548a997417c622694831c96d72e1"
 dependencies = [
  "blake2b-ref",
 ]
@@ -157,7 +157,7 @@ dependencies = [
 [[package]]
 name = "gw-types"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=3b58b50dff3f548a997417c622694831c96d72e1#3b58b50dff3f548a997417c622694831c96d72e1"
 dependencies = [
  "cfg-if",
  "gw-hash",

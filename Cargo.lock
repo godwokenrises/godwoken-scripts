@@ -1728,7 +1728,7 @@ dependencies = [
 [[package]]
 name = "gw-block-producer"
 version = "0.2.0-rc1"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=3b58b50dff3f548a997417c622694831c96d72e1#3b58b50dff3f548a997417c622694831c96d72e1"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -1767,7 +1767,7 @@ dependencies = [
 [[package]]
 name = "gw-chain"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=3b58b50dff3f548a997417c622694831c96d72e1#3b58b50dff3f548a997417c622694831c96d72e1"
 dependencies = [
  "anyhow",
  "ckb-fixed-hash 0.38.0",
@@ -1789,7 +1789,7 @@ dependencies = [
 [[package]]
 name = "gw-common"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=3b58b50dff3f548a997417c622694831c96d72e1#3b58b50dff3f548a997417c622694831c96d72e1"
 dependencies = [
  "cfg-if 0.1.10",
  "gw-hash",
@@ -1800,7 +1800,7 @@ dependencies = [
 [[package]]
 name = "gw-config"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=3b58b50dff3f548a997417c622694831c96d72e1#3b58b50dff3f548a997417c622694831c96d72e1"
 dependencies = [
  "ckb-fixed-hash 0.38.0",
  "gw-jsonrpc-types",
@@ -1810,7 +1810,7 @@ dependencies = [
 [[package]]
 name = "gw-db"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=3b58b50dff3f548a997417c622694831c96d72e1#3b58b50dff3f548a997417c622694831c96d72e1"
 dependencies = [
  "ckb-rocksdb",
  "libc",
@@ -1822,7 +1822,7 @@ dependencies = [
 [[package]]
 name = "gw-generator"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=3b58b50dff3f548a997417c622694831c96d72e1#3b58b50dff3f548a997417c622694831c96d72e1"
 dependencies = [
  "anyhow",
  "blake2b-rs 0.2.0",
@@ -1843,7 +1843,7 @@ dependencies = [
 [[package]]
 name = "gw-hash"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=3b58b50dff3f548a997417c622694831c96d72e1#3b58b50dff3f548a997417c622694831c96d72e1"
 dependencies = [
  "blake2b-ref",
 ]
@@ -1851,7 +1851,7 @@ dependencies = [
 [[package]]
 name = "gw-jsonrpc-types"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=3b58b50dff3f548a997417c622694831c96d72e1#3b58b50dff3f548a997417c622694831c96d72e1"
 dependencies = [
  "anyhow",
  "ckb-fixed-hash 0.38.0",
@@ -1865,7 +1865,7 @@ dependencies = [
 [[package]]
 name = "gw-mem-pool"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=3b58b50dff3f548a997417c622694831c96d72e1#3b58b50dff3f548a997417c622694831c96d72e1"
 dependencies = [
  "anyhow",
  "gw-common",
@@ -1879,7 +1879,7 @@ dependencies = [
 [[package]]
 name = "gw-rpc-server"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=3b58b50dff3f548a997417c622694831c96d72e1#3b58b50dff3f548a997417c622694831c96d72e1"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -1918,7 +1918,7 @@ dependencies = [
 [[package]]
 name = "gw-store"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=3b58b50dff3f548a997417c622694831c96d72e1#3b58b50dff3f548a997417c622694831c96d72e1"
 dependencies = [
  "anyhow",
  "gw-common",
@@ -1971,7 +1971,7 @@ dependencies = [
 [[package]]
 name = "gw-traits"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=3b58b50dff3f548a997417c622694831c96d72e1#3b58b50dff3f548a997417c622694831c96d72e1"
 dependencies = [
  "gw-common",
  "gw-db",
@@ -1981,7 +1981,7 @@ dependencies = [
 [[package]]
 name = "gw-types"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=3b58b50dff3f548a997417c622694831c96d72e1#3b58b50dff3f548a997417c622694831c96d72e1"
 dependencies = [
  "cfg-if 0.1.10",
  "ckb-fixed-hash 0.38.0",
@@ -1993,7 +1993,7 @@ dependencies = [
 [[package]]
 name = "gw-web3-indexer"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?branch=refactoring-account-unlock#a07c239862ceeeb806443c80cb01103ff7c3a0cb"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=3b58b50dff3f548a997417c622694831c96d72e1#3b58b50dff3f548a997417c622694831c96d72e1"
 dependencies = [
  "anyhow",
  "ckb-hash 0.38.0",

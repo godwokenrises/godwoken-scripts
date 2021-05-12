@@ -8,8 +8,5 @@ edition = "2018"
 
 [dependencies]
 ckb-std = "0.7.4"
-# gw-types = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "ed0f15135eaf1cc122d7cc02cc2cc04837b977ac", default-features = false }
-# gw-common = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "ed0f15135eaf1cc122d7cc02cc2cc04837b977ac", default-features = false }
-
-gw-types = { git = "https://github.com/jjyr/godwoken.git", branch = "refactoring-account-unlock", default-features = false }
-gw-common = { git = "https://github.com/jjyr/godwoken.git", branch = "refactoring-account-unlock", default-features = false }
+gw-types = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "3b58b50dff3f548a997417c622694831c96d72e1", default-features = false }
+gw-common = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "3b58b50dff3f548a997417c622694831c96d72e1", default-features = false }
