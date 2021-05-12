@@ -324,7 +324,8 @@ fn test_cancel_tx_signature() {
             ))
             .capacity(CKBPack::pack(&42u64))
             .build();
-        let out_point = ctx.insert_cell(cell, Bytes::default());
+        let owner_lock_hash = vec![42u8; 32];
+        let out_point = ctx.insert_cell(cell, Bytes::from(owner_lock_hash));
         CellInput::new_builder().previous_output(out_point).build()
     };
     let rollup_cell_data = global_state

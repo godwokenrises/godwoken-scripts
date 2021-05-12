@@ -261,10 +261,13 @@ fn test_cancel_withdrawal() {
             ))
             .capacity(CKBPack::pack(&42u64))
             .build();
+        let owner_lock_hash = vec![42u8; 32];
         let message = withdrawal
             .raw()
             .calc_message(&rollup_type_script.hash().into());
-        let out_point = ctx.insert_cell(cell, Bytes::from(message.as_slice().to_vec()));
+        let mut buf = owner_lock_hash;
+        buf.extend_from_slice(message.as_slice());
+        let out_point = ctx.insert_cell(cell, Bytes::from(buf));
         CellInput::new_builder().previous_output(out_point).build()
     };
     let rollup_cell_data = global_state
