@@ -37,10 +37,7 @@ use gw_common::{
 use gw_types::{
     bytes::Bytes,
     core::{ScriptHashType, Status},
-    packed::{
-        AccountMerkleState, Byte32, GlobalState, L2Block, RawL2Block, RollupConfig,
-        WithdrawalRequest,
-    },
+    packed::{Byte32, GlobalState, L2Block, RawL2Block, RollupConfig, WithdrawalRequest},
     prelude::*,
 };
 
@@ -621,13 +618,10 @@ pub fn verify(
 
     // Verify Post state
     let actual_post_global_state = {
-        let root = kv_state.calculate_root()?;
-        let count = kv_state.get_account_count()?;
-        // calculate new account merkle state from block_context
-        let account_merkle_state = AccountMerkleState::new_builder()
-            .merkle_root(root.pack())
-            .count(count.pack())
-            .build();
+        // because of the optimistic challenge mechanism,
+        // we just believe the post account in the block,
+        // if the post account state is invalid then someone will send a challenge
+        let account_merkle_state = block.raw().post_account();
         // we have verified the post block merkle state
         let block_merkle_state = post_global_state.block();
         // last finalized block number
