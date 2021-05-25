@@ -5,7 +5,7 @@ use gw_common::sparse_merkle_tree::H256;
 use validator_utils::gw_common;
 
 #[derive(Clone)]
-pub struct DepositionRequest {
+pub struct DepositRequest {
     // CKB amount
     pub capacity: u64,
     // SUDT amount

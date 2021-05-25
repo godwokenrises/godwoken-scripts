@@ -57,10 +57,10 @@ pub fn main() -> Result<(), Error> {
         None => return Err(Error::RollupCellNotFound),
     };
 
-    let deposition_block_number: u64 = lock_args.deposition_block_number().unpack();
+    let deposit_block_number: u64 = lock_args.deposit_block_number().unpack();
     let last_finalized_block_number: u64 = global_state.last_finalized_block_number().unpack();
 
-    if deposition_block_number <= last_finalized_block_number {
+    if deposit_block_number <= last_finalized_block_number {
         // this custodian lock is already finalized, rollup will handle the logic
         return Ok(());
     }
@@ -81,20 +81,20 @@ pub fn main() -> Result<(), Error> {
         Err(_) => return Err(Error::InvalidArgs),
     };
 
-    // the reverted deposition cell must exists
-    let deposition_cell_index =
-        search_lock_hash(&unlock_args.deposition_lock_hash().unpack(), Source::Output)
+    // the reverted deposit cell must exists
+    let deposit_cell_index =
+        search_lock_hash(&unlock_args.deposit_lock_hash().unpack(), Source::Output)
             .ok_or(Error::InvalidOutput)?;
-    let deposition_lock = load_cell_lock(deposition_cell_index, Source::Output)?;
-    if deposition_lock.code_hash().as_slice() != config.deposition_script_type_hash().as_slice()
-        || deposition_lock.hash_type() != ScriptHashType::Type.into()
-        || deposition_lock.args().as_slice() != lock_args.deposition_lock_args().as_slice()
+    let deposit_lock = load_cell_lock(deposit_cell_index, Source::Output)?;
+    if deposit_lock.code_hash().as_slice() != config.deposit_script_type_hash().as_slice()
+        || deposit_lock.hash_type() != ScriptHashType::Type.into()
+        || deposit_lock.args().as_slice() != lock_args.deposit_lock_args().as_slice()
     {
         return Err(Error::InvalidOutput);
     }
 
-    // check deposition block is reverted
-    let deposition_block_hash = lock_args.deposition_block_hash();
+    // check deposit block is reverted
+    let deposit_block_hash = lock_args.deposit_block_hash();
     let rollup_action = {
         let index = search_rollup_cell(&rollup_type_hash, Source::Output)
             .ok_or(Error::RollupCellNotFound)?;
@@ -106,7 +106,7 @@ pub fn main() -> Result<(), Error> {
             if args
                 .reverted_block_hashes()
                 .into_iter()
-                .any(|hash| hash == deposition_block_hash)
+                .any(|hash| hash == deposit_block_hash)
             {
                 return Ok(());
             }

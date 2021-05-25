@@ -14,7 +14,7 @@ use gw_types::{
     bytes::Bytes,
     core::{ChallengeTargetType, ScriptHashType, Status},
     packed::{
-        ChallengeLockArgs, ChallengeTarget, ChallengeWitness, DepositionRequest, L2Transaction,
+        ChallengeLockArgs, ChallengeTarget, ChallengeWitness, DepositRequest, L2Transaction,
         RawL2Transaction, RollupAction, RollupActionUnion, RollupConfig, RollupEnterChallenge,
         SUDTArgs, SUDTArgsUnion, SUDTTransfer, Script,
     },
@@ -35,8 +35,10 @@ fn test_enter_challenge() {
     let stake_lock_type = build_type_id_script(b"stake_lock_type_id");
     let challenge_lock_type = build_type_id_script(b"challenge_lock_type_id");
     let challenge_script_type_hash: [u8; 32] = challenge_lock_type.calc_script_hash().unpack();
+    let finality_blocks = 10;
     let rollup_config = RollupConfig::new_builder()
         .challenge_script_type_hash(Pack::pack(&challenge_script_type_hash))
+        .finality_blocks(Pack::pack(&finality_blocks))
         .build();
     // setup chain
     let mut chain = setup_chain(rollup_type_script.clone(), rollup_config.clone());
@@ -61,26 +63,26 @@ fn test_enter_challenge() {
             .hash_type(ScriptHashType::Data.into())
             .args(Pack::pack(&Bytes::from(b"receiver".to_vec())))
             .build();
-        let deposition_requests = vec![
-            DepositionRequest::new_builder()
+        let deposit_requests = vec![
+            DepositRequest::new_builder()
                 .capacity(Pack::pack(&100_00000000u64))
                 .script(sender_script.clone())
                 .build(),
-            DepositionRequest::new_builder()
+            DepositRequest::new_builder()
                 .capacity(Pack::pack(&50_00000000u64))
                 .script(receiver_script.clone())
                 .build(),
         ];
         let produce_block_result = {
             let mem_pool = chain.mem_pool().lock();
-            construct_block(&chain, &mem_pool, deposition_requests.clone()).unwrap()
+            construct_block(&chain, &mem_pool, deposit_requests.clone()).unwrap()
         };
         let rollup_cell = gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes());
         apply_block_result(
             &mut chain,
             rollup_cell.clone(),
             produce_block_result,
-            deposition_requests,
+            deposit_requests,
         );
         let db = chain.store().begin_transaction();
         let tip_block_hash = db.get_tip_block_hash().unwrap();

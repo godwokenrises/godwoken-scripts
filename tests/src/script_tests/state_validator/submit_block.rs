@@ -17,7 +17,7 @@ use gw_types::{
     bytes::Bytes,
     core::ScriptHashType,
     packed::{
-        CustodianLockArgs, DepositionLockArgs, RollupAction, RollupActionUnion, RollupConfig,
+        CustodianLockArgs, DepositLockArgs, RollupAction, RollupActionUnion, RollupConfig,
         RollupSubmitBlock, Script, StakeLockArgs, WithdrawalLockArgs,
     },
 };
@@ -153,7 +153,7 @@ fn test_check_reverted_cells_in_submit_block() {
     let withdrawal_script_type_hash: [u8; 32] = withdrawal_lock_type.calc_script_hash().unpack();
     let rollup_config = RollupConfig::new_builder()
         .stake_script_type_hash(Pack::pack(&stake_script_type_hash))
-        .deposition_script_type_hash(Pack::pack(&deposit_script_type_hash))
+        .deposit_script_type_hash(Pack::pack(&deposit_script_type_hash))
         .custodian_script_type_hash(Pack::pack(&custodian_script_type_hash))
         .withdrawal_script_type_hash(Pack::pack(&withdrawal_script_type_hash))
         .build();
@@ -207,7 +207,7 @@ fn test_check_reverted_cells_in_submit_block() {
         .hash_type(ScriptHashType::Data.into())
         .args(Pack::pack(&Bytes::from(b"sender".to_vec())))
         .build();
-    let deposit_args = DepositionLockArgs::new_builder()
+    let deposit_args = DepositLockArgs::new_builder()
         .owner_lock_hash(Pack::pack(&[0u8; 32]))
         .layer2_lock(depositer_lock_script.clone())
         .cancel_timeout(Pack::pack(&0))
@@ -217,9 +217,9 @@ fn test_check_reverted_cells_in_submit_block() {
     // build reverted deposit cell
     let input_reverted_custodian_cell = {
         let args = CustodianLockArgs::new_builder()
-            .deposition_lock_args(deposit_args.clone())
-            .deposition_block_hash(Pack::pack(&revert_block_hash))
-            .deposition_block_number(Pack::pack(&revert_block_number))
+            .deposit_lock_args(deposit_args.clone())
+            .deposit_block_hash(Pack::pack(&revert_block_hash))
+            .deposit_block_number(Pack::pack(&revert_block_number))
             .build();
         let cell = build_rollup_locked_cell(
             &rollup_type_script.hash().into(),
@@ -256,8 +256,8 @@ fn test_check_reverted_cells_in_submit_block() {
     };
     let output_reverted_custodian_cell = {
         let args = CustodianLockArgs::new_builder()
-            .deposition_block_hash(Pack::pack(&[0u8; 32]))
-            .deposition_block_number(Pack::pack(&0))
+            .deposit_block_hash(Pack::pack(&[0u8; 32]))
+            .deposit_block_number(Pack::pack(&0))
             .build();
         build_rollup_locked_cell(
             &rollup_type_script.hash().into(),
@@ -274,8 +274,8 @@ fn test_check_reverted_cells_in_submit_block() {
             .into_iter()
             .map(|_| {
                 let args = CustodianLockArgs::new_builder()
-                    .deposition_block_hash(Pack::pack(&[0u8; 32]))
-                    .deposition_block_number(Pack::pack(&0))
+                    .deposit_block_hash(Pack::pack(&[0u8; 32]))
+                    .deposit_block_number(Pack::pack(&0))
                     .build();
                 let cell = build_rollup_locked_cell(
                     &rollup_type_script.hash().into(),
@@ -294,8 +294,8 @@ fn test_check_reverted_cells_in_submit_block() {
             .into_iter()
             .map(|_| {
                 let args = CustodianLockArgs::new_builder()
-                    .deposition_block_hash(Pack::pack(&[0u8; 32]))
-                    .deposition_block_number(Pack::pack(&0))
+                    .deposit_block_hash(Pack::pack(&[0u8; 32]))
+                    .deposit_block_number(Pack::pack(&0))
                     .build();
                 build_rollup_locked_cell(
                     &rollup_type_script.hash().into(),

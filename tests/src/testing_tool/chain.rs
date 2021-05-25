@@ -1,5 +1,8 @@
 use crate::testing_tool::programs::ALWAYS_SUCCESS_CODE_HASH;
-use gw_block_producer::produce_block::{produce_block, ProduceBlockParam, ProduceBlockResult};
+use gw_block_producer::{
+    produce_block::{produce_block, ProduceBlockParam, ProduceBlockResult},
+    withdrawal::AvailableCustodians,
+};
 use gw_chain::chain::{Chain, L1Action, L1ActionContext, SyncEvent, SyncParam};
 use gw_config::{BackendConfig, GenesisConfig};
 use gw_generator::{
@@ -13,7 +16,7 @@ use gw_mem_pool::pool::MemPool;
 use gw_store::Store;
 use gw_types::{
     packed::{
-        CellOutput, DepositionRequest, L2BlockCommittedInfo, RawTransaction, RollupAction,
+        CellOutput, DepositRequest, L2BlockCommittedInfo, RawTransaction, RollupAction,
         RollupActionUnion, RollupConfig, RollupSubmitBlock, Script, Transaction, WitnessArgs,
     },
     prelude::*,
@@ -134,15 +137,13 @@ pub fn apply_block_result(
     chain: &mut Chain,
     rollup_cell: CellOutput,
     block_result: ProduceBlockResult,
-    deposition_requests: Vec<DepositionRequest>,
+    deposit_requests: Vec<DepositRequest>,
 ) {
     let transaction = build_sync_tx(rollup_cell, block_result);
     let l2block_committed_info = L2BlockCommittedInfo::default();
 
     let update = L1Action {
-        context: L1ActionContext::SubmitTxs {
-            deposition_requests,
-        },
+        context: L1ActionContext::SubmitTxs { deposit_requests },
         transaction,
         l2block_committed_info,
     };
@@ -157,7 +158,7 @@ pub fn apply_block_result(
 pub fn construct_block(
     chain: &Chain,
     mem_pool: &MemPool,
-    deposition_requests: Vec<DepositionRequest>,
+    deposit_requests: Vec<DepositRequest>,
 ) -> anyhow::Result<ProduceBlockResult> {
     let block_producer_id = 0u32;
     let timestamp = 0;
@@ -168,12 +169,25 @@ pub fn construct_block(
     let parent_block = chain.store().get_tip_block().unwrap();
     let rollup_config_hash = chain.rollup_config_hash().clone().into();
     let mut txs = Vec::new();
+    let mut available_custodians = AvailableCustodians::default();
+    // initialize with some withdraw-able capacity
+    available_custodians.capacity += 10000 * (100000000);
     let mut withdrawal_requests = Vec::new();
     for (_, entry) in mem_pool.pending() {
         // notice we either choice txs or withdrawals from an entry to avoid nonce conflict
         if !entry.txs.is_empty() {
             txs.extend(entry.txs.iter().cloned());
         } else if !entry.withdrawals.is_empty() {
+            for w in &entry.withdrawals {
+                let raw = w.raw();
+                let capacity: u64 = raw.capacity().unpack();
+                available_custodians.capacity += capacity as u128;
+                let entry = available_custodians
+                    .sudt
+                    .entry(raw.sudt_script_hash().unpack());
+                let v = entry.or_default();
+                v.0 += raw.amount().unpack();
+            }
             withdrawal_requests.extend(entry.withdrawals.iter().cloned());
         }
     }
@@ -185,11 +199,12 @@ pub fn construct_block(
         stake_cell_owner_lock_hash,
         timestamp,
         txs,
-        deposition_requests,
+        deposit_requests,
         withdrawal_requests,
         parent_block: &parent_block,
         rollup_config_hash: &rollup_config_hash,
         max_withdrawal_capacity,
+        available_custodians,
     };
     produce_block(param)
 }
