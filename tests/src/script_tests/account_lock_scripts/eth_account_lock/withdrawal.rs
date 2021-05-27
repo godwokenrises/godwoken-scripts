@@ -23,7 +23,7 @@ use gw_types::{
     bytes::Bytes,
     core::{ChallengeTargetType, ScriptHashType, Status},
     packed::{
-        Byte32, ChallengeLockArgs, ChallengeTarget, DepositionRequest, RawWithdrawalRequest,
+        Byte32, ChallengeLockArgs, ChallengeTarget, DepositRequest, RawWithdrawalRequest,
         RollupAction, RollupActionUnion, RollupCancelChallenge, RollupConfig, Script, ScriptVec,
         VerifySignatureContext, VerifyWithdrawalWitness, WithdrawalRequest,
     },
@@ -93,26 +93,26 @@ fn verify_withdrawal_signature(
             .hash_type(ScriptHashType::Data.into())
             .args(Pack::pack(&Bytes::from(b"receiver".to_vec())))
             .build();
-        let deposition_requests = vec![
-            DepositionRequest::new_builder()
+        let deposit_requests = vec![
+            DepositRequest::new_builder()
                 .capacity(Pack::pack(&150_00000000u64))
                 .script(sender_script.clone())
                 .build(),
-            DepositionRequest::new_builder()
+            DepositRequest::new_builder()
                 .capacity(Pack::pack(&50_00000000u64))
                 .script(receiver_script.clone())
                 .build(),
         ];
         let produce_block_result = {
             let mem_pool = chain.mem_pool().lock();
-            construct_block(&chain, &mem_pool, deposition_requests.clone()).unwrap()
+            construct_block(&chain, &mem_pool, deposit_requests.clone()).unwrap()
         };
         let rollup_cell = gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes());
         apply_block_result(
             &mut chain,
             rollup_cell.clone(),
             produce_block_result,
-            deposition_requests,
+            deposit_requests,
         );
         let withdrawal_capacity = 100_00000000u64;
         let withdrawal = WithdrawalRequest::new_builder()

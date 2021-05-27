@@ -1,7 +1,7 @@
 //! Lock cells
 
 use super::types::{
-    BurnCell, CellValue, ChallengeCell, CustodianCell, DepositionRequestCell, StakeCell,
+    BurnCell, CellValue, ChallengeCell, CustodianCell, DepositRequestCell, StakeCell,
     WithdrawalCell,
 };
 use crate::error::Error;
@@ -20,7 +20,7 @@ use gw_types::{
     bytes::Bytes,
     core::ScriptHashType,
     packed::{
-        Byte32, DepositionLockArgs, RollupConfig, StakeLockArgs, WithdrawalLockArgs,
+        Byte32, DepositLockArgs, RollupConfig, StakeLockArgs, WithdrawalLockArgs,
         WithdrawalLockArgsReader,
     },
     prelude::*,
@@ -259,18 +259,18 @@ pub fn collect_custodian_locks(
         .collect::<Result<_, Error>>()
 }
 
-pub fn collect_deposition_locks(
+pub fn collect_deposit_locks(
     rollup_type_hash: &H256,
     config: &RollupConfig,
     source: Source,
-) -> Result<Vec<DepositionRequestCell>, Error> {
+) -> Result<Vec<DepositRequestCell>, Error> {
     QueryIter::new(load_cell_lock, source)
         .enumerate()
         .filter_map(|(index, lock)| {
-            let args: DepositionLockArgs = match extract_args_from_lock(
+            let args: DepositLockArgs = match extract_args_from_lock(
                 &lock,
                 rollup_type_hash,
-                &config.deposition_script_type_hash(),
+                &config.deposit_script_type_hash(),
             ) {
                 Some(Ok(args)) => args,
                 Some(Err(err)) => return Some(Err(err)),
@@ -282,7 +282,7 @@ pub fn collect_deposition_locks(
             };
             let account_script = args.layer2_lock();
             let account_script_hash = account_script.hash().into();
-            let cell = DepositionRequestCell {
+            let cell = DepositRequestCell {
                 index,
                 args,
                 value,

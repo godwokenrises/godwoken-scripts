@@ -7,7 +7,7 @@ use validator_utils::gw_common;
 use validator_utils::gw_types;
 use validator_utils::{
     cells::lock_cells::{
-        collect_custodian_locks, collect_deposition_locks, collect_stake_cells,
+        collect_custodian_locks, collect_deposit_locks, collect_stake_cells,
         collect_withdrawal_locks,
     },
     ckb_std::{ckb_constants::Source, debug},
@@ -18,15 +18,15 @@ pub mod challenge;
 pub mod revert;
 pub mod submit_block;
 
-/// this function ensure transaction doesn't contains any deposition / withdrawal / custodian
+/// this function ensure transaction doesn't contains any deposit / withdrawal / custodian
 pub fn check_rollup_lock_cells_except_stake(
     rollup_type_hash: &H256,
     config: &RollupConfig,
 ) -> Result<(), Error> {
-    if !collect_deposition_locks(rollup_type_hash, config, Source::Input)?.is_empty() {
+    if !collect_deposit_locks(rollup_type_hash, config, Source::Input)?.is_empty() {
         return Err(Error::InvalidDepositCell);
     }
-    if !collect_deposition_locks(rollup_type_hash, config, Source::Output)?.is_empty() {
+    if !collect_deposit_locks(rollup_type_hash, config, Source::Output)?.is_empty() {
         return Err(Error::InvalidDepositCell);
     }
     if !collect_withdrawal_locks(rollup_type_hash, config, Source::Input)?.is_empty() {
@@ -44,7 +44,7 @@ pub fn check_rollup_lock_cells_except_stake(
     Ok(())
 }
 
-/// this function ensure transaction doesn't contains any deposition / withdrawal / custodian / stake cells
+/// this function ensure transaction doesn't contains any deposit / withdrawal / custodian / stake cells
 pub fn check_rollup_lock_cells(
     rollup_type_hash: &H256,
     config: &RollupConfig,

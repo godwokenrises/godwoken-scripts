@@ -1,9 +1,9 @@
-//! Deposition-lock
-//! A user can send a deposition request cell with this lock.
+//! Deposit-lock
+//! A user can send a deposit request cell with this lock.
 //! The cell can be unlocked by the rollup cell which match the rollup_type_hash,
 //! or can be unlocked by user.
 //!
-//! Args: DepositionLockArgs
+//! Args: DepositLockArgs
 
 // Import from `core` instead of from `std` since we are in no-std mode
 use core::result::Result;
@@ -24,15 +24,15 @@ use crate::ckb_std::{
 use validator_utils::cells::{rollup::search_rollup_cell, utils::search_lock_hash};
 
 use gw_types::{
-    packed::{DepositionLockArgs, DepositionLockArgsReader},
+    packed::{DepositLockArgs, DepositLockArgsReader},
     prelude::*,
 };
 use validator_utils::gw_types;
 
 use crate::error::Error;
 
-/// args: rollup_type_hash | deposition lock args
-fn parse_lock_args() -> Result<([u8; 32], DepositionLockArgs), Error> {
+/// args: rollup_type_hash | deposit lock args
+fn parse_lock_args() -> Result<([u8; 32], DepositLockArgs), Error> {
     let mut rollup_type_hash = [0u8; 32];
     let script = load_script()?;
     let args: Bytes = script.args().unpack();
@@ -40,10 +40,10 @@ fn parse_lock_args() -> Result<([u8; 32], DepositionLockArgs), Error> {
         return Err(Error::InvalidArgs);
     }
     rollup_type_hash.copy_from_slice(&args[..32]);
-    match DepositionLockArgsReader::verify(&args.slice(32..), false) {
+    match DepositLockArgsReader::verify(&args.slice(32..), false) {
         Ok(()) => Ok((
             rollup_type_hash,
-            DepositionLockArgs::new_unchecked(args.slice(32..)),
+            DepositLockArgs::new_unchecked(args.slice(32..)),
         )),
         Err(_) => Err(Error::InvalidArgs),
     }

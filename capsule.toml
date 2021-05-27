@@ -9,7 +9,7 @@ name = "state-validator"
 template_type = "Rust"
 
 [[contracts]]
-name = "deposition-lock"
+name = "deposit-lock"
 template_type = "Rust"
 
 [[contracts]]

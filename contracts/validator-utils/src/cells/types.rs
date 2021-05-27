@@ -2,7 +2,7 @@
 
 use crate::gw_common::sparse_merkle_tree::H256;
 use crate::gw_types::packed::{
-    ChallengeLockArgs, CustodianLockArgs, DepositionLockArgs, Script, StakeLockArgs,
+    ChallengeLockArgs, CustodianLockArgs, DepositLockArgs, Script, StakeLockArgs,
     WithdrawalLockArgs,
 };
 
@@ -21,9 +21,9 @@ pub struct WithdrawalCell {
 }
 
 #[derive(Clone)]
-pub struct DepositionRequestCell {
+pub struct DepositRequestCell {
     pub index: usize,
-    pub args: DepositionLockArgs,
+    pub args: DepositLockArgs,
     pub value: CellValue,
     pub account_script: Script,
     pub account_script_hash: H256,

@@ -16,10 +16,10 @@ use crate::types::BlockContext;
 use validator_utils::{
     cells::{
         lock_cells::{
-            collect_custodian_locks, collect_deposition_locks, collect_withdrawal_locks,
+            collect_custodian_locks, collect_deposit_locks, collect_withdrawal_locks,
             find_block_producer_stake_cell, find_challenge_cell,
         },
-        types::{CellValue, DepositionRequestCell, WithdrawalCell},
+        types::{CellValue, DepositRequestCell, WithdrawalCell},
         utils::build_l2_sudt_script,
     },
     error::Error,
@@ -118,17 +118,17 @@ fn check_input_custodian_cells(
         collect_custodian_locks(&context.rollup_type_hash, config, Source::Input)?
             .into_iter()
             .partition(|cell| {
-                let number: u64 = cell.args.deposition_block_number().unpack();
+                let number: u64 = cell.args.deposit_block_number().unpack();
                 number <= context.finalized_number
             });
-    // check unfinalized custodian cells == reverted deposition requests
+    // check unfinalized custodian cells == reverted deposit requests
     let mut reverted_deposit_cells =
-        collect_deposition_locks(&context.rollup_type_hash, config, Source::Output)?;
+        collect_deposit_locks(&context.rollup_type_hash, config, Source::Output)?;
     for custodian_cell in unfinalized_custodian_cells {
         let index = reverted_deposit_cells
             .iter()
             .position(|cell| {
-                custodian_cell.args.deposition_lock_args() == cell.args
+                custodian_cell.args.deposit_lock_args() == cell.args
                     && custodian_cell.value == cell.value
             })
             .ok_or(Error::InvalidWithdrawalCell)?;
@@ -155,7 +155,7 @@ fn check_input_custodian_cells(
 fn check_output_custodian_cells(
     config: &RollupConfig,
     context: &BlockContext,
-    mut deposit_cells: Vec<DepositionRequestCell>,
+    mut deposit_cells: Vec<DepositRequestCell>,
     input_finalized_assets: BTreeMap<H256, u128>,
 ) -> Result<(), Error> {
     // collect output custodian cells
@@ -163,15 +163,15 @@ fn check_output_custodian_cells(
         collect_custodian_locks(&context.rollup_type_hash, config, Source::Output)?
             .into_iter()
             .partition(|cell| {
-                let number: u64 = cell.args.deposition_block_number().unpack();
+                let number: u64 = cell.args.deposit_block_number().unpack();
                 number <= context.finalized_number
             });
-    // check depositions request cells == unfinalized custodian cells
+    // check deposits request cells == unfinalized custodian cells
     for custodian_cell in unfinalized_custodian_cells {
         let index = deposit_cells
             .iter()
             .position(|cell| {
-                custodian_cell.args.deposition_lock_args() == cell.args
+                custodian_cell.args.deposit_lock_args() == cell.args
                     && custodian_cell.value == cell.value
             })
             .ok_or(Error::InvalidCustodianCell)?;
@@ -216,7 +216,7 @@ fn mint_layer2_sudt(
     rollup_type_hash: &H256,
     config: &RollupConfig,
     kv_state: &mut KVState,
-    deposit_cells: &[DepositionRequestCell],
+    deposit_cells: &[DepositRequestCell],
 ) -> Result<(), Error> {
     for request in deposit_cells {
         // check that account's script is a valid EOA script
@@ -253,7 +253,7 @@ fn mint_layer2_sudt(
             Some(id) => id,
             None => kv_state.create_account(l2_sudt_script_hash.into())?,
         };
-        // prevent fake CKB SUDT, the caller should filter these invalid depositions
+        // prevent fake CKB SUDT, the caller should filter these invalid deposits
         if sudt_id == CKB_SUDT_ACCOUNT_ID {
             return Err(Error::InvalidDepositCell);
         }
@@ -562,7 +562,7 @@ fn check_block_withdrawals(block: &L2Block) -> Result<(), Error> {
     Ok(())
 }
 
-/// Verify Deposition & Withdrawal
+/// Verify Deposit & Withdrawal
 pub fn verify(
     rollup_type_hash: H256,
     config: &RollupConfig,
@@ -591,8 +591,8 @@ pub fn verify(
     let withdrawal_cells: Vec<_> =
         collect_withdrawal_locks(&context.rollup_type_hash, config, Source::Output)?;
     // collect deposit cells
-    let deposit_cells = collect_deposition_locks(&context.rollup_type_hash, config, Source::Input)?;
-    // Check new cells and reverted cells: deposition / withdrawal / custodian
+    let deposit_cells = collect_deposit_locks(&context.rollup_type_hash, config, Source::Input)?;
+    // Check new cells and reverted cells: deposit / withdrawal / custodian
     let withdrawal_requests = block.withdrawals().into_iter().collect();
     check_withdrawal_cells(&context, withdrawal_requests, &withdrawal_cells)?;
     let input_finalized_assets = check_input_custodian_cells(config, &context, withdrawal_cells)?;
@@ -611,7 +611,7 @@ pub fn verify(
 
     // Withdrawal token: Layer2 SUDT -> withdrawals
     burn_layer2_sudt(&rollup_type_hash, config, &mut kv_state, block)?;
-    // Mint token: deposition requests -> layer2 SUDT
+    // Mint token: deposit requests -> layer2 SUDT
     mint_layer2_sudt(&rollup_type_hash, config, &mut kv_state, &deposit_cells)?;
     // Check transactions
     check_block_transactions(&block, &kv_state)?;

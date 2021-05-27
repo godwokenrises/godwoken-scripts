@@ -110,7 +110,7 @@ pub fn main() -> Result<(), Error> {
                 None => return Err(Error::InvalidOutput),
             };
 
-            // check reverted custodian deposition info.
+            // check reverted custodian deposit info.
             let custodian_lock = load_cell_lock(custodian_cell_index, Source::Output)?;
             let custodian_lock_args = {
                 let args: Bytes = custodian_lock.args().unpack();
@@ -126,18 +126,18 @@ pub fn main() -> Result<(), Error> {
                     Err(_) => return Err(Error::InvalidOutput),
                 }
             };
-            let custodian_deposition_block_hash: [u8; 32] =
-                custodian_lock_args.deposition_block_hash().unpack();
-            let custodian_deposition_block_number: u64 =
-                custodian_lock_args.deposition_block_number().unpack();
+            let custodian_deposit_block_hash: [u8; 32] =
+                custodian_lock_args.deposit_block_hash().unpack();
+            let custodian_deposit_block_number: u64 =
+                custodian_lock_args.deposit_block_number().unpack();
             let global_state = search_rollup_state(&rollup_type_hash, Source::Input)?
                 .ok_or(Error::RollupCellNotFound)?;
             let config = load_rollup_config(&global_state.rollup_config_hash().unpack())?;
             if custodian_lock.code_hash().as_slice()
                 != config.custodian_script_type_hash().as_slice()
                 || custodian_lock.hash_type() != ScriptHashType::Type.into()
-                || custodian_deposition_block_hash != FINALIZED_BLOCK_HASH
-                || custodian_deposition_block_number != FINALIZED_BLOCK_NUMBER
+                || custodian_deposit_block_hash != FINALIZED_BLOCK_HASH
+                || custodian_deposit_block_number != FINALIZED_BLOCK_NUMBER
             {
                 return Err(Error::InvalidOutput);
             }

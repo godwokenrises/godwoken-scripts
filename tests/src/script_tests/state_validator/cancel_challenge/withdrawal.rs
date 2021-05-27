@@ -16,13 +16,14 @@ use gw_common::{
     h256_ext::H256Ext, sparse_merkle_tree::default_store::DefaultStore, state::State, H256,
 };
 use gw_generator::account_lock_manage::{always_success::AlwaysSuccess, AccountLockManage};
-use gw_store::state_db::{StateDBTransaction, StateDBVersion};
+use gw_store::state_db::SubState;
+use gw_store::state_db::{CheckPoint, StateDBMode, StateDBTransaction};
 use gw_types::prelude::*;
 use gw_types::{
     bytes::Bytes,
     core::{ChallengeTargetType, ScriptHashType, Status},
     packed::{
-        Byte32, ChallengeLockArgs, ChallengeTarget, DepositionRequest, RawWithdrawalRequest,
+        Byte32, ChallengeLockArgs, ChallengeTarget, DepositRequest, RawWithdrawalRequest,
         RollupAction, RollupActionUnion, RollupCancelChallenge, RollupConfig, Script, ScriptVec,
         VerifySignatureContext, VerifyWithdrawalWitness, WithdrawalRequest,
     },
@@ -46,9 +47,11 @@ fn test_cancel_withdrawal() {
     let challenge_script_type_hash: [u8; 32] = challenge_lock_type.calc_script_hash().unpack();
     let eoa_lock_type_hash: [u8; 32] = eoa_lock_type.calc_script_hash().unpack();
     let allowed_eoa_type_hashes: Vec<Byte32> = vec![Pack::pack(&eoa_lock_type_hash)];
+    let finality_blocks = 10;
     let rollup_config = RollupConfig::new_builder()
         .challenge_script_type_hash(Pack::pack(&challenge_script_type_hash))
         .allowed_eoa_type_hashes(PackVec::pack(allowed_eoa_type_hashes))
+        .finality_blocks(Pack::pack(&finality_blocks))
         .build();
     // setup chain
     let mut account_lock_manage = AccountLockManage::default();
@@ -79,28 +82,28 @@ fn test_cancel_withdrawal() {
             .hash_type(ScriptHashType::Data.into())
             .args(Pack::pack(&Bytes::from(b"receiver".to_vec())))
             .build();
-        let deposition_requests = vec![
-            DepositionRequest::new_builder()
-                .capacity(Pack::pack(&150_00000000u64))
+        let deposit_requests = vec![
+            DepositRequest::new_builder()
+                .capacity(Pack::pack(&450_00000000u64))
                 .script(sender_script.clone())
                 .build(),
-            DepositionRequest::new_builder()
+            DepositRequest::new_builder()
                 .capacity(Pack::pack(&50_00000000u64))
                 .script(receiver_script.clone())
                 .build(),
         ];
         let produce_block_result = {
             let mem_pool = chain.mem_pool().lock();
-            construct_block(&chain, &mem_pool, deposition_requests.clone()).unwrap()
+            construct_block(&chain, &mem_pool, deposit_requests.clone()).unwrap()
         };
         let rollup_cell = gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes());
         apply_block_result(
             &mut chain,
             rollup_cell.clone(),
             produce_block_result,
-            deposition_requests,
+            deposit_requests,
         );
-        let withdrawal_capacity = 100_00000000u64;
+        let withdrawal_capacity = 400_00000000u64;
         let withdrawal = WithdrawalRequest::new_builder()
             .raw(
                 RawWithdrawalRequest::new_builder()
@@ -194,14 +197,12 @@ fn test_cancel_withdrawal() {
                     .into()
             };
             let db = chain.store().begin_transaction();
-            let state_db = StateDBTransaction::from_version(
+            let challenged_block_number =
+                gw_types::prelude::Unpack::unpack(&challenged_block.raw().number());
+            let state_db = StateDBTransaction::from_checkpoint(
                 &db,
-                StateDBVersion::from_history_state(
-                    &db,
-                    gw_types::prelude::Unpack::unpack(&challenged_block.raw().parent_block_hash()),
-                    None,
-                )
-                .unwrap(),
+                CheckPoint::new(challenged_block_number - 1, SubState::Block),
+                StateDBMode::ReadOnly,
             )
             .unwrap();
             let mut tree = state_db.account_state_tree().unwrap();
