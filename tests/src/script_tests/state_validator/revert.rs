@@ -14,7 +14,7 @@ use gw_common::{
     builtins::CKB_SUDT_ACCOUNT_ID, h256_ext::H256Ext,
     sparse_merkle_tree::default_store::DefaultStore, state::State, H256,
 };
-use gw_store::state_db::{StateDBTransaction, StateDBVersion};
+use gw_store::state_db::{CheckPoint, StateDBMode, StateDBTransaction, SubState};
 use gw_types::{
     bytes::Bytes,
     core::{ChallengeTargetType, ScriptHashType, Status},
@@ -104,10 +104,12 @@ fn test_revert() {
             deposit_requests,
         );
         let db = chain.store().begin_transaction();
-        let tip_block_hash = db.get_tip_block_hash().unwrap();
-        let state_db = StateDBTransaction::from_version(
+        let tip_block = db.get_tip_block().unwrap();
+        let tip_block_number = gw_types::prelude::Unpack::unpack(&tip_block.raw().number());
+        let state_db = StateDBTransaction::from_checkpoint(
             &db,
-            StateDBVersion::from_history_state(&db, tip_block_hash, None).unwrap(),
+            CheckPoint::new(tip_block_number, SubState::Block),
+            StateDBMode::ReadOnly,
         )
         .unwrap();
         let tree = state_db.account_state_tree().unwrap();

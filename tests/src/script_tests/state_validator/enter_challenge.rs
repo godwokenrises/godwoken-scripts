@@ -8,7 +8,8 @@ use crate::testing_tool::chain::{apply_block_result, construct_block, setup_chai
 use crate::testing_tool::programs::{ALWAYS_SUCCESS_CODE_HASH, STATE_VALIDATOR_CODE_HASH};
 use ckb_types::prelude::{Pack as CKBPack, Unpack};
 use gw_common::{builtins::CKB_SUDT_ACCOUNT_ID, state::State};
-use gw_store::state_db::{StateDBTransaction, StateDBVersion};
+use gw_store::state_db::SubState;
+use gw_store::state_db::{CheckPoint, StateDBMode, StateDBTransaction};
 use gw_types::prelude::*;
 use gw_types::{
     bytes::Bytes,
@@ -85,10 +86,12 @@ fn test_enter_challenge() {
             deposit_requests,
         );
         let db = chain.store().begin_transaction();
-        let tip_block_hash = db.get_tip_block_hash().unwrap();
-        let state_db = StateDBTransaction::from_version(
+        let tip_block = db.get_tip_block().unwrap();
+        let tip_block_number = gw_types::prelude::Unpack::unpack(&tip_block.raw().number());
+        let state_db = StateDBTransaction::from_checkpoint(
             &db,
-            StateDBVersion::from_history_state(&db, tip_block_hash, None).unwrap(),
+            CheckPoint::new(tip_block_number, SubState::Block),
+            StateDBMode::ReadOnly,
         )
         .unwrap();
         let tree = state_db.account_state_tree().unwrap();

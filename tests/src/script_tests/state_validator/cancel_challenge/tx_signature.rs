@@ -16,7 +16,8 @@ use gw_common::{
     h256_ext::H256Ext, sparse_merkle_tree::default_store::DefaultStore, state::State, H256,
 };
 use gw_generator::account_lock_manage::{always_success::AlwaysSuccess, AccountLockManage};
-use gw_store::state_db::{StateDBTransaction, StateDBVersion};
+use gw_store::state_db::SubState;
+use gw_store::state_db::{CheckPoint, StateDBMode, StateDBTransaction};
 use gw_traits::CodeStore;
 use gw_types::prelude::*;
 use gw_types::{
@@ -112,10 +113,12 @@ fn test_cancel_tx_signature() {
             deposit_requests,
         );
         let db = chain.store().begin_transaction();
-        let tip_block_hash = db.get_tip_block_hash().unwrap();
-        let state_db = StateDBTransaction::from_version(
+        let tip_block = db.get_tip_block().unwrap();
+        let tip_block_number = gw_types::prelude::Unpack::unpack(&tip_block.raw().number());
+        let state_db = StateDBTransaction::from_checkpoint(
             &db,
-            StateDBVersion::from_history_state(&db, tip_block_hash, None).unwrap(),
+            CheckPoint::new(tip_block_number, SubState::Block),
+            StateDBMode::ReadOnly,
         )
         .unwrap();
         let tree = state_db.account_state_tree().unwrap();
@@ -231,15 +234,13 @@ fn test_cancel_tx_signature() {
                     .0
                     .into()
             };
+            let challenged_block_number =
+                gw_types::prelude::Unpack::unpack(&challenged_block.raw().number());
             let db = chain.store().begin_transaction();
-            let state_db = StateDBTransaction::from_version(
+            let state_db = StateDBTransaction::from_checkpoint(
                 &db,
-                StateDBVersion::from_history_state(
-                    &db,
-                    gw_types::prelude::Unpack::unpack(&challenged_block.raw().parent_block_hash()),
-                    None,
-                )
-                .unwrap(),
+                CheckPoint::new(challenged_block_number - 1, SubState::Block),
+                StateDBMode::ReadOnly,
             )
             .unwrap();
             let mut tree = state_db.account_state_tree().unwrap();
