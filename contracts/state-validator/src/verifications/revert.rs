@@ -77,8 +77,7 @@ pub fn get_receiver_cells_capacity(
     let capacity = search_lock_hashes(lock_hash, source)
         .into_iter()
         .map(|index| {
-            fetch_capacity_and_sudt_value(config, index, Source::Output)
-                .map(|value| value.capacity.into())
+            fetch_capacity_and_sudt_value(config, index, source).map(|value| value.capacity.into())
         })
         .collect::<Result<Vec<u128>, Error>>()?
         .into_iter()
@@ -293,11 +292,13 @@ pub fn verify(
     // check challenge cells
     let challenge_cell = find_challenge_cell(&rollup_type_hash, config, Source::Input)?
         .ok_or(Error::InvalidChallengeCell)?;
+    // the first reverted block is challenged target block
+    let challenged_block = reverted_blocks.get(0).ok_or(Error::InvalidRevertedBlocks)?;
     check_challenge_cell(
         &rollup_type_hash,
         config,
         &challenge_cell,
-        &reverted_blocks[0].hash().into(),
+        &challenged_block.hash().into(),
     )?;
     check_rewards(&rollup_type_hash, config, &reverted_blocks, &challenge_cell)?;
     let reverted_global_state = check_reverted_blocks(
