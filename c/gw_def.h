@@ -188,12 +188,25 @@ typedef int (*gw_store_data_fn)(struct gw_context_t *ctx, uint64_t data_len,
  * Get layer 2 block hash by number
  *
  * @param ctx        The godwoken context
- * @param block_hash The pointer of the layer 2 block hash to save the result
  * @param number     The number of the layer 2 block
+ * @param block_hash The pointer of the layer 2 block hash to save the result
  * @return           The status code, 0 is success
  */
 typedef int (*gw_get_block_hash_fn)(struct gw_context_t *ctx, uint64_t number,
                                     uint8_t block_hash[32]);
+
+/**
+ * Get account script hash by prefix (short address)
+ *
+ * @param ctx         The godwoken context
+ * @param prefix      The pointer of prefix data
+ * @param prefix_len  The length of prefix data
+ * @param script_hash The account script hash
+ * @return            The status code, 0 is success
+ */
+typedef int (*gw_get_script_hash_by_prefix_fn)(struct gw_context_t *ctx,
+                                               uint8_t *prefix, uint64_t prefix_len,
+                                               uint8_t script_hash[32]);
 
 /**
  * Emit a log (EVM LOG0, LOG1, LOGn in polyjuice)
