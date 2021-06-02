@@ -28,6 +28,7 @@
 #define GW_SYS_STORE_DATA 4056
 #define GW_SYS_LOAD_DATA 4057
 #define GW_SYS_GET_BLOCK_HASH 4058
+#define GW_SYS_GET_SCRIPT_HASH_BY_PREFIX 4059
 #define GW_SYS_LOG 4061
 #define GW_SYS_LOAD_ROLLUP_CONFIG 4062
 
@@ -50,6 +51,7 @@ typedef struct gw_context_t {
   gw_load_data_fn sys_load_data;
   gw_store_data_fn sys_store_data;
   gw_get_block_hash_fn sys_get_block_hash;
+  gw_get_script_hash_by_prefix_fn sys_get_script_hash_by_prefix;
   gw_log_fn sys_log;
 } gw_context_t;
 
@@ -176,6 +178,11 @@ int sys_get_block_hash(gw_context_t *ctx, uint64_t number,
   return syscall(GW_SYS_GET_BLOCK_HASH, block_hash, number, 0, 0, 0, 0);
 }
 
+int sys_get_script_hash_by_prefix(gw_context_t *ctx, uint8_t *prefix, uint64_t prefix_len,
+                                  uint8_t script_hash[32]) {
+  return syscall(GW_SYS_GET_SCRIPT_HASH_BY_PREFIX, script_hash, prefix, prefix_len, 0, 0, 0);
+}
+
 int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
                uint32_t *account_id) {
   return syscall(GW_SYS_CREATE, script, script_len, account_id, 0, 0, 0);
@@ -227,6 +234,7 @@ int gw_context_init(gw_context_t *ctx) {
   ctx->sys_store_data = sys_store_data;
   ctx->sys_load_data = sys_load_data;
   ctx->sys_get_block_hash = sys_get_block_hash;
+  ctx->sys_get_script_hash_by_prefix = sys_get_script_hash_by_prefix;
   ctx->sys_log = sys_log;
 
   /* initialize context */
