@@ -173,7 +173,7 @@ int _sys_load_block_info(void *addr, uint64_t *len) {
 
 int sys_get_block_hash(gw_context_t *ctx, uint64_t number,
                        uint8_t block_hash[32]) {
-  return syscall(GW_SYS_GET_BLOCK_HASH, number, block_hash, 0, 0, 0, 0);
+  return syscall(GW_SYS_GET_BLOCK_HASH, block_hash, number, 0, 0, 0, 0);
 }
 
 int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
