@@ -10,7 +10,6 @@ use gw_types::{
 };
 
 const ERROR_INSUFFICIENT_BALANCE: i8 = 12i8;
-const ERROR_ACCOUNT_NOT_EXISTS: i8 = 15;
 const DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH: [u8; 32] = [3u8; 32];
 
 #[test]
@@ -42,30 +41,35 @@ fn test_sudt() {
                 .build(),
         )
         .expect("create account");
+    let a_script_hash = tree.get_script_hash(a_id).expect("get script hash");
     let b_id = tree
         .create_account_from_script(
             Script::new_builder()
                 .code_hash([0u8; 32].pack())
-                .args([0u8; 20].to_vec().pack())
+                .args([1u8; 20].to_vec().pack())
                 .hash_type(ScriptHashType::Type.into())
                 .build(),
         )
         .expect("create account");
+    let b_script_hash = tree.get_script_hash(b_id).expect("get script hash");
     let block_producer_id = tree
         .create_account_from_script(
             Script::new_builder()
                 .code_hash([0u8; 32].pack())
-                .args([0u8; 20].to_vec().pack())
+                .args([2u8; 20].to_vec().pack())
                 .hash_type(ScriptHashType::Type.into())
                 .build(),
         )
         .expect("create account");
+    let block_producer_script_hash = tree
+        .get_script_hash(block_producer_id)
+        .expect("get script hash");
     let block_info = new_block_info(block_producer_id, 1, 0);
 
     // init balance for a
     tree.update_value(
         sudt_id,
-        &H256::from_u32(a_id),
+        &a_script_hash,
         H256::from_u128(init_a_balance).into(),
     )
     .expect("init balance");
@@ -73,7 +77,11 @@ fn test_sudt() {
     // check balance of A, B
     {
         let args = SUDTArgs::new_builder()
-            .set(SUDTQuery::new_builder().account_id(a_id.pack()).build())
+            .set(
+                SUDTQuery::new_builder()
+                    .address(a_script_hash.pack())
+                    .build(),
+            )
             .build();
         let return_data = run_contract(
             &rollup_config,
@@ -92,7 +100,11 @@ fn test_sudt() {
         assert_eq!(balance, init_a_balance);
 
         let args = SUDTArgs::new_builder()
-            .set(SUDTQuery::new_builder().account_id(b_id.pack()).build())
+            .set(
+                SUDTQuery::new_builder()
+                    .address(b_script_hash.pack())
+                    .build(),
+            )
             .build();
         let return_data = run_contract(
             &rollup_config,
@@ -118,7 +130,7 @@ fn test_sudt() {
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
-                    .to(b_id.pack())
+                    .to(b_script_hash.pack())
                     .amount(value.pack())
                     .fee(fee.pack())
                     .build(),
@@ -138,16 +150,20 @@ fn test_sudt() {
         check_transfer_logs(
             &run_result.logs,
             sudt_id,
-            block_producer_id,
+            block_producer_script_hash,
             fee,
-            a_id,
-            b_id,
+            a_script_hash,
+            b_script_hash,
             value,
         );
 
         {
             let args = SUDTArgs::new_builder()
-                .set(SUDTQuery::new_builder().account_id(a_id.pack()).build())
+                .set(
+                    SUDTQuery::new_builder()
+                        .address(a_script_hash.pack())
+                        .build(),
+                )
                 .build();
             let return_data = run_contract(
                 &rollup_config,
@@ -166,7 +182,11 @@ fn test_sudt() {
             assert_eq!(balance, init_a_balance - value - fee);
 
             let args = SUDTArgs::new_builder()
-                .set(SUDTQuery::new_builder().account_id(b_id.pack()).build())
+                .set(
+                    SUDTQuery::new_builder()
+                        .address(b_script_hash.pack())
+                        .build(),
+                )
                 .build();
             let return_data = run_contract(
                 &rollup_config,
@@ -187,7 +207,7 @@ fn test_sudt() {
             let args = SUDTArgs::new_builder()
                 .set(
                     SUDTQuery::new_builder()
-                        .account_id(block_producer_id.pack())
+                        .address(block_producer_script_hash.pack())
                         .build(),
                 )
                 .build();
@@ -238,25 +258,23 @@ fn test_insufficient_balance() {
                 .build(),
         )
         .expect("create account");
+    let a_script_hash = tree.get_script_hash(a_id).expect("get script hash");
     let b_id = tree
         .create_account_from_script(
             Script::new_builder()
                 .code_hash([0u8; 32].pack())
-                .args([0u8; 20].to_vec().pack())
+                .args([1u8; 20].to_vec().pack())
                 .hash_type(ScriptHashType::Type.into())
                 .build(),
         )
         .expect("create account");
+    let b_script_hash = tree.get_script_hash(b_id).expect("get script hash");
 
     let block_info = new_block_info(0, 10, 0);
 
     // init balance for a
-    tree.update_value(
-        sudt_id,
-        &H256::from_u32(a_id),
-        H256::from_u128(init_a_balance),
-    )
-    .expect("update init balance");
+    tree.update_value(sudt_id, &a_script_hash, H256::from_u128(init_a_balance))
+        .expect("update init balance");
 
     // transfer from A to B
     {
@@ -264,7 +282,7 @@ fn test_insufficient_balance() {
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
-                    .to(b_id.pack())
+                    .to(b_script_hash.pack())
                     .amount(value.pack())
                     .build(),
             )
@@ -314,18 +332,15 @@ fn test_transfer_to_non_exist_account() {
                 .build(),
         )
         .expect("create account");
+    let a_script_hash = tree.get_script_hash(a_id).expect("get script hash");
     // non-exist account id
-    let b_id: u32 = 0x33333;
+    let b_script_hash = [0x33u8; 32];
 
     let block_info = new_block_info(0, 10, 0);
 
     // init balance for a
-    tree.update_value(
-        sudt_id,
-        &H256::from_u32(a_id),
-        H256::from_u128(init_a_balance),
-    )
-    .expect("update init balance");
+    tree.update_value(sudt_id, &a_script_hash, H256::from_u128(init_a_balance))
+        .expect("update init balance");
 
     // transfer from A to B
     {
@@ -333,12 +348,12 @@ fn test_transfer_to_non_exist_account() {
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
-                    .to(b_id.pack())
+                    .to(b_script_hash.pack())
                     .amount(value.pack())
                     .build(),
             )
             .build();
-        let err = run_contract(
+        let _run_result = run_contract(
             &rollup_config,
             &mut tree,
             a_id,
@@ -346,11 +361,6 @@ fn test_transfer_to_non_exist_account() {
             args.as_bytes(),
             &block_info,
         )
-        .expect_err("err");
-        let err_code = match err {
-            TransactionError::InvalidExitCode(code) => code,
-            err => panic!("unexpected {:?}", err),
-        };
-        assert_eq!(err_code, ERROR_ACCOUNT_NOT_EXISTS);
+        .expect("run contract");
     }
 }

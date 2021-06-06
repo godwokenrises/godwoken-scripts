@@ -25,8 +25,8 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 // meta contract
-pub const META_VALIDATOR_PATH: &str = "../../godwoken-scripts/c/build/meta-contract-validator";
-pub const META_GENERATOR_PATH: &str = "../../godwoken-scripts/c/build/meta-contract-generator";
+pub const META_VALIDATOR_PATH: &str = "../c/build/meta-contract-validator";
+pub const META_GENERATOR_PATH: &str = "../c/build/meta-contract-generator";
 pub const META_VALIDATOR_SCRIPT_TYPE_HASH: [u8; 32] = [1u8; 32];
 
 // simple UDT

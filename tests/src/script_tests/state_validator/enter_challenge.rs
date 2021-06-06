@@ -103,12 +103,13 @@ fn test_enter_challenge() {
             .get_account_id_by_script_hash(&receiver_script.hash().into())
             .unwrap()
             .unwrap();
+        let receiver_script_hash = tree.get_script_hash(receiver_id).expect("get script hash");
         let produce_block_result = {
             let args = SUDTArgs::new_builder()
                 .set(SUDTArgsUnion::SUDTTransfer(
                     SUDTTransfer::new_builder()
                         .amount(Pack::pack(&50_00000000u128))
-                        .to(Pack::pack(&receiver_id))
+                        .to(Pack::pack(&receiver_script_hash))
                         .build(),
                 ))
                 .build()

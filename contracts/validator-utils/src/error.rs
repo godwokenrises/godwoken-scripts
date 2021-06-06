@@ -21,6 +21,7 @@ pub enum Error {
     AccountNotFound,
     MerkleProof,
     AmountOverflow,
+    InvalidShortAddress,
     InsufficientAmount,
     InsufficientInputFinalizedAssets,
     InsufficientOutputFinalizedAssets,
@@ -71,6 +72,7 @@ impl From<CommonError> for Error {
             SMT(_) | Store | MissingKey => Self::SMTKeyMissing,
             MerkleProof => Self::MerkleProof,
             AmountOverflow => Self::AmountOverflow,
+            InvalidShortAddress => Self::InvalidShortAddress,
         }
     }
 }
