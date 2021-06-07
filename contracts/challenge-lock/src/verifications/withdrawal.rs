@@ -106,7 +106,7 @@ fn verify_withdrawal_proof(
             raw_block.hash(),
             lock_args.target().block_hash()
         );
-        return Err(Error::InvalidOutput);
+        return Err(Error::InvalidBlock);
     }
 
     // verify withdrawal merkle proof

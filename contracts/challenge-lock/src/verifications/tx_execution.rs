@@ -68,7 +68,7 @@ pub fn verify_tx_execution(
             "verify tx execution, can't find receiver_script_hash from the input: {:?}",
             &receiver_script_hash
         );
-        return Err(Error::InvalidOutput);
+        return Err(Error::AccountScriptCellNotFound);
     }
 
     Ok(())

@@ -131,11 +131,11 @@ fn check_input_custodian_cells(
                 custodian_cell.args.deposit_lock_args() == cell.args
                     && custodian_cell.value == cell.value
             })
-            .ok_or(Error::InvalidWithdrawalCell)?;
+            .ok_or(Error::InvalidCustodianCell)?;
         reverted_deposit_cells.remove(index);
     }
     if !reverted_deposit_cells.is_empty() {
-        return Err(Error::InvalidWithdrawalCell);
+        return Err(Error::InvalidDepositCell);
     }
     // check input finalized custodian cells >= withdrawal cells
     let withdrawal_assets =

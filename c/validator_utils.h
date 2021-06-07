@@ -967,7 +967,7 @@ int _gw_check_account_script_is_allowed(uint8_t rollup_script_hash[32],
 
   /* check allowed contract list */
   mol_seg_t contract_list_seg =
-      MolReader_RollupConfig_get_allowed_eoa_type_hashes(rollup_config_seg);
+      MolReader_RollupConfig_get_allowed_contract_type_hashes(rollup_config_seg);
   len = MolReader_Byte32Vec_length(&contract_list_seg);
   for (uint32_t i = 0; i < len; i++) {
     mol_seg_res_t allowed_code_hash_res =

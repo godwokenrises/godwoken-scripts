@@ -45,6 +45,7 @@ pub enum Error {
     UnknownContractScript,
     ScriptNotFound,
     AccountLockCellNotFound,
+    AccountScriptCellNotFound,
     InvalidTypeID,
     UnexpectedTxNonce,
     // raise from signature verification script

@@ -121,7 +121,7 @@ pub fn verify_tx_context(input: TxContextInput) -> Result<TxContext, Error> {
             raw_block.hash(),
             target.block_hash()
         );
-        return Err(Error::InvalidOutput);
+        return Err(Error::InvalidBlock);
     }
 
     // verify tx merkle proof
