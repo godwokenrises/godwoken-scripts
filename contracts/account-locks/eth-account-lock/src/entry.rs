@@ -128,12 +128,7 @@ fn verify_tx_signature(
     };
     // verify message
     let secp256k1_eth = Secp256k1Eth::default();
-    let valid = secp256k1_eth.verify_tx(
-        rollup_config.compatible_chain_id().unpack(),
-        sender_script,
-        receiver_script,
-        tx,
-    )?;
+    let valid = secp256k1_eth.verify_tx(sender_script, receiver_script, tx)?;
     if !valid {
         debug!("verify tx wrong");
         return Err(Error::WrongSignature);
