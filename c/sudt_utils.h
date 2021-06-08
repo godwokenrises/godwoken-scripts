@@ -21,7 +21,7 @@
 
 int _sudt_emit_log(gw_context_t *ctx,
                    const uint32_t sudt_id,
-                   const size_t short_addr_len,
+                   const uint64_t short_addr_len,
                    const uint8_t *from_addr,
                    const uint8_t *to_addr,
                    const uint128_t amount,
@@ -42,7 +42,7 @@ int _sudt_emit_log(gw_context_t *ctx,
 
 int _sudt_get_balance(gw_context_t *ctx, uint32_t sudt_id,
                       const uint8_t *key,
-                      const size_t key_len,
+                      const uint64_t key_len,
                       uint128_t *balance) {
   uint8_t value[32] = {0};
   int ret = ctx->sys_load(ctx, sudt_id, key, key_len, value);
@@ -55,7 +55,7 @@ int _sudt_get_balance(gw_context_t *ctx, uint32_t sudt_id,
 
 int _sudt_set_balance(gw_context_t *ctx, uint32_t sudt_id,
                       const uint8_t *key,
-                      const size_t key_len,
+                      const uint64_t key_len,
                       uint128_t balance) {
   uint8_t value[32] = {0};
   *(uint128_t *)value = balance;
@@ -65,7 +65,7 @@ int _sudt_set_balance(gw_context_t *ctx, uint32_t sudt_id,
 
 int sudt_get_balance(gw_context_t *ctx,
                      const uint32_t sudt_id,
-                     const size_t short_addr_len,
+                     const uint64_t short_addr_len,
                      const uint8_t *short_address, uint128_t *balance) {
   if (short_addr_len > 32) {
     return ERROR_SHORT_ADDR_LEN;
@@ -80,7 +80,7 @@ int sudt_get_balance(gw_context_t *ctx,
 /* Transfer Simple UDT */
 int _sudt_transfer(gw_context_t *ctx,
                    const uint32_t sudt_id,
-                   const size_t short_addr_len,
+                   const uint64_t short_addr_len,
                    const uint8_t *from_addr,
                    const uint8_t *to_addr,
                    const uint128_t amount,
@@ -130,7 +130,7 @@ int _sudt_transfer(gw_context_t *ctx,
 
 int sudt_transfer(gw_context_t *ctx,
                   const uint32_t sudt_id,
-                  const size_t short_addr_len,
+                  const uint64_t short_addr_len,
                   const uint8_t *from_addr,
                   const uint8_t *to_addr,
                   const uint128_t amount) {
@@ -143,7 +143,7 @@ int sudt_transfer(gw_context_t *ctx,
 /* Pay fee */
 int sudt_pay_fee(gw_context_t *ctx,
                  const uint32_t sudt_id,
-                 const size_t short_addr_len,
+                 const uint64_t short_addr_len,
                  const uint8_t *from_addr,
                  const uint128_t amount) {
   if (short_addr_len > 32) {
