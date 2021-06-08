@@ -131,6 +131,7 @@ fn test_cancel_tx_execute() {
             .unwrap()
             .unwrap();
         let receiver_script_hash = tree.get_script_hash(receiver_id).expect("get script hash");
+        let receiver_address = Bytes::copy_from_slice(&receiver_script_hash.as_slice()[0..20]);
         let sudt_script_hash = tree.get_script_hash(sudt_id).unwrap();
         let sudt_script = tree.get_script(&sudt_script_hash).unwrap();
         let transfer_capacity = 2_00000000u128;
@@ -138,7 +139,7 @@ fn test_cancel_tx_execute() {
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
-                    .to(Pack::pack(&receiver_script_hash))
+                    .to(Pack::pack(&receiver_address))
                     .amount(Pack::pack(&transfer_capacity))
                     .fee(Pack::pack(&fee_capacity))
                     .build(),

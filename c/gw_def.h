@@ -84,14 +84,16 @@ typedef int (*gw_create_fn)(struct gw_context_t *ctx, uint8_t *script,
 /**
  * Load value by key from current contract account
  *
- * @param ctx    The godwoken context
- * @param account_id  account to modify
- * @param key    The key (32 bytes)
- * @param value  The pointer to save the value of the key (32 bytes)
- * @return       The status code, 0 is success
+ * @param ctx        The godwoken context
+ * @param account_id account to modify
+ * @param key        The key (less than 32 bytes)
+ * @param key_len    The key length (less then 32)
+ * @param value      The pointer to save the value of the key (32 bytes)
+ * @return           The status code, 0 is success
  */
 typedef int (*gw_load_fn)(struct gw_context_t *ctx, uint32_t account_id,
-                          const uint8_t key[GW_KEY_BYTES],
+                          const uint8_t *key,
+                          const size_t key_len,
                           uint8_t value[GW_VALUE_BYTES]);
 /**
  * Load the nonce of account
@@ -107,14 +109,16 @@ typedef int (*gw_load_nonce_fn)(struct gw_context_t *ctx, uint32_t account_id,
 /**
  * Store key,value pair to current account's storage
  *
- * @param ctx    The godwoken context
- * @param account_id  account to read
- * @param key    The key
- * @param value  The value
- * @return       The status code, 0 is success
+ * @param ctx        The godwoken context
+ * @param account_id account to read
+ * @param key        The key (less than 32 bytes)
+ * @param key_len    The key length (less then 32)
+ * @param value      The value
+ * @return           The status code, 0 is success
  */
 typedef int (*gw_store_fn)(struct gw_context_t *ctx, uint32_t account_id,
-                           const uint8_t key[GW_KEY_BYTES],
+                           const uint8_t *key,
+                           const size_t key_len,
                            const uint8_t value[GW_VALUE_BYTES]);
 
 /**
