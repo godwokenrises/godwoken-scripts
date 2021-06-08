@@ -29,6 +29,7 @@
 #define GW_SYS_LOAD_DATA 4057
 #define GW_SYS_GET_BLOCK_HASH 4058
 #define GW_SYS_GET_SCRIPT_HASH_BY_PREFIX 4059
+#define GW_SYS_RECOVER_ACCOUNT 4060
 #define GW_SYS_LOG 4061
 #define GW_SYS_LOAD_ROLLUP_CONFIG 4062
 
@@ -52,6 +53,7 @@ typedef struct gw_context_t {
   gw_store_data_fn sys_store_data;
   gw_get_block_hash_fn sys_get_block_hash;
   gw_get_script_hash_by_prefix_fn sys_get_script_hash_by_prefix;
+  gw_recover_account_fn sys_recover_account;
   gw_log_fn sys_log;
 } gw_context_t;
 
@@ -72,7 +74,7 @@ int _ensure_account_exists(gw_context_t *ctx, uint32_t account_id) {
 
 int sys_load(gw_context_t *ctx, uint32_t account_id,
              const uint8_t *key,
-             const size_t key_len,
+             const uint64_t key_len,
              uint8_t value[GW_VALUE_BYTES]) {
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
@@ -88,7 +90,7 @@ int sys_load(gw_context_t *ctx, uint32_t account_id,
 }
 int sys_store(gw_context_t *ctx, uint32_t account_id,
               const uint8_t *key,
-              const size_t key_len,
+              const uint64_t key_len,
               const uint8_t value[GW_VALUE_BYTES]) {
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
@@ -191,6 +193,20 @@ int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
   return syscall(GW_SYS_CREATE, script, script_len, account_id, 0, 0, 0);
 }
 
+int sys_recover_account(struct gw_context_t *ctx,
+                        uint8_t message[32],
+                        uint8_t *signature,
+                        uint64_t signature_len,
+                        uint8_t code_hash[32],
+                        uint8_t *script,
+                        uint64_t *script_len) {
+  volatile uint64_t inner_script_len = 0;
+  int ret = syscall(GW_SYS_RECOVER_ACCOUNT, script, &inner_script_len,
+                    message, signature, signature_len, code_hash);
+  *script_len = inner_script_len;
+  return ret;
+}
+
 int sys_log(gw_context_t *ctx, uint32_t account_id, uint8_t service_flag,
             uint64_t data_length, const uint8_t *data) {
   if (ctx == NULL) {
@@ -238,6 +254,7 @@ int gw_context_init(gw_context_t *ctx) {
   ctx->sys_load_data = sys_load_data;
   ctx->sys_get_block_hash = sys_get_block_hash;
   ctx->sys_get_script_hash_by_prefix = sys_get_script_hash_by_prefix;
+  ctx->sys_recover_account = sys_recover_account;
   ctx->sys_log = sys_log;
 
   /* initialize context */

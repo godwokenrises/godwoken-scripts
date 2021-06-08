@@ -59,6 +59,7 @@ typedef struct gw_context_t {
   gw_store_data_fn sys_store_data;
   gw_get_block_hash_fn sys_get_block_hash;
   gw_get_script_hash_by_prefix_fn sys_get_script_hash_by_prefix;
+  gw_recover_account_fn sys_recover_account;
   gw_log_fn sys_log;
 
   /* validator specific context */
@@ -321,6 +322,17 @@ int sys_get_script_hash_by_prefix(gw_context_t *ctx, uint8_t *prefix, uint64_t p
     return GW_ERROR_INVALID_CONTEXT;
   }
   /* FIXME: must implement this function after `account-lock` contract refactor */
+  return 0;
+}
+
+int sys_recover_account(gw_context_t *ctx,
+                        uint8_t message[32],
+                        uint8_t *signature,
+                        uint64_t signature_len,
+                        uint8_t code_hash[32],
+                        uint8_t *script,
+                        uint64_t *script_len) {
+  /* FIXME: todo */
   return 0;
 }
 
@@ -1083,6 +1095,7 @@ int gw_context_init(gw_context_t *ctx) {
   ctx->sys_load_data = sys_load_data;
   ctx->sys_get_block_hash = sys_get_block_hash;
   ctx->sys_get_script_hash_by_prefix = sys_get_script_hash_by_prefix;
+  ctx->sys_recover_account = sys_recover_account;
   ctx->sys_log = sys_log;
 
   /* initialize context */

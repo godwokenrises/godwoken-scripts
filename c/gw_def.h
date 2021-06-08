@@ -93,7 +93,7 @@ typedef int (*gw_create_fn)(struct gw_context_t *ctx, uint8_t *script,
  */
 typedef int (*gw_load_fn)(struct gw_context_t *ctx, uint32_t account_id,
                           const uint8_t *key,
-                          const size_t key_len,
+                          const uint64_t key_len,
                           uint8_t value[GW_VALUE_BYTES]);
 /**
  * Load the nonce of account
@@ -118,7 +118,7 @@ typedef int (*gw_load_nonce_fn)(struct gw_context_t *ctx, uint32_t account_id,
  */
 typedef int (*gw_store_fn)(struct gw_context_t *ctx, uint32_t account_id,
                            const uint8_t *key,
-                           const size_t key_len,
+                           const uint64_t key_len,
                            const uint8_t value[GW_VALUE_BYTES]);
 
 /**
@@ -211,6 +211,26 @@ typedef int (*gw_get_block_hash_fn)(struct gw_context_t *ctx, uint64_t number,
 typedef int (*gw_get_script_hash_by_prefix_fn)(struct gw_context_t *ctx,
                                                uint8_t *prefix, uint64_t prefix_len,
                                                uint8_t script_hash[32]);
+/**
+ * Recover an EoA account script by signature
+ *
+ * @param ctx            The godwoken context
+ * @param message        The message of corresponding signature
+ * @param signature      The pointer of signature data
+ * @param signature_len  The length of signature data
+ * @param code_hash      The EoA account script's code_hash
+ * @param script         The pointer of script data
+ * @param script_len     The pointer to length of script data
+ * @return               The status code, 0 is success
+ */
+
+typedef int (*gw_recover_account_fn)(struct gw_context_t *ctx,
+                                     uint8_t message[32],
+                                     uint8_t *signature,
+                                     uint64_t signature_len,
+                                     uint8_t code_hash[32],
+                                     uint8_t *script,
+                                     uint64_t *script_len);
 
 /**
  * Emit a log (EVM LOG0, LOG1, LOGn in polyjuice)

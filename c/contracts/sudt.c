@@ -58,7 +58,7 @@ int main() {
   if (msg.item_id == MSG_QUERY) {
     /* Query */
     mol_seg_t short_address_seg = MolReader_SUDTQuery_get_short_address(&msg.seg);
-    size_t short_addr_len = (size_t)MolReader_Bytes_length(&short_address_seg);
+    uint64_t short_addr_len = (uint64_t)MolReader_Bytes_length(&short_address_seg);
     mol_seg_t raw_short_address_seg = MolReader_Bytes_raw_bytes(&short_address_seg);
     uint128_t balance = 0;
     ret = sudt_get_balance(&ctx, sudt_id, short_addr_len, raw_short_address_seg.ptr, &balance);
@@ -73,7 +73,7 @@ int main() {
   } else if (msg.item_id == MSG_TRANSFER) {
     /* Transfer */
     mol_seg_t to_seg = MolReader_SUDTTransfer_get_to(&msg.seg);
-    size_t short_addr_len = (size_t)MolReader_Bytes_length(&to_seg);
+    uint64_t short_addr_len = (uint64_t)MolReader_Bytes_length(&to_seg);
     mol_seg_t raw_to_seg = MolReader_Bytes_raw_bytes(&to_seg);
 
     mol_seg_t amount_seg = MolReader_SUDTTransfer_get_amount(&msg.seg);

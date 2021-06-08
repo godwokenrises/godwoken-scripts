@@ -2,11 +2,12 @@ use crate::testing_tool::chain::build_backend_manage;
 
 use super::{
     new_block_info, DummyChainStore, SudtLog, SudtLogType, ACCOUNT_OP_PROGRAM,
-    ACCOUNT_OP_PROGRAM_CODE_HASH, GW_LOG_SUDT_TRANSFER, SUM_PROGRAM, SUM_PROGRAM_CODE_HASH,
+    ACCOUNT_OP_PROGRAM_CODE_HASH, GW_LOG_SUDT_TRANSFER, RECOVER_PROGRAM, RECOVER_PROGRAM_CODE_HASH,
+    SUM_PROGRAM, SUM_PROGRAM_CODE_HASH,
 };
-use gw_common::H256;
+use gw_common::{h256_ext::H256Ext, H256};
 use gw_generator::{
-    account_lock_manage::{always_success::AlwaysSuccess, AccountLockManage},
+    account_lock_manage::{always_success::AlwaysSuccess, secp256k1::Secp256k1, AccountLockManage},
     backend_manage::Backend,
     dummy_state::DummyState,
     error::TransactionError,
@@ -21,6 +22,9 @@ use gw_types::{
 };
 
 const ERROR_ACCOUNT_NOT_FOUND: i8 = 51;
+// the value is 203
+const ERROR_NOT_FOUND: i8 = -53;
+const ERROR_RECOVER: i8 = -52;
 
 #[test]
 fn test_example_sum() {
@@ -333,5 +337,119 @@ fn test_example_account_operation() {
             err => panic!("unexpected {:?}", err),
         };
         assert_eq!(err_code, ERROR_ACCOUNT_NOT_FOUND);
+    }
+}
+
+#[test]
+fn test_example_recover_account() {
+    let mut tree = DummyState::default();
+    let chain_view = DummyChainStore;
+    let from_id: u32 = 2;
+    let rollup_config = RollupConfig::default();
+
+    let contract_id = tree
+        .create_account_from_script(
+            Script::new_builder()
+                .code_hash(RECOVER_PROGRAM_CODE_HASH.pack())
+                .args([0u8; 20].to_vec().pack())
+                .hash_type(ScriptHashType::Type.into())
+                .build(),
+        )
+        .expect("create account");
+
+    let mut backend_manage = build_backend_manage(&rollup_config);
+    backend_manage.register_backend(Backend {
+        validator: RECOVER_PROGRAM.clone(),
+        generator: RECOVER_PROGRAM.clone(),
+        validator_script_type_hash: RECOVER_PROGRAM_CODE_HASH.clone().into(),
+    });
+    let mut account_lock_manage = AccountLockManage::default();
+    let secp256k1_code_hash = H256::from_u32(11);
+    account_lock_manage
+        .register_lock_algorithm(secp256k1_code_hash, Box::new(Secp256k1::default()));
+    let rollup_script_hash: H256 = [42u8; 32].into();
+    let rollup_context = RollupContext {
+        rollup_config: Default::default(),
+        rollup_script_hash,
+    };
+    let generator = Generator::new(backend_manage, account_lock_manage, rollup_context);
+    let block_info = new_block_info(0, 2, 0);
+
+    let lock_args_hex = "404f90829ec0e5821aeba9bce7d5e841ce9f7fa5";
+    let message_hex = "1cdeae55a5768fe14b628001c6247ae84c70310a7ddcfdc73ac68494251e46ec";
+    let signature_hex = "28aa0c394487edf2211f445c47fb5f4fb5e3023920f62124d309f5bdf70d95045a934f278cec717300a5417313d1cdc390e761e37c0964b940c0a6f07b7361ed01";
+
+    // success
+    {
+        let mut args = vec![0u8; 32 + 1 + 65 + 32];
+        args[0..32].copy_from_slice(&hex::decode(message_hex).unwrap());
+        args[32] = 65;
+        args[33..33 + 65].copy_from_slice(&hex::decode(signature_hex).unwrap());
+        args[33 + 65..33 + 65 + 32].copy_from_slice(secp256k1_code_hash.as_slice());
+        let raw_tx = RawL2Transaction::new_builder()
+            .from_id(from_id.pack())
+            .to_id(contract_id.pack())
+            .args(Bytes::from(args).pack())
+            .build();
+        let run_result = generator
+            .execute_transaction(&chain_view, &tree, &block_info, &raw_tx)
+            .expect("result");
+        let mut script_args = vec![0u8; 32 + 20];
+        script_args[0..32].copy_from_slice(rollup_script_hash.as_slice());
+        script_args[32..32 + 20].copy_from_slice(&hex::decode(lock_args_hex).unwrap());
+        let script = Script::new_builder()
+            .code_hash(secp256k1_code_hash.pack())
+            .hash_type(ScriptHashType::Type.into())
+            .args(Bytes::from(script_args).pack())
+            .build();
+        assert_eq!(&run_result.return_data, script.as_slice());
+    }
+
+    // Error signature
+    {
+        let mut args = vec![0u8; 32 + 1 + 65 + 32];
+        let error_signature_hex = "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+        args[0..32].copy_from_slice(&hex::decode(message_hex).unwrap());
+        args[32] = 65;
+        args[33..33 + 65].copy_from_slice(&hex::decode(error_signature_hex).unwrap());
+        args[33 + 65..33 + 65 + 32].copy_from_slice(secp256k1_code_hash.as_slice());
+        let raw_tx = RawL2Transaction::new_builder()
+            .from_id(from_id.pack())
+            .to_id(contract_id.pack())
+            .args(Bytes::from(args).pack())
+            .build();
+        let err = generator
+            .execute_transaction(&chain_view, &tree, &block_info, &raw_tx)
+            .expect_err("err");
+        let err_code = match err {
+            TransactionError::InvalidExitCode(code) => code,
+            err => panic!("unexpected {:?}", err),
+        };
+        println!("err_code: {}", err_code);
+        assert_eq!(err_code, ERROR_RECOVER);
+    }
+
+    // Wrong code hash
+    {
+        let mut args = vec![0u8; 32 + 1 + 65 + 32];
+        let wrong_code_hash = H256::from_u32(22);
+        args[0..32].copy_from_slice(&hex::decode(message_hex).unwrap());
+        args[32] = 65;
+        args[33..33 + 65].copy_from_slice(&hex::decode(signature_hex).unwrap());
+        args[33 + 65..33 + 65 + 32].copy_from_slice(wrong_code_hash.as_slice());
+        let raw_tx = RawL2Transaction::new_builder()
+            .from_id(from_id.pack())
+            .to_id(contract_id.pack())
+            .args(Bytes::from(args).pack())
+            .build();
+        let err = generator
+            .execute_transaction(&chain_view, &tree, &block_info, &raw_tx)
+            .expect_err("err");
+        let err_code = match err {
+            TransactionError::InvalidExitCode(code) => code,
+            err => panic!("unexpected {:?}", err),
+        };
+        println!("err_code: {}", err_code);
+        assert_eq!(err_code, ERROR_NOT_FOUND);
     }
 }
