@@ -57,9 +57,11 @@ int main() {
   /* Handle messages */
   if (msg.item_id == MSG_QUERY) {
     /* Query */
-    mol_seg_t address_seg = MolReader_SUDTQuery_get_address(&msg.seg);
+    mol_seg_t short_address_seg = MolReader_SUDTQuery_get_short_address(&msg.seg);
+    size_t short_addr_len = (size_t)MolReader_Bytes_length(&short_address_seg);
+    mol_seg_t raw_short_address_seg = MolReader_Bytes_raw_bytes(&short_address_seg);
     uint128_t balance = 0;
-    ret = sudt_get_balance(&ctx, sudt_id, address_seg.ptr, &balance);
+    ret = sudt_get_balance(&ctx, sudt_id, short_addr_len, raw_short_address_seg.ptr, &balance);
     if (ret != 0) {
       return ret;
     }
@@ -71,6 +73,9 @@ int main() {
   } else if (msg.item_id == MSG_TRANSFER) {
     /* Transfer */
     mol_seg_t to_seg = MolReader_SUDTTransfer_get_to(&msg.seg);
+    size_t short_addr_len = (size_t)MolReader_Bytes_length(&to_seg);
+    mol_seg_t raw_to_seg = MolReader_Bytes_raw_bytes(&to_seg);
+
     mol_seg_t amount_seg = MolReader_SUDTTransfer_get_amount(&msg.seg);
     mol_seg_t fee_seg = MolReader_SUDTTransfer_get_fee(&msg.seg);
     uint32_t from_id = ctx.transaction_context.from_id;
@@ -79,17 +84,19 @@ int main() {
     if (ret != 0) {
       return ret;
     }
-    uint8_t *to_script_hash = to_seg.ptr;
+    /* The prefix */
+    uint8_t *from_addr = from_script_hash;
+    uint8_t *to_addr = raw_to_seg.ptr;
 
     uint128_t amount = *(uint128_t *)amount_seg.ptr;
     uint128_t fee = *(uint128_t *)fee_seg.ptr;
     /* pay fee */
-    ret = sudt_pay_fee(&ctx, sudt_id, from_script_hash, fee);
+    ret = sudt_pay_fee(&ctx, sudt_id, short_addr_len, from_addr, fee);
     if (ret != 0) {
       return ret;
     }
     /* transfer */
-    ret = sudt_transfer(&ctx, sudt_id, from_script_hash, to_script_hash, amount);
+    ret = sudt_transfer(&ctx, sudt_id, short_addr_len, from_addr, to_addr, amount);
     if (ret != 0) {
       return ret;
     }

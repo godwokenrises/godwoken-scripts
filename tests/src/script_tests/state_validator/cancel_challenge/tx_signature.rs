@@ -26,7 +26,7 @@ use gw_types::{
     packed::{
         Byte32, ChallengeLockArgs, ChallengeTarget, DepositRequest, L2Transaction,
         RawL2Transaction, RollupAction, RollupActionUnion, RollupCancelChallenge, RollupConfig,
-        SUDTArgs, SUDTTransfer, Script, ScriptVec, VerifyTransactionSignatureContext,
+        SUDTArgs, SUDTTransfer, Script, ScriptVec, VerifySignatureContext,
         VerifyTransactionSignatureWitness,
     },
 };
@@ -131,6 +131,7 @@ fn test_cancel_tx_signature() {
             .unwrap()
             .unwrap();
         let receiver_script_hash = tree.get_script_hash(receiver_id).expect("get script hash");
+        let receiver_address = Bytes::copy_from_slice(&receiver_script_hash.as_slice()[0..20]);
         let sudt_script_hash = tree.get_script_hash(sudt_id).unwrap();
         let sudt_script = tree.get_script(&sudt_script_hash).unwrap();
         let transfer_capacity = 2_00000000u128;
@@ -138,7 +139,7 @@ fn test_cancel_tx_signature() {
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
-                    .to(Pack::pack(&receiver_script_hash))
+                    .to(Pack::pack(&receiver_address))
                     .amount(Pack::pack(&transfer_capacity))
                     .fee(Pack::pack(&fee_capacity))
                     .build(),
@@ -286,7 +287,7 @@ fn test_cancel_tx_signature() {
                     .0
                     .into()
             };
-            let context = VerifyTransactionSignatureContext::new_builder()
+            let context = VerifySignatureContext::new_builder()
                 .scripts(
                     ScriptVec::new_builder()
                         .push(sender_script.clone())

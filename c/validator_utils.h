@@ -101,7 +101,9 @@ int _ensure_account_exists(gw_context_t *ctx, uint32_t account_id) {
 }
 
 int sys_load(gw_context_t *ctx, uint32_t account_id,
-             const uint8_t key[GW_KEY_BYTES], uint8_t value[GW_VALUE_BYTES]) {
+             const uint8_t *key,
+             const size_t key_len,
+             uint8_t value[GW_VALUE_BYTES]) {
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
   }
@@ -111,11 +113,12 @@ int sys_load(gw_context_t *ctx, uint32_t account_id,
   }
 
   uint8_t raw_key[GW_KEY_BYTES] = {0};
-  gw_build_account_key(account_id, key, raw_key);
+  gw_build_account_key(account_id, key, key_len, raw_key);
   return gw_state_fetch(&ctx->kv_state, raw_key, value);
 }
 int sys_store(gw_context_t *ctx, uint32_t account_id,
-              const uint8_t key[GW_KEY_BYTES],
+              const uint8_t *key,
+              const size_t key_len,
               const uint8_t value[GW_VALUE_BYTES]) {
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
@@ -126,7 +129,7 @@ int sys_store(gw_context_t *ctx, uint32_t account_id,
   }
 
   uint8_t raw_key[GW_KEY_BYTES] = {0};
-  gw_build_account_key(account_id, key, raw_key);
+  gw_build_account_key(account_id, key, key_len, raw_key);
   return gw_state_insert(&ctx->kv_state, raw_key, value);
 }
 

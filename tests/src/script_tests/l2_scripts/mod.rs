@@ -102,8 +102,8 @@ impl SudtLogType {
 #[derive(Debug)]
 pub struct SudtLog {
     sudt_id: u32,
-    from_script_hash: [u8; 32],
-    to_script_hash: [u8; 32],
+    from_addr: Vec<u8>,
+    to_addr: Vec<u8>,
     amount: u128,
     log_type: SudtLogType,
 }
@@ -115,21 +115,20 @@ impl SudtLog {
         let raw_data = item.data().raw_data();
         let data: &[u8] = raw_data.as_ref();
         let log_type = SudtLogType::from_u8(service_flag)?;
-        if data.len() != (32 + 32 + 16) {
+        if data.len() > (1 + 32 + 32 + 16) {
             return Err(format!("Invalid data length: {}", data.len()));
         }
-        let mut from_script_hash = [0u8; 32];
-        from_script_hash.copy_from_slice(&data[..32]);
-        let mut to_script_hash = [0u8; 32];
-        to_script_hash.copy_from_slice(&data[32..64]);
+        let short_addr_len: usize = data[0] as usize;
+        let from_addr = data[1..1 + short_addr_len].to_vec();
+        let to_addr = data[1 + short_addr_len..1 + short_addr_len * 2].to_vec();
 
         let mut u128_bytes = [0u8; 16];
-        u128_bytes.copy_from_slice(&data[64..64 + 16]);
+        u128_bytes.copy_from_slice(&data[1 + short_addr_len * 2..1 + short_addr_len * 2 + 16]);
         let amount = u128::from_le_bytes(u128_bytes);
         Ok(SudtLog {
             sudt_id,
-            from_script_hash,
-            to_script_hash,
+            from_addr,
+            to_addr,
             amount,
             log_type,
         })
@@ -148,10 +147,10 @@ pub fn check_transfer_logs(
     // pay fee log
     let sudt_fee_log = SudtLog::from_log_item(&logs[0]).unwrap();
     assert_eq!(sudt_fee_log.sudt_id, sudt_id);
-    assert_eq!(sudt_fee_log.from_script_hash, from_script_hash.as_slice());
+    assert_eq!(sudt_fee_log.from_addr, from_script_hash.as_slice()[0..20]);
     assert_eq!(
-        sudt_fee_log.to_script_hash,
-        block_producer_script_hash.as_slice()
+        sudt_fee_log.to_addr,
+        block_producer_script_hash.as_slice()[0..20]
     );
     assert_eq!(sudt_fee_log.amount, fee);
     assert_eq!(sudt_fee_log.log_type, SudtLogType::PayFee);
@@ -159,10 +158,10 @@ pub fn check_transfer_logs(
     let sudt_transfer_log = SudtLog::from_log_item(&logs[1]).unwrap();
     assert_eq!(sudt_transfer_log.sudt_id, sudt_id);
     assert_eq!(
-        sudt_transfer_log.from_script_hash,
-        from_script_hash.as_slice()
+        sudt_transfer_log.from_addr,
+        from_script_hash.as_slice()[0..20]
     );
-    assert_eq!(sudt_transfer_log.to_script_hash, to_script_hash.as_slice());
+    assert_eq!(sudt_transfer_log.to_addr, to_script_hash.as_slice()[0..20]);
     assert_eq!(sudt_transfer_log.amount, amount);
     assert_eq!(sudt_transfer_log.log_type, SudtLogType::Transfer);
 }

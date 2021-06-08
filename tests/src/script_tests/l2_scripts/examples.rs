@@ -287,10 +287,11 @@ fn test_example_account_operation() {
         let from_script_hash = [0x33u8; 32];
         let to_script_hash = [0x44u8; 32];
         let amount: u128 = 101;
-        let mut data = vec![0u8; 64 + 16];
-        data[0..32].copy_from_slice(&from_script_hash[..]);
-        data[32..64].copy_from_slice(&to_script_hash[..]);
-        data[64..64 + 16].copy_from_slice(&amount.to_le_bytes()[..]);
+        let mut data = vec![0u8; 1 + 20 + 20 + 16];
+        data[0] = 20;
+        data[1..21].copy_from_slice(&from_script_hash[0..20]);
+        data[21..41].copy_from_slice(&to_script_hash[0..20]);
+        data[41..41 + 16].copy_from_slice(&amount.to_le_bytes()[..]);
         let args = AccountOp::Log {
             service_flag: GW_LOG_SUDT_TRANSFER,
             account_id,
@@ -306,8 +307,8 @@ fn test_example_account_operation() {
             .expect("result");
         let log = SudtLog::from_log_item(&run_result.logs[0]).unwrap();
         assert_eq!(log.sudt_id, account_id);
-        assert_eq!(log.from_script_hash, from_script_hash);
-        assert_eq!(log.to_script_hash, to_script_hash);
+        assert_eq!(log.from_addr, from_script_hash[0..20]);
+        assert_eq!(log.to_addr, to_script_hash[0..20]);
         assert_eq!(log.amount, amount);
         assert_eq!(log.log_type, SudtLogType::Transfer);
         assert_eq!(run_result.return_data, Vec::<u8>::new());

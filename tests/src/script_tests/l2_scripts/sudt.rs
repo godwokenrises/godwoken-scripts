@@ -1,5 +1,5 @@
 use super::{check_transfer_logs, new_block_info, run_contract, run_contract_get_result};
-use gw_common::state::State;
+use gw_common::state::{build_account_key, State};
 use gw_common::{h256_ext::H256Ext, H256};
 use gw_generator::dummy_state::DummyState;
 use gw_generator::{error::TransactionError, traits::StateExt};
@@ -67,19 +67,24 @@ fn test_sudt() {
     let block_info = new_block_info(block_producer_id, 1, 0);
 
     // init balance for a
-    tree.update_value(
-        sudt_id,
-        &a_script_hash,
+    tree.update_raw(
+        build_account_key(sudt_id, &a_script_hash.as_slice()[0..20]),
         H256::from_u128(init_a_balance).into(),
     )
     .expect("init balance");
 
+    let mut a_address = vec![0u8; 20];
+    a_address.copy_from_slice(&a_script_hash.as_slice()[0..20]);
+    let mut b_address = vec![0u8; 20];
+    b_address.copy_from_slice(&b_script_hash.as_slice()[0..20]);
+    let mut block_producer_address = vec![0u8; 20];
+    block_producer_address.copy_from_slice(&block_producer_script_hash.as_slice()[0..20]);
     // check balance of A, B
     {
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTQuery::new_builder()
-                    .address(a_script_hash.pack())
+                    .short_address(a_address.pack())
                     .build(),
             )
             .build();
@@ -102,7 +107,7 @@ fn test_sudt() {
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTQuery::new_builder()
-                    .address(b_script_hash.pack())
+                    .short_address(b_address.pack())
                     .build(),
             )
             .build();
@@ -130,7 +135,7 @@ fn test_sudt() {
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
-                    .to(b_script_hash.pack())
+                    .to(b_address.pack())
                     .amount(value.pack())
                     .fee(fee.pack())
                     .build(),
@@ -161,7 +166,7 @@ fn test_sudt() {
             let args = SUDTArgs::new_builder()
                 .set(
                     SUDTQuery::new_builder()
-                        .address(a_script_hash.pack())
+                        .short_address(a_address.pack())
                         .build(),
                 )
                 .build();
@@ -184,7 +189,7 @@ fn test_sudt() {
             let args = SUDTArgs::new_builder()
                 .set(
                     SUDTQuery::new_builder()
-                        .address(b_script_hash.pack())
+                        .short_address(b_address.pack())
                         .build(),
                 )
                 .build();
@@ -207,7 +212,7 @@ fn test_sudt() {
             let args = SUDTArgs::new_builder()
                 .set(
                     SUDTQuery::new_builder()
-                        .address(block_producer_script_hash.pack())
+                        .short_address(block_producer_address.pack())
                         .build(),
                 )
                 .build();
@@ -273,16 +278,24 @@ fn test_insufficient_balance() {
     let block_info = new_block_info(0, 10, 0);
 
     // init balance for a
-    tree.update_value(sudt_id, &a_script_hash, H256::from_u128(init_a_balance))
-        .expect("update init balance");
 
+    tree.update_raw(
+        build_account_key(sudt_id, &a_script_hash.as_slice()[0..20]),
+        H256::from_u128(init_a_balance).into(),
+    )
+    .expect("init balance");
+
+    let mut a_address = vec![0u8; 20];
+    a_address.copy_from_slice(&a_script_hash.as_slice()[0..20]);
+    let mut b_address = vec![0u8; 20];
+    b_address.copy_from_slice(&b_script_hash.as_slice()[0..20]);
     // transfer from A to B
     {
         let value = 10001u128;
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
-                    .to(b_script_hash.pack())
+                    .to(b_address.pack())
                     .amount(value.pack())
                     .build(),
             )
@@ -334,13 +347,16 @@ fn test_transfer_to_non_exist_account() {
         .expect("create account");
     let a_script_hash = tree.get_script_hash(a_id).expect("get script hash");
     // non-exist account id
-    let b_script_hash = [0x33u8; 32];
+    let b_address = [0x33u8; 20];
 
     let block_info = new_block_info(0, 10, 0);
 
     // init balance for a
-    tree.update_value(sudt_id, &a_script_hash, H256::from_u128(init_a_balance))
-        .expect("update init balance");
+    tree.update_raw(
+        build_account_key(sudt_id, &a_script_hash.as_slice()[0..20]),
+        H256::from_u128(init_a_balance).into(),
+    )
+    .expect("init balance");
 
     // transfer from A to B
     {
@@ -348,7 +364,7 @@ fn test_transfer_to_non_exist_account() {
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
-                    .to(b_script_hash.pack())
+                    .to(b_address.pack())
                     .amount(value.pack())
                     .build(),
             )

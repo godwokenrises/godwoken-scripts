@@ -117,12 +117,13 @@ fn test_revert() {
             .get_account_id_by_script_hash(&sender_script.hash().into())
             .unwrap()
             .unwrap();
+        let receiver_address = Bytes::copy_from_slice(&receiver_script.hash()[0..20]);
         let produce_block_result = {
             let args = SUDTArgs::new_builder()
                 .set(SUDTArgsUnion::SUDTTransfer(
                     SUDTTransfer::new_builder()
                         .amount(Pack::pack(&50_00000000u128))
-                        .to(Pack::pack(&receiver_script.hash()))
+                        .to(Pack::pack(&receiver_address))
                         .build(),
                 ))
                 .build()
