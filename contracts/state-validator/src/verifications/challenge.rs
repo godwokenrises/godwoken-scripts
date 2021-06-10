@@ -35,6 +35,13 @@ pub fn verify_enter_challenge(
     // check that challenge target is exists
     let witness = args.witness();
     let challenged_block = witness.raw_l2block();
+    // check challenged block isn't finazlied
+    if prev_global_state.last_finalized_block_number().unpack()
+        >= challenged_block.number().unpack()
+    {
+        debug!("enter challenge finalized block error");
+        return Err(Error::InvalidChallengeTarget);
+    }
     let valid = {
         let merkle_proof = CompiledMerkleProof(witness.block_proof().unpack());
         let leaves = vec![(
