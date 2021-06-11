@@ -2,16 +2,7 @@
 
 use secp256k1_utils::recover_uncompressed_key;
 use sha3::{Digest, Keccak256};
-use validator_utils::{
-    ckb_std::debug,
-    error::Error,
-    gw_common::{blake2b::new_blake2b, H256},
-    gw_types::{
-        bytes::Bytes,
-        packed::{L2Transaction, RawL2Transaction, Script, Signature},
-        prelude::*,
-    },
-};
+use validator_utils::{ckb_std::debug, error::Error, gw_common::H256, gw_types::bytes::Bytes};
 
 pub type EthAddress = [u8; 20];
 
@@ -40,10 +31,9 @@ impl Secp256k1Eth {
     fn verify_alone(
         &self,
         eth_address: EthAddress,
-        signature: Signature,
+        signature: [u8; 65],
         message: H256,
     ) -> Result<bool, Error> {
-        let signature: [u8; 65] = signature.unpack();
         let pubkey = recover_uncompressed_key(message.into(), signature).map_err(|err| {
             debug!("failed to recover secp256k1 pubkey, error number: {}", err);
             Error::WrongSignature
@@ -62,35 +52,10 @@ impl Secp256k1Eth {
         Ok(true)
     }
 
-    pub fn verify_tx(
-        &self,
-        sender_script: Script,
-        receiver_script: Script,
-        tx: L2Transaction,
-    ) -> Result<bool, Error> {
-        let (rollup_type_hash, sender_eth_address) =
-            extract_eth_lock_args(sender_script.args().unpack())?;
-        debug!(
-            "sender_args, rollup script hash: {:?} eth_address {:?}",
-            &rollup_type_hash, &sender_eth_address
-        );
-        // fallback to the tx message
-        let message = calc_godwoken_signing_message(
-            &rollup_type_hash,
-            &sender_script,
-            &receiver_script,
-            &tx.raw(),
-        );
-        debug!("fallback to the normal message: {:?}", message);
-        self.verify_message(sender_eth_address, tx.signature(), message)
-    }
-
-    // NOTE: verify_message here is using Ethereum's
-    // personal sign(with "\x19Ethereum Signed Message:\n32" appended)
     pub fn verify_message(
         &self,
         eth_address: EthAddress,
-        signature: Signature,
+        signature: [u8; 65],
         message: H256,
     ) -> Result<bool, Error> {
         let mut hasher = Keccak256::new();
@@ -103,20 +68,4 @@ impl Secp256k1Eth {
 
         self.verify_alone(eth_address, signature, signing_message)
     }
-}
-
-fn calc_godwoken_signing_message(
-    rollup_type_hash: &H256,
-    sender_script: &Script,
-    receiver_script: &Script,
-    raw_tx: &RawL2Transaction,
-) -> H256 {
-    let mut hasher = new_blake2b();
-    hasher.update(rollup_type_hash.as_slice());
-    hasher.update(&sender_script.hash());
-    hasher.update(&receiver_script.hash());
-    hasher.update(raw_tx.as_slice());
-    let mut message = [0u8; 32];
-    hasher.finalize(&mut message);
-    message.into()
 }

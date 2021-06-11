@@ -7,8 +7,7 @@ use gw_types::{
     },
     prelude::*,
 };
-use validator_utils::gw_types;
-use validator_utils::signature::{check_l2_account_signature_cell, SignatureType};
+use validator_utils::signature::check_l2_account_signature_cell;
 use validator_utils::{
     ckb_std::{
         ckb_constants::Source,
@@ -18,9 +17,36 @@ use validator_utils::{
     error::Error,
     kv_state::KVState,
 };
+use validator_utils::{
+    gw_common::{blake2b::new_blake2b, H256},
+    gw_types::{self, packed::RawL2Transaction},
+};
+
+fn calc_tx_message(
+    raw_tx: RawL2Transaction,
+    rollup_type_script_hash: &[u8; 32],
+    sender_script_hash: &H256,
+    receiver_script_hash: &H256,
+) -> H256 {
+    validator_utils::ckb_std::debug!(
+        "rollup: {:?} sender: {:?} receiver: {:?}",
+        rollup_type_script_hash,
+        sender_script_hash,
+        receiver_script_hash
+    );
+    let mut hasher = new_blake2b();
+    hasher.update(rollup_type_script_hash);
+    hasher.update(sender_script_hash.as_slice());
+    hasher.update(receiver_script_hash.as_slice());
+    hasher.update(raw_tx.as_slice());
+    let mut message = [0u8; 32];
+    hasher.finalize(&mut message);
+    message.into()
+}
 
 /// Verify tx signature
 pub fn verify_tx_signature(
+    rollup_script_hash: &[u8; 32],
     rollup_config: &RollupConfig,
     lock_args: &ChallengeLockArgs,
 ) -> Result<(), Error> {
@@ -46,6 +72,7 @@ pub fn verify_tx_signature(
     let target = lock_args.target();
     let raw_block = unlock_args.raw_l2block();
     let tx_proof = unlock_args.tx_proof();
+    let raw_tx = tx.raw();
 
     let input = TxContextInput {
         tx,
@@ -58,11 +85,18 @@ pub fn verify_tx_signature(
     };
 
     let TxContext {
-        sender_script_hash, ..
+        sender_script_hash,
+        receiver_script_hash,
     } = verify_tx_context(input)?;
 
+    let message = calc_tx_message(
+        raw_tx,
+        &rollup_script_hash,
+        &sender_script_hash,
+        &receiver_script_hash,
+    );
+
     // verify sender's script is in the input
-    // the script will read the layer2 tx and check user's signature.
-    check_l2_account_signature_cell(&sender_script_hash, SignatureType::Transaction)?;
+    check_l2_account_signature_cell(&sender_script_hash, message)?;
     Ok(())
 }
