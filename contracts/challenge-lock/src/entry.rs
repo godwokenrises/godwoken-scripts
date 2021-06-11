@@ -88,14 +88,14 @@ pub fn main() -> Result<(), Error> {
             crate::verifications::tx_execution::verify_tx_execution(&rollup_config, &lock_args)?;
         }
         ChallengeTargetType::TxSignature => {
-            crate::verifications::tx_signature::verify_tx_signature(&rollup_config, &lock_args)?;
-        }
-        ChallengeTargetType::Withdrawal => {
-            crate::verifications::withdrawal::verify_withdrawal(
+            crate::verifications::tx_signature::verify_tx_signature(
                 &rollup_script_hash,
                 &rollup_config,
                 &lock_args,
             )?;
+        }
+        ChallengeTargetType::Withdrawal => {
+            crate::verifications::withdrawal::verify_withdrawal(&rollup_script_hash, &lock_args)?;
         }
     }
 

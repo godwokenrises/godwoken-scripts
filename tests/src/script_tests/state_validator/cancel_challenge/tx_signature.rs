@@ -26,7 +26,7 @@ use gw_types::{
     packed::{
         Byte32, ChallengeLockArgs, ChallengeTarget, DepositRequest, L2Transaction,
         RawL2Transaction, RollupAction, RollupActionUnion, RollupCancelChallenge, RollupConfig,
-        SUDTArgs, SUDTTransfer, Script, ScriptVec, VerifySignatureContext,
+        SUDTArgs, SUDTTransfer, Script, ScriptVec, VerifyTransactionSignatureContext,
         VerifyTransactionSignatureWitness,
     },
 };
@@ -174,6 +174,11 @@ fn test_cancel_tx_signature() {
     let challenge_capacity = 10000_00000000u64;
     let challenged_block = chain.local_state().tip().clone();
     let challenge_target_index = 0u32;
+    let tx = challenged_block
+        .transactions()
+        .get(challenge_target_index as usize)
+        .unwrap();
+
     let input_challenge_cell = {
         let lock_args = ChallengeLockArgs::new_builder()
             .target(
@@ -190,7 +195,7 @@ fn test_cancel_tx_signature() {
             challenge_capacity,
             lock_args.as_bytes(),
         );
-        let out_point = ctx.insert_cell(cell, Bytes::new());
+        let out_point = ctx.insert_cell(cell, Bytes::default());
         CellInput::new_builder().previous_output(out_point).build()
     };
     let global_state = chain
@@ -212,10 +217,6 @@ fn test_cancel_tx_signature() {
             .output_type(CKBPack::pack(&Some(rollup_action.as_bytes())))
             .build()
     };
-    let tx = challenged_block
-        .transactions()
-        .get(challenge_target_index as usize)
-        .unwrap();
     let challenge_witness = {
         let witness = {
             let tx_proof: Bytes = {
@@ -284,19 +285,7 @@ fn test_cancel_tx_signature() {
                     .0
                     .into()
             };
-            let block_hashes_proof: Bytes = {
-                let smt = db.block_smt().unwrap();
-                smt.merkle_proof(vec![challenged_block.smt_key().into()])
-                    .unwrap()
-                    .compile(vec![(
-                        challenged_block.smt_key().into(),
-                        challenged_block.hash().into(),
-                    )])
-                    .unwrap()
-                    .0
-                    .into()
-            };
-            let context = VerifySignatureContext::new_builder()
+            let context = VerifyTransactionSignatureContext::new_builder()
                 .scripts(
                     ScriptVec::new_builder()
                         .push(sender_script.clone())
@@ -307,11 +296,10 @@ fn test_cancel_tx_signature() {
                 .kv_state(kv_state.pack())
                 .build();
             VerifyTransactionSignatureWitness::new_builder()
-                .l2tx(tx)
+                .l2tx(tx.clone())
                 .raw_l2block(challenged_block.raw())
                 .kv_state_proof(Pack::pack(&kv_state_proof))
                 .tx_proof(Pack::pack(&tx_proof))
-                .block_hashes_proof(Pack::pack(&block_hashes_proof))
                 .context(context)
                 .build()
         };
@@ -328,7 +316,17 @@ fn test_cancel_tx_signature() {
             .capacity(CKBPack::pack(&42u64))
             .build();
         let owner_lock_hash = vec![42u8; 32];
-        let out_point = ctx.insert_cell(cell, Bytes::from(owner_lock_hash));
+        let message = tx.raw().calc_message(
+            &rollup_type_script.hash().into(),
+            &sender_script.hash().into(),
+            &sudt_script.hash().into(),
+        );
+        let data: Bytes = {
+            let mut buf = owner_lock_hash.to_vec();
+            buf.extend_from_slice(&message.as_slice());
+            buf.into()
+        };
+        let out_point = ctx.insert_cell(cell, data);
         CellInput::new_builder().previous_output(out_point).build()
     };
     let rollup_cell_data = global_state
