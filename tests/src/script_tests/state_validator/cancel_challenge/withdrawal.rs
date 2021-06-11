@@ -24,8 +24,8 @@ use gw_types::{
     core::{ChallengeTargetType, ScriptHashType, Status},
     packed::{
         Byte32, ChallengeLockArgs, ChallengeTarget, DepositRequest, RawWithdrawalRequest,
-        RollupAction, RollupActionUnion, RollupCancelChallenge, RollupConfig, Script, ScriptVec,
-        VerifySignatureContext, VerifyWithdrawalWitness, WithdrawalRequest,
+        RollupAction, RollupActionUnion, RollupCancelChallenge, RollupConfig, Script,
+        VerifyWithdrawalWitness, WithdrawalRequest,
     },
 };
 
@@ -212,7 +212,6 @@ fn test_cancel_withdrawal() {
                 .unwrap()
                 .unwrap();
             tree.get_nonce(sender_id).unwrap();
-            let account_count = tree.get_account_count().unwrap();
             let touched_keys: Vec<H256> = tree
                 .tracker_mut()
                 .touched_keys()
@@ -221,34 +220,11 @@ fn test_cancel_withdrawal() {
                 .clone()
                 .into_iter()
                 .collect();
-            let kv_state = touched_keys
-                .iter()
-                .map(|k| {
-                    let v = tree.get_raw(k).unwrap();
-                    (*k, v)
-                })
-                .collect::<Vec<(H256, H256)>>();
-            let kv_state_proof: Bytes = {
-                let smt = state_db.account_smt().unwrap();
-                smt.merkle_proof(touched_keys)
-                    .unwrap()
-                    .compile(kv_state.clone())
-                    .unwrap()
-                    .0
-                    .into()
-            };
             // we do not actually execute the signature verification in this test
-            let context = VerifySignatureContext::new_builder()
-                .scripts(ScriptVec::new_builder().push(sender_script.clone()).build())
-                .account_count(Pack::pack(&account_count))
-                .kv_state(kv_state.pack())
-                .build();
             VerifyWithdrawalWitness::new_builder()
                 .raw_l2block(challenged_block.raw())
-                .kv_state_proof(Pack::pack(&kv_state_proof))
                 .withdrawal_request(withdrawal.clone())
                 .withdrawal_proof(Pack::pack(&withdrawal_proof))
-                .context(context)
                 .build()
         };
         ckb_types::packed::WitnessArgs::new_builder()

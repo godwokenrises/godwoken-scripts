@@ -8,5 +8,4 @@ edition = "2018"
 [dependencies]
 validator-utils = { path = "../../validator-utils" }
 secp256k1-utils = { path = "../../secp256k1-utils" }
-rlp = { version = "0.5", default-features = false }
 sha3 = { version = "0.9", default-features = false }
