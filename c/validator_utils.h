@@ -411,6 +411,7 @@ int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
          sizeof(gw_script_entry_t));
   ctx->script_entries_size += 1;
   ctx->account_count += 1;
+  *account_id = id;
 
   return 0;
 }
