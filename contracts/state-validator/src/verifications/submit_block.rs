@@ -232,7 +232,10 @@ fn mint_layer2_sudt(
             return Err(Error::UnknownEOAScript);
         }
         // find or create EOA
-        if kv_state.get_account_id_by_script_hash(&request.account_script_hash)?.is_none() {
+        if kv_state
+            .get_account_id_by_script_hash(&request.account_script_hash)?
+            .is_none()
+        {
             let _new_id = kv_state.create_account(request.account_script_hash)?;
         }
         let short_address = &request.account_script_hash.as_slice()[0..20];
@@ -285,7 +288,11 @@ fn burn_layer2_sudt(
             .ok_or(StateError::MissingKey)?;
         // burn CKB
         let short_address = &account_script_hash.as_slice()[0..20];
-        kv_state.burn_sudt(CKB_SUDT_ACCOUNT_ID, short_address, raw.capacity().unpack() as u128)?;
+        kv_state.burn_sudt(
+            CKB_SUDT_ACCOUNT_ID,
+            short_address,
+            raw.capacity().unpack() as u128,
+        )?;
         // find Simple UDT account
         let sudt_id = kv_state
             .get_account_id_by_script_hash(&l2_sudt_script_hash.into())?
