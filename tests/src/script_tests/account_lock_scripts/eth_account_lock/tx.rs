@@ -68,17 +68,12 @@ fn verify_tx_signature(
             .build()
     };
     // rollup lock & config
-    let challenge_lock_type = build_type_id_script(b"challenge_lock_type_id");
     let eth_lock_type = build_type_id_script(b"eth_lock_type_id");
-    let challenge_script_type_hash: [u8; 32] = challenge_lock_type.calc_script_hash().unpack();
     let eth_lock_type_hash: [u8; 32] = eth_lock_type.calc_script_hash().unpack();
 
     let allowed_eoa_type_hashes: Vec<Byte32> = vec![Pack::pack(&eth_lock_type_hash)];
     let rollup_config = RollupConfig::new_builder()
-        .challenge_script_type_hash(Pack::pack(&challenge_script_type_hash))
         .allowed_eoa_type_hashes(PackVec::pack(allowed_eoa_type_hashes))
-        // .l2_sudt_validator_script_type_hash(Pack::pack(&l2_sudt_type_hash))
-        // .allowed_contract_type_hashes(PackVec::pack(vec![Pack::pack(&l2_sudt_type_hash)]))
         .build();
     // setup chain
     let mut account_lock_manage = AccountLockManage::default();
@@ -103,28 +98,6 @@ fn verify_tx_signature(
         ..Default::default()
     };
     let mut ctx = CellContext::new(&rollup_config, param);
-    let challenge_capacity = 10000_00000000u64;
-    let challenged_block = chain.local_state().tip().clone();
-    let challenge_target_index = 0u32;
-    let input_challenge_cell = {
-        let lock_args = ChallengeLockArgs::new_builder()
-            .target(
-                ChallengeTarget::new_builder()
-                    .target_index(Pack::pack(&challenge_target_index))
-                    .target_type(ChallengeTargetType::TxSignature.into())
-                    .block_hash(Pack::pack(&challenged_block.hash()))
-                    .build(),
-            )
-            .build();
-        let cell = build_rollup_locked_cell(
-            &rollup_type_script.hash(),
-            &challenge_script_type_hash,
-            challenge_capacity,
-            lock_args.as_bytes(),
-        );
-        let out_point = ctx.insert_cell(cell, Bytes::new());
-        CellInput::new_builder().previous_output(out_point).build()
-    };
     let global_state = chain
         .local_state()
         .last_global_state()
@@ -294,8 +267,8 @@ fn verify_tx_signature(
     )
     .as_advanced_builder()
     .witness(CKBPack::pack(&witness.as_bytes()))
-    .input(input_challenge_cell)
-    .witness(CKBPack::pack(&challenge_witness.as_bytes()))
+    // .input(input_challenge_cell)
+    // .witness(CKBPack::pack(&challenge_witness.as_bytes()))
     .input(input_unlock_cell)
     .witness(Default::default())
     .input(owner_cell_input)
