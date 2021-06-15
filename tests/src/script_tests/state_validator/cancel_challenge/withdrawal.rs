@@ -12,12 +12,8 @@ use ckb_types::{
     packed::{CellInput, CellOutput},
     prelude::{Pack as CKBPack, Unpack},
 };
-use gw_common::{
-    h256_ext::H256Ext, sparse_merkle_tree::default_store::DefaultStore, state::State, H256,
-};
+use gw_common::{h256_ext::H256Ext, sparse_merkle_tree::default_store::DefaultStore, H256};
 use gw_generator::account_lock_manage::{always_success::AlwaysSuccess, AccountLockManage};
-use gw_store::state_db::SubState;
-use gw_store::state_db::{CheckPoint, StateDBMode, StateDBTransaction};
 use gw_types::prelude::*;
 use gw_types::{
     bytes::Bytes,
@@ -196,30 +192,6 @@ fn test_cancel_withdrawal() {
                     .0
                     .into()
             };
-            let db = chain.store().begin_transaction();
-            let challenged_block_number =
-                gw_types::prelude::Unpack::unpack(&challenged_block.raw().number());
-            let state_db = StateDBTransaction::from_checkpoint(
-                &db,
-                CheckPoint::new(challenged_block_number - 1, SubState::Block),
-                StateDBMode::ReadOnly,
-            )
-            .unwrap();
-            let mut tree = state_db.account_state_tree().unwrap();
-            tree.tracker_mut().enable();
-            let sender_id = tree
-                .get_account_id_by_script_hash(&sender_script.hash().into())
-                .unwrap()
-                .unwrap();
-            tree.get_nonce(sender_id).unwrap();
-            let touched_keys: Vec<H256> = tree
-                .tracker_mut()
-                .touched_keys()
-                .unwrap()
-                .borrow()
-                .clone()
-                .into_iter()
-                .collect();
             // we do not actually execute the signature verification in this test
             VerifyWithdrawalWitness::new_builder()
                 .raw_l2block(challenged_block.raw())
