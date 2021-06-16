@@ -26,7 +26,7 @@ use gw_types::{
     packed::{
         Byte32, ChallengeLockArgs, ChallengeTarget, DepositRequest, L2Transaction,
         RawL2Transaction, RollupAction, RollupActionUnion, RollupCancelChallenge, RollupConfig,
-        SUDTArgs, SUDTTransfer, Script, ScriptVec, VerifySignatureContext,
+        SUDTArgs, SUDTTransfer, Script, ScriptVec, VerifyTransactionSignatureContext,
         VerifyTransactionSignatureWitness,
     },
 };
@@ -287,7 +287,7 @@ fn test_cancel_tx_signature() {
                     .0
                     .into()
             };
-            let context = VerifySignatureContext::new_builder()
+            let context = VerifyTransactionSignatureContext::new_builder()
                 .scripts(
                     ScriptVec::new_builder()
                         .push(sender_script.clone())

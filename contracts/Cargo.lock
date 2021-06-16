@@ -130,7 +130,7 @@ dependencies = [
 [[package]]
 name = "gw-common"
 version = "0.1.0"
-source = "git+https://github.com/thewawar/godwoken.git?rev=01acfac841e7ce136ada251e941903cd7dcfcfca#01acfac841e7ce136ada251e941903cd7dcfcfca"
+source = "git+https://github.com/thewawar/godwoken.git?rev=697d10fdcc1841b97e1cb6f7ddca260bb2acefaf#697d10fdcc1841b97e1cb6f7ddca260bb2acefaf"
 dependencies = [
  "cfg-if",
  "gw-hash",
@@ -140,7 +140,7 @@ dependencies = [
 [[package]]
 name = "gw-hash"
 version = "0.1.0"
-source = "git+https://github.com/thewawar/godwoken.git?rev=01acfac841e7ce136ada251e941903cd7dcfcfca#01acfac841e7ce136ada251e941903cd7dcfcfca"
+source = "git+https://github.com/thewawar/godwoken.git?rev=697d10fdcc1841b97e1cb6f7ddca260bb2acefaf#697d10fdcc1841b97e1cb6f7ddca260bb2acefaf"
 dependencies = [
  "blake2b-ref",
 ]
@@ -148,7 +148,7 @@ dependencies = [
 [[package]]
 name = "gw-types"
 version = "0.1.0"
-source = "git+https://github.com/thewawar/godwoken.git?rev=01acfac841e7ce136ada251e941903cd7dcfcfca#01acfac841e7ce136ada251e941903cd7dcfcfca"
+source = "git+https://github.com/thewawar/godwoken.git?rev=697d10fdcc1841b97e1cb6f7ddca260bb2acefaf#697d10fdcc1841b97e1cb6f7ddca260bb2acefaf"
 dependencies = [
  "cfg-if",
  "gw-hash",
