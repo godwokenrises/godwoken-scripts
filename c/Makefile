@@ -8,7 +8,7 @@ CFLAGS := $(CINCLUDES) $(SECP256K1_INCLUDES) -DCKB_C_STDLIB_PRINTF -fPIC -O3 -no
 LDFLAGS := -Wl,-static -fdata-sections -ffunction-sections -Wl,--gc-sections
 MOLC := moleculec
 MOLC_VERSION := 0.6.1
-PROTOCOL_VERSION := 697d10fdcc1841b97e1cb6f7ddca260bb2acefaf
+PROTOCOL_VERSION := e8aefc87f9c0d0ae039b884ef3e22c3285514620
 PROTOCOL_SCHEMA_URL := https://raw.githubusercontent.com/thewawar/godwoken/${PROTOCOL_VERSION}/crates/types/schemas
 
 # docker pull nervos/ckb-riscv-gnu-toolchain:gnu-bionic-20191012
