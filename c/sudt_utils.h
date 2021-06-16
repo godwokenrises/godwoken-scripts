@@ -19,6 +19,18 @@
 #define WITHDRAWAL_AMOUNT 2
 #define WITHDRAWAL_BLOCK_NUMBER 3
 
+#define SUDT_KEY_FLAG_BALANCE 1
+
+
+void _sudt_build_key(uint32_t key_flag,
+                     const uint8_t *short_addr,
+                     uint32_t short_addr_len,
+                     uint8_t *key) {
+  memcpy(key, (uint8_t *)(&key_flag), 4);
+  memcpy(key + 4, (uint8_t *)(&short_addr_len), 4);
+  memcpy(key + 8, short_addr, short_addr_len);
+}
+
 int _sudt_emit_log(gw_context_t *ctx,
                    const uint32_t sudt_id,
                    const uint64_t short_addr_len,
@@ -41,9 +53,12 @@ int _sudt_emit_log(gw_context_t *ctx,
 }
 
 int _sudt_get_balance(gw_context_t *ctx, uint32_t sudt_id,
-                      const uint8_t *key,
-                      const uint64_t key_len,
+                      const uint8_t *short_addr,
+                      const uint64_t short_addr_len,
                       uint128_t *balance) {
+  uint8_t key[32 + 8] = {0};
+  uint64_t key_len = short_addr_len + 8;
+  _sudt_build_key(SUDT_KEY_FLAG_BALANCE, short_addr, (uint32_t)short_addr_len, key);
   uint8_t value[32] = {0};
   int ret = ctx->sys_load(ctx, sudt_id, key, key_len, value);
   if (ret != 0) {
@@ -54,9 +69,13 @@ int _sudt_get_balance(gw_context_t *ctx, uint32_t sudt_id,
 }
 
 int _sudt_set_balance(gw_context_t *ctx, uint32_t sudt_id,
-                      const uint8_t *key,
-                      const uint64_t key_len,
+                      const uint8_t *short_addr,
+                      const uint64_t short_addr_len,
                       uint128_t balance) {
+  uint8_t key[32 + 8] = {0};
+  uint64_t key_len = short_addr_len + 8;
+  _sudt_build_key(SUDT_KEY_FLAG_BALANCE, short_addr, (uint32_t)short_addr_len, key);
+
   uint8_t value[32] = {0};
   *(uint128_t *)value = balance;
   int ret = ctx->sys_store(ctx, sudt_id, key, key_len, value);
