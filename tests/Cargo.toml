@@ -7,16 +7,16 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-gw-types = { git = "https://github.com/thewawar/godwoken.git", rev = "01acfac841e7ce136ada251e941903cd7dcfcfca" }
-gw-common = { git = "https://github.com/thewawar/godwoken.git", rev = "01acfac841e7ce136ada251e941903cd7dcfcfca" }
-gw-config = { git = "https://github.com/thewawar/godwoken.git", rev = "01acfac841e7ce136ada251e941903cd7dcfcfca" }
-gw-db = { git = "https://github.com/thewawar/godwoken.git", rev = "01acfac841e7ce136ada251e941903cd7dcfcfca" }
-gw-store = { git = "https://github.com/thewawar/godwoken.git", rev = "01acfac841e7ce136ada251e941903cd7dcfcfca" }
-gw-traits = { git = "https://github.com/thewawar/godwoken.git", rev = "01acfac841e7ce136ada251e941903cd7dcfcfca" }
-gw-generator = { git = "https://github.com/thewawar/godwoken.git", rev = "01acfac841e7ce136ada251e941903cd7dcfcfca" }
-gw-chain = { git = "https://github.com/thewawar/godwoken.git", rev = "01acfac841e7ce136ada251e941903cd7dcfcfca" }
-gw-mem-pool = { git = "https://github.com/thewawar/godwoken.git", rev = "01acfac841e7ce136ada251e941903cd7dcfcfca" }
-gw-block-producer = { git = "https://github.com/thewawar/godwoken.git", rev = "01acfac841e7ce136ada251e941903cd7dcfcfca" }
+gw-types = { git = "https://github.com/thewawar/godwoken.git", rev = "697d10fdcc1841b97e1cb6f7ddca260bb2acefaf" }
+gw-common = { git = "https://github.com/thewawar/godwoken.git", rev = "697d10fdcc1841b97e1cb6f7ddca260bb2acefaf" }
+gw-config = { git = "https://github.com/thewawar/godwoken.git", rev = "697d10fdcc1841b97e1cb6f7ddca260bb2acefaf" }
+gw-db = { git = "https://github.com/thewawar/godwoken.git", rev = "697d10fdcc1841b97e1cb6f7ddca260bb2acefaf" }
+gw-store = { git = "https://github.com/thewawar/godwoken.git", rev = "697d10fdcc1841b97e1cb6f7ddca260bb2acefaf" }
+gw-traits = { git = "https://github.com/thewawar/godwoken.git", rev = "697d10fdcc1841b97e1cb6f7ddca260bb2acefaf" }
+gw-generator = { git = "https://github.com/thewawar/godwoken.git", rev = "697d10fdcc1841b97e1cb6f7ddca260bb2acefaf" }
+gw-chain = { git = "https://github.com/thewawar/godwoken.git", rev = "697d10fdcc1841b97e1cb6f7ddca260bb2acefaf" }
+gw-mem-pool = { git = "https://github.com/thewawar/godwoken.git", rev = "697d10fdcc1841b97e1cb6f7ddca260bb2acefaf" }
+gw-block-producer = { git = "https://github.com/thewawar/godwoken.git", rev = "697d10fdcc1841b97e1cb6f7ddca260bb2acefaf" }
 parking_lot = "0.11"
 anyhow = "1.0"
 blake2b-rs = "0.2"
