@@ -31,7 +31,7 @@ use gw_common::{
     h256_ext::H256Ext,
     merkle_utils::{calculate_merkle_root, calculate_state_checkpoint},
     smt::{Blake2bHasher, CompiledMerkleProof},
-    state::{State, to_short_address},
+    state::{to_short_address, State},
     CKB_SUDT_SCRIPT_ARGS, H256,
 };
 use gw_types::{
