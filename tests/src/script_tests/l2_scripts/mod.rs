@@ -1,5 +1,5 @@
 use gw_common::blake2b::new_blake2b;
-use gw_common::state::State;
+use gw_common::state::{to_short_address, State};
 use gw_common::H256;
 use gw_generator::{account_lock_manage::AccountLockManage, Generator};
 use gw_generator::{error::TransactionError, traits::StateExt, types::RollupContext};
@@ -164,10 +164,10 @@ pub fn check_transfer_logs(
     // pay fee log
     let sudt_fee_log = SudtLog::from_log_item(&logs[0]).unwrap();
     assert_eq!(sudt_fee_log.sudt_id, sudt_id);
-    assert_eq!(sudt_fee_log.from_addr, from_script_hash.as_slice()[0..20]);
+    assert_eq!(sudt_fee_log.from_addr, to_short_address(&from_script_hash));
     assert_eq!(
         sudt_fee_log.to_addr,
-        block_producer_script_hash.as_slice()[0..20]
+        to_short_address(&block_producer_script_hash),
     );
     assert_eq!(sudt_fee_log.amount, fee);
     assert_eq!(sudt_fee_log.log_type, SudtLogType::PayFee);
@@ -176,9 +176,9 @@ pub fn check_transfer_logs(
     assert_eq!(sudt_transfer_log.sudt_id, sudt_id);
     assert_eq!(
         sudt_transfer_log.from_addr,
-        from_script_hash.as_slice()[0..20]
+        to_short_address(&from_script_hash),
     );
-    assert_eq!(sudt_transfer_log.to_addr, to_script_hash.as_slice()[0..20]);
+    assert_eq!(sudt_transfer_log.to_addr, to_short_address(&to_script_hash));
     assert_eq!(sudt_transfer_log.amount, amount);
     assert_eq!(sudt_transfer_log.log_type, SudtLogType::Transfer);
 }

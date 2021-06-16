@@ -13,7 +13,10 @@ use ckb_types::{
     prelude::{Pack as CKBPack, Unpack},
 };
 use gw_common::{
-    h256_ext::H256Ext, sparse_merkle_tree::default_store::DefaultStore, state::State, H256,
+    h256_ext::H256Ext,
+    sparse_merkle_tree::default_store::DefaultStore,
+    state::{to_short_address, State},
+    H256,
 };
 use gw_generator::account_lock_manage::{always_success::AlwaysSuccess, AccountLockManage};
 use gw_store::state_db::SubState;
@@ -131,7 +134,7 @@ fn test_cancel_tx_signature() {
             .unwrap()
             .unwrap();
         let receiver_script_hash = tree.get_script_hash(receiver_id).expect("get script hash");
-        let receiver_address = Bytes::copy_from_slice(&receiver_script_hash.as_slice()[0..20]);
+        let receiver_address = Bytes::copy_from_slice(to_short_address(&receiver_script_hash));
         let sudt_script_hash = tree.get_script_hash(sudt_id).unwrap();
         let sudt_script = tree.get_script(&sudt_script_hash).unwrap();
         let transfer_capacity = 2_00000000u128;

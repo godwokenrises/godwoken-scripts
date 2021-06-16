@@ -7,7 +7,10 @@ use crate::script_tests::utils::rollup::{
 use crate::testing_tool::chain::{apply_block_result, construct_block, setup_chain};
 use crate::testing_tool::programs::{ALWAYS_SUCCESS_CODE_HASH, STATE_VALIDATOR_CODE_HASH};
 use ckb_types::prelude::{Pack as CKBPack, Unpack};
-use gw_common::{builtins::CKB_SUDT_ACCOUNT_ID, state::State};
+use gw_common::{
+    builtins::CKB_SUDT_ACCOUNT_ID,
+    state::{to_short_address, State},
+};
 use gw_store::state_db::SubState;
 use gw_store::state_db::{CheckPoint, StateDBMode, StateDBTransaction};
 use gw_types::prelude::*;
@@ -104,7 +107,7 @@ fn test_enter_challenge() {
             .unwrap()
             .unwrap();
         let receiver_script_hash = tree.get_script_hash(receiver_id).expect("get script hash");
-        let receiver_address = Bytes::copy_from_slice(&receiver_script_hash.as_slice()[0..20]);
+        let receiver_address = Bytes::copy_from_slice(to_short_address(&receiver_script_hash));
         let produce_block_result = {
             let args = SUDTArgs::new_builder()
                 .set(SUDTArgsUnion::SUDTTransfer(

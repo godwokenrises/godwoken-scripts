@@ -31,7 +31,7 @@ use gw_common::{
     h256_ext::H256Ext,
     merkle_utils::{calculate_merkle_root, calculate_state_checkpoint},
     smt::{Blake2bHasher, CompiledMerkleProof},
-    state::State,
+    state::{State, to_short_address},
     CKB_SUDT_SCRIPT_ARGS, H256,
 };
 use gw_types::{
@@ -238,7 +238,7 @@ fn mint_layer2_sudt(
         {
             let _new_id = kv_state.create_account(request.account_script_hash)?;
         }
-        let short_address = &request.account_script_hash.as_slice()[0..20];
+        let short_address = to_short_address(&request.account_script_hash);
         // mint CKB
         kv_state.mint_sudt(
             CKB_SUDT_ACCOUNT_ID,
@@ -287,7 +287,7 @@ fn burn_layer2_sudt(
             .get_account_id_by_script_hash(&account_script_hash)?
             .ok_or(StateError::MissingKey)?;
         // burn CKB
-        let short_address = &account_script_hash.as_slice()[0..20];
+        let short_address = to_short_address(&account_script_hash);
         kv_state.burn_sudt(
             CKB_SUDT_ACCOUNT_ID,
             short_address,

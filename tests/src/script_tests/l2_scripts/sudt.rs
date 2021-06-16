@@ -1,5 +1,5 @@
 use super::{check_transfer_logs, new_block_info, run_contract, run_contract_get_result};
-use gw_common::state::State;
+use gw_common::state::{to_short_address, State};
 use gw_generator::dummy_state::DummyState;
 use gw_generator::{error::TransactionError, traits::StateExt};
 use gw_types::{
@@ -66,15 +66,12 @@ fn test_sudt() {
     let block_info = new_block_info(block_producer_id, 1, 0);
 
     // init balance for a
-    tree.mint_sudt(sudt_id, &a_script_hash.as_slice()[0..20], init_a_balance)
+    tree.mint_sudt(sudt_id, to_short_address(&a_script_hash), init_a_balance)
         .expect("init balance");
 
-    let mut a_address = vec![0u8; 20];
-    a_address.copy_from_slice(&a_script_hash.as_slice()[0..20]);
-    let mut b_address = vec![0u8; 20];
-    b_address.copy_from_slice(&b_script_hash.as_slice()[0..20]);
-    let mut block_producer_address = vec![0u8; 20];
-    block_producer_address.copy_from_slice(&block_producer_script_hash.as_slice()[0..20]);
+    let a_address = to_short_address(&a_script_hash).to_vec();
+    let b_address = to_short_address(&b_script_hash).to_vec();
+    let block_producer_address = to_short_address(&block_producer_script_hash).to_vec();
     // check balance of A, B
     {
         let args = SUDTArgs::new_builder()
@@ -274,13 +271,10 @@ fn test_insufficient_balance() {
     let block_info = new_block_info(0, 10, 0);
 
     // init balance for a
-    tree.mint_sudt(sudt_id, &a_script_hash.as_slice()[0..20], init_a_balance)
+    tree.mint_sudt(sudt_id, to_short_address(&a_script_hash), init_a_balance)
         .expect("init balance");
 
-    let mut a_address = vec![0u8; 20];
-    a_address.copy_from_slice(&a_script_hash.as_slice()[0..20]);
-    let mut b_address = vec![0u8; 20];
-    b_address.copy_from_slice(&b_script_hash.as_slice()[0..20]);
+    let b_address = to_short_address(&b_script_hash).to_vec();
     // transfer from A to B
     {
         let value = 10001u128;
@@ -344,7 +338,7 @@ fn test_transfer_to_non_exist_account() {
     let block_info = new_block_info(0, 10, 0);
 
     // init balance for a
-    tree.mint_sudt(sudt_id, &a_script_hash.as_slice()[0..20], init_a_balance)
+    tree.mint_sudt(sudt_id, to_short_address(&a_script_hash), init_a_balance)
         .expect("init balance");
 
     // transfer from A to B
