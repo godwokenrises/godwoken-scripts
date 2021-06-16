@@ -1,6 +1,5 @@
 use super::{check_transfer_logs, new_block_info, run_contract, run_contract_get_result};
-use gw_common::state::{build_account_key, State};
-use gw_common::{h256_ext::H256Ext, H256};
+use gw_common::state::State;
 use gw_generator::dummy_state::DummyState;
 use gw_generator::{error::TransactionError, traits::StateExt};
 use gw_types::{
@@ -67,11 +66,8 @@ fn test_sudt() {
     let block_info = new_block_info(block_producer_id, 1, 0);
 
     // init balance for a
-    tree.update_raw(
-        build_account_key(sudt_id, &a_script_hash.as_slice()[0..20]),
-        H256::from_u128(init_a_balance).into(),
-    )
-    .expect("init balance");
+    tree.mint_sudt(sudt_id, &a_script_hash.as_slice()[0..20], init_a_balance)
+        .expect("init balance");
 
     let mut a_address = vec![0u8; 20];
     a_address.copy_from_slice(&a_script_hash.as_slice()[0..20]);
@@ -278,12 +274,8 @@ fn test_insufficient_balance() {
     let block_info = new_block_info(0, 10, 0);
 
     // init balance for a
-
-    tree.update_raw(
-        build_account_key(sudt_id, &a_script_hash.as_slice()[0..20]),
-        H256::from_u128(init_a_balance).into(),
-    )
-    .expect("init balance");
+    tree.mint_sudt(sudt_id, &a_script_hash.as_slice()[0..20], init_a_balance)
+        .expect("init balance");
 
     let mut a_address = vec![0u8; 20];
     a_address.copy_from_slice(&a_script_hash.as_slice()[0..20]);
@@ -352,11 +344,8 @@ fn test_transfer_to_non_exist_account() {
     let block_info = new_block_info(0, 10, 0);
 
     // init balance for a
-    tree.update_raw(
-        build_account_key(sudt_id, &a_script_hash.as_slice()[0..20]),
-        H256::from_u128(init_a_balance).into(),
-    )
-    .expect("init balance");
+    tree.mint_sudt(sudt_id, &a_script_hash.as_slice()[0..20], init_a_balance)
+        .expect("init balance");
 
     // transfer from A to B
     {
