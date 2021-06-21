@@ -8,8 +8,6 @@
 #include "gw_errors.h"
 #include "stddef.h"
 
-typedef unsigned __int128 uint128_t;
-
 /* common functions */
 
 /* Implement of gw_blake2b_hash_fn

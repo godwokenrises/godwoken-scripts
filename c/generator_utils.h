@@ -55,6 +55,7 @@ typedef struct gw_context_t {
   gw_get_script_hash_by_prefix_fn sys_get_script_hash_by_prefix;
   gw_recover_account_fn sys_recover_account;
   gw_log_fn sys_log;
+  gw_pay_fee_fn sys_pay_fee;
 } gw_context_t;
 
 int _ensure_account_exists(gw_context_t *ctx, uint32_t account_id) {
@@ -220,6 +221,19 @@ int sys_log(gw_context_t *ctx, uint32_t account_id, uint8_t service_flag,
   return syscall(GW_SYS_LOG, account_id, service_flag, data_length, data, 0, 0);
 }
 
+int sys_pay_fee(gw_context_t *ctx, const uint8_t *payer_addr,
+                const uint64_t short_addr_len, uint32_t sudt_id, uint128_t amount) {
+  if (ctx == NULL) {
+    return GW_ERROR_INVALID_CONTEXT;
+  }
+  int ret = _ensure_account_exists(ctx, sudt_id);
+  if (ret != 0) {
+    return ret;
+  }
+
+  return syscall(GW_SYS_LOG, payer_addr, short_addr_len, sudt_id, &amount, 0, 0);
+}
+
 int _sys_load_rollup_config(uint8_t *addr, uint64_t *len) {
   volatile uint64_t inner_len = *len;
   int ret = syscall(GW_SYS_LOAD_ROLLUP_CONFIG, addr, &inner_len, 0, 0, 0, 0);
@@ -255,6 +269,7 @@ int gw_context_init(gw_context_t *ctx) {
   ctx->sys_get_block_hash = sys_get_block_hash;
   ctx->sys_get_script_hash_by_prefix = sys_get_script_hash_by_prefix;
   ctx->sys_recover_account = sys_recover_account;
+  ctx->sys_pay_fee = sys_pay_fee;
   ctx->sys_log = sys_log;
 
   /* initialize context */

@@ -175,5 +175,9 @@ int sudt_pay_fee(gw_context_t *ctx,
   if (ret != 0) {
     return ret;
   }
-  return _sudt_transfer(ctx, sudt_id, short_addr_len, from_addr, to_script_hash, amount, GW_LOG_SUDT_PAY_FEE);
+  ret = _sudt_transfer(ctx, sudt_id, short_addr_len, from_addr, to_script_hash, amount, GW_LOG_SUDT_PAY_FEE);
+  if (ret != 0) {
+    return ret;
+  }
+  return ctx->sys_pay_fee(ctx, from_addr, short_addr_len, sudt_id, amount);
 }

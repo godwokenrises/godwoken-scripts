@@ -3,6 +3,8 @@
 
 #include "stddef.h"
 
+typedef unsigned __int128 uint128_t;
+
 #define GW_KEY_BYTES 32
 #define GW_VALUE_BYTES 32
 
@@ -244,5 +246,17 @@ typedef int (*gw_recover_account_fn)(struct gw_context_t *ctx,
  */
 typedef int (*gw_log_fn)(struct gw_context_t *ctx, uint32_t account_id, uint8_t service_flag,
                          uint64_t data_length, const uint8_t *data);
+
+/**
+ * Record fee payment
+ *
+ * @param payer_addr     Memory addr of payer short address
+ * @param short_addr_len Length of payer short address
+ * @param sudt_id        Account id of sUDT
+ * @param amount         The amount of fee
+ * @return               The status code, 0 is success
+ */
+typedef int (*gw_pay_fee_fn)(struct gw_context_t *ctx, const uint8_t *payer_addr,
+                             const uint64_t short_addr_len, uint32_t sudt_id, uint128_t amount);
 
 #endif /* GW_DEF_H_ */
