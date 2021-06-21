@@ -27,6 +27,8 @@ use gw_types::{
     },
 };
 
+const INVALID_CHALLENGE_TARGET_ERROR: i8 = 34;
+
 #[test]
 fn test_enter_challenge() {
     let input_out_point = random_out_point();
@@ -425,8 +427,7 @@ fn test_enter_challenge_finalized_block() {
     .build();
 
     let err = ctx.verify_tx(tx).unwrap_err();
-    let invalid_challenge_target = 33;
     let expected_err =
-        ScriptError::ValidationFailure(invalid_challenge_target).input_type_script(0);
+        ScriptError::ValidationFailure(INVALID_CHALLENGE_TARGET_ERROR).input_type_script(0);
     assert_error_eq!(err, expected_err);
 }
