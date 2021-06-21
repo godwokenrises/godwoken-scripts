@@ -212,7 +212,7 @@ fn check_output_custodian_cells(
     Ok(())
 }
 
-fn mint_layer2_sudt(
+fn check_layer2_deposit(
     rollup_type_hash: &H256,
     config: &RollupConfig,
     kv_state: &mut KVState,
@@ -271,12 +271,31 @@ fn mint_layer2_sudt(
     Ok(())
 }
 
-fn burn_layer2_sudt(
+fn check_layer2_withdrawal(
     rollup_type_hash: &H256,
     config: &RollupConfig,
     kv_state: &mut KVState,
     block: &L2Block,
 ) -> Result<(), Error> {
+    /// Pay fee to block producer
+    fn pay_fee(
+        kv_state: &mut KVState,
+        payer_short_address: &[u8],
+        block_producer_short_address: &[u8],
+        sudt_id: u32,
+        amount: u128,
+    ) -> Result<(), Error> {
+        kv_state.burn_sudt(sudt_id, payer_short_address, amount)?;
+        kv_state.mint_sudt(sudt_id, block_producer_short_address, amount)?;
+        Ok(())
+    }
+
+    let block_producer_script_hash = {
+        let block_producer_id = block.raw().block_producer_id().unpack();
+        kv_state.get_script_hash(block_producer_id)?
+    };
+    let block_producer_short_address = to_short_address(&block_producer_script_hash);
+
     for request in block.withdrawals() {
         let raw = request.raw();
         let l2_sudt_script_hash: [u8; 32] =
@@ -286,8 +305,21 @@ fn burn_layer2_sudt(
         let id = kv_state
             .get_account_id_by_script_hash(&account_script_hash)?
             .ok_or(StateError::MissingKey)?;
-        // burn CKB
         let short_address = to_short_address(&account_script_hash);
+        // pay fee
+        {
+            let fee = raw.fee();
+            let fee_sudt_id = fee.sudt_id().unpack();
+            let fee_amount = fee.amount().unpack();
+            pay_fee(
+                kv_state,
+                short_address,
+                block_producer_short_address,
+                fee_sudt_id,
+                fee_amount,
+            )?;
+        }
+        // burn CKB
         kv_state.burn_sudt(
             CKB_SUDT_ACCOUNT_ID,
             short_address,
@@ -623,9 +655,9 @@ pub fn verify(
     }
 
     // Withdrawal token: Layer2 SUDT -> withdrawals
-    burn_layer2_sudt(&rollup_type_hash, config, &mut kv_state, block)?;
+    check_layer2_withdrawal(&rollup_type_hash, config, &mut kv_state, block)?;
     // Mint token: deposit requests -> layer2 SUDT
-    mint_layer2_sudt(&rollup_type_hash, config, &mut kv_state, &deposit_cells)?;
+    check_layer2_deposit(&rollup_type_hash, config, &mut kv_state, &deposit_cells)?;
     // Check transactions
     check_block_transactions(&block, &kv_state)?;
 
