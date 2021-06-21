@@ -35,8 +35,8 @@
 #define GW_SYS_GET_BLOCK_HASH 3404
 /* Syscall builtins */
 #define GW_SYS_PAY_FEE 3501
-#define GW_SYS_RECOVER_ACCOUNT 3502
-#define GW_SYS_LOG 3503
+#define GW_SYS_LOG 3502
+#define GW_SYS_RECOVER_ACCOUNT 3503
 
 typedef struct gw_context_t {
   /* verification context */
