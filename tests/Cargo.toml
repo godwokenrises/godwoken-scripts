@@ -7,16 +7,16 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-gw-types = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "888f0e9fc02adf0a52592dda1ddf283a596a7459" }
-gw-common = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "888f0e9fc02adf0a52592dda1ddf283a596a7459" }
-gw-config = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "888f0e9fc02adf0a52592dda1ddf283a596a7459" }
-gw-db = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "888f0e9fc02adf0a52592dda1ddf283a596a7459" }
-gw-store = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "888f0e9fc02adf0a52592dda1ddf283a596a7459" }
-gw-traits = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "888f0e9fc02adf0a52592dda1ddf283a596a7459" }
-gw-generator = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "888f0e9fc02adf0a52592dda1ddf283a596a7459" }
-gw-chain = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "888f0e9fc02adf0a52592dda1ddf283a596a7459" }
-gw-mem-pool = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "888f0e9fc02adf0a52592dda1ddf283a596a7459" }
-gw-block-producer = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "888f0e9fc02adf0a52592dda1ddf283a596a7459" }
+gw-types = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "73d1875ffd2f323fc8f0c76158961684b67a48a4" }
+gw-common = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "73d1875ffd2f323fc8f0c76158961684b67a48a4" }
+gw-config = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "73d1875ffd2f323fc8f0c76158961684b67a48a4" }
+gw-db = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "73d1875ffd2f323fc8f0c76158961684b67a48a4" }
+gw-store = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "73d1875ffd2f323fc8f0c76158961684b67a48a4" }
+gw-traits = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "73d1875ffd2f323fc8f0c76158961684b67a48a4" }
+gw-generator = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "73d1875ffd2f323fc8f0c76158961684b67a48a4" }
+gw-chain = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "73d1875ffd2f323fc8f0c76158961684b67a48a4" }
+gw-mem-pool = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "73d1875ffd2f323fc8f0c76158961684b67a48a4" }
+gw-block-producer = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "73d1875ffd2f323fc8f0c76158961684b67a48a4" }
 parking_lot = "0.11"
 anyhow = "1.0"
 blake2b-rs = "0.2"
