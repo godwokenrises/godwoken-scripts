@@ -290,13 +290,19 @@ fn check_layer2_withdrawal(
         Ok(())
     }
 
+    let withdrawals = block.withdrawals();
+    // return ok if no withdrawals
+    if withdrawals.is_empty() {
+        return Ok(());
+    }
+
     let block_producer_script_hash = {
         let block_producer_id = block.raw().block_producer_id().unpack();
         kv_state.get_script_hash(block_producer_id)?
     };
     let block_producer_short_address = to_short_address(&block_producer_script_hash);
 
-    for request in block.withdrawals() {
+    for request in withdrawals {
         let raw = request.raw();
         let l2_sudt_script_hash: [u8; 32] =
             build_l2_sudt_script(rollup_type_hash, config, &raw.sudt_script_hash().unpack()).hash();
