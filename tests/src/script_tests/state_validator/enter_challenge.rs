@@ -10,7 +10,10 @@ use ckb_error::assert_error_eq;
 use ckb_script::ScriptError;
 use ckb_types::prelude::{Pack as CKBPack, Unpack};
 use gw_chain::chain::Chain;
-use gw_common::{builtins::CKB_SUDT_ACCOUNT_ID, state::State};
+use gw_common::{
+    builtins::CKB_SUDT_ACCOUNT_ID,
+    state::{to_short_address, State},
+};
 use gw_store::state_db::SubState;
 use gw_store::state_db::{CheckPoint, StateDBMode, StateDBTransaction};
 use gw_types::prelude::*;
@@ -23,6 +26,8 @@ use gw_types::{
         SUDTArgs, SUDTArgsUnion, SUDTTransfer, Script,
     },
 };
+
+const INVALID_CHALLENGE_TARGET_ERROR: i8 = 34;
 
 #[test]
 fn test_enter_challenge() {
@@ -106,12 +111,14 @@ fn test_enter_challenge() {
             .get_account_id_by_script_hash(&receiver_script.hash().into())
             .unwrap()
             .unwrap();
+        let receiver_script_hash = tree.get_script_hash(receiver_id).expect("get script hash");
+        let receiver_address = Bytes::copy_from_slice(to_short_address(&receiver_script_hash));
         let produce_block_result = {
             let args = SUDTArgs::new_builder()
                 .set(SUDTArgsUnion::SUDTTransfer(
                     SUDTTransfer::new_builder()
                         .amount(Pack::pack(&50_00000000u128))
-                        .to(Pack::pack(&receiver_id))
+                        .to(Pack::pack(&receiver_address))
                         .build(),
                 ))
                 .build()
@@ -246,7 +253,7 @@ fn test_enter_challenge_finalized_block() {
     );
 
     // deposit two account
-    let (sender_id, receiver_id) = {
+    let (sender_id, receiver_address) = {
         let sender_script = Script::new_builder()
             .code_hash(Pack::pack(&ALWAYS_SUCCESS_CODE_HASH.clone()))
             .hash_type(ScriptHashType::Data.into())
@@ -296,7 +303,10 @@ fn test_enter_challenge_finalized_block() {
             .get_account_id_by_script_hash(&receiver_script.hash().into())
             .unwrap()
             .unwrap();
-        (sender_id, receiver_id)
+        let receiver_script_hash = tree.get_script_hash(receiver_id).expect("get script hash");
+        let receiver_address = Bytes::copy_from_slice(to_short_address(&receiver_script_hash));
+
+        (sender_id, receiver_address)
     };
 
     let produce_block = |chain: &mut Chain, nonce: u32| {
@@ -306,7 +316,7 @@ fn test_enter_challenge_finalized_block() {
                 .set(SUDTArgsUnion::SUDTTransfer(
                     SUDTTransfer::new_builder()
                         .amount(Pack::pack(&50_00000000u128))
-                        .to(Pack::pack(&receiver_id))
+                        .to(Pack::pack(&receiver_address))
                         .build(),
                 ))
                 .build()
@@ -417,8 +427,7 @@ fn test_enter_challenge_finalized_block() {
     .build();
 
     let err = ctx.verify_tx(tx).unwrap_err();
-    let invalid_challenge_target = 33;
     let expected_err =
-        ScriptError::ValidationFailure(invalid_challenge_target).input_type_script(0);
+        ScriptError::ValidationFailure(INVALID_CHALLENGE_TARGET_ERROR).input_type_script(0);
     assert_error_eq!(err, expected_err);
 }

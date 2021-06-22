@@ -31,7 +31,7 @@ use gw_common::{
     h256_ext::H256Ext,
     merkle_utils::{calculate_merkle_root, calculate_state_checkpoint},
     smt::{Blake2bHasher, CompiledMerkleProof},
-    state::State,
+    state::{to_short_address, State},
     CKB_SUDT_SCRIPT_ARGS, H256,
 };
 use gw_types::{
@@ -232,12 +232,19 @@ fn mint_layer2_sudt(
             return Err(Error::UnknownEOAScript);
         }
         // find or create EOA
-        let id = match kv_state.get_account_id_by_script_hash(&request.account_script_hash)? {
-            Some(id) => id,
-            None => kv_state.create_account(request.account_script_hash)?,
-        };
+        if kv_state
+            .get_account_id_by_script_hash(&request.account_script_hash)?
+            .is_none()
+        {
+            let _new_id = kv_state.create_account(request.account_script_hash)?;
+        }
+        let short_address = to_short_address(&request.account_script_hash);
         // mint CKB
-        kv_state.mint_sudt(CKB_SUDT_ACCOUNT_ID, id, request.value.capacity.into())?;
+        kv_state.mint_sudt(
+            CKB_SUDT_ACCOUNT_ID,
+            short_address,
+            request.value.capacity.into(),
+        )?;
         if request.value.sudt_script_hash.as_slice() == CKB_SUDT_SCRIPT_ARGS {
             if request.value.amount != 0 {
                 // SUDT amount must equals to zero if sudt script hash is equals to CKB_SUDT_SCRIPT_ARGS
@@ -258,7 +265,7 @@ fn mint_layer2_sudt(
             return Err(Error::InvalidDepositCell);
         }
         // mint SUDT
-        kv_state.mint_sudt(sudt_id, id, request.value.amount)?;
+        kv_state.mint_sudt(sudt_id, short_address, request.value.amount)?;
     }
 
     Ok(())
@@ -275,17 +282,23 @@ fn burn_layer2_sudt(
         let l2_sudt_script_hash: [u8; 32] =
             build_l2_sudt_script(rollup_type_hash, config, &raw.sudt_script_hash().unpack()).hash();
         // find EOA
+        let account_script_hash: H256 = raw.account_script_hash().unpack();
         let id = kv_state
-            .get_account_id_by_script_hash(&raw.account_script_hash().unpack())?
+            .get_account_id_by_script_hash(&account_script_hash)?
             .ok_or(StateError::MissingKey)?;
         // burn CKB
-        kv_state.burn_sudt(CKB_SUDT_ACCOUNT_ID, id, raw.capacity().unpack() as u128)?;
+        let short_address = to_short_address(&account_script_hash);
+        kv_state.burn_sudt(
+            CKB_SUDT_ACCOUNT_ID,
+            short_address,
+            raw.capacity().unpack() as u128,
+        )?;
         // find Simple UDT account
         let sudt_id = kv_state
             .get_account_id_by_script_hash(&l2_sudt_script_hash.into())?
             .ok_or(StateError::MissingKey)?;
         // burn sudt
-        kv_state.burn_sudt(sudt_id, id, raw.amount().unpack())?;
+        kv_state.burn_sudt(sudt_id, short_address, raw.amount().unpack())?;
         // update nonce
         let nonce = kv_state.get_nonce(id)?;
         let withdrawal_nonce: u32 = raw.nonce().unpack();

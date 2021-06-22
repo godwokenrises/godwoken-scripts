@@ -32,7 +32,7 @@ int handle_sys_load(gw_context_t *ctx,
   uint32_t account_id = *((uint32_t *)args);
   uint8_t key[32] = {0};
   memcpy(key, args + 4, 32);
-  int ret = ctx->sys_load(ctx, account_id, key, rv);
+  int ret = ctx->sys_load(ctx, account_id, key, 32, rv);
   if (ret != 0) {
     return ret;
   }
@@ -51,7 +51,7 @@ int handle_sys_store(gw_context_t *ctx,
   uint8_t value[32] = {0};
   memcpy(key, args + 4, 32);
   memcpy(value, args + 4 + 32, 32);
-  int ret = ctx->sys_store(ctx, account_id, key, value);
+  int ret = ctx->sys_store(ctx, account_id, key, 32, value);
   if (ret != 0) {
     return ret;
   }

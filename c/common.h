@@ -28,14 +28,14 @@ void blake2b_hash(uint8_t output_hash[GW_KEY_BYTES], uint8_t *input_data,
  *
  * We use raw key in the underlying KV store
  */
-void gw_build_account_key(uint32_t id, const uint8_t key[GW_KEY_BYTES],
+void gw_build_account_key(uint32_t id, const uint8_t *key, const size_t key_len,
                           uint8_t raw_key[GW_KEY_BYTES]) {
   uint8_t type = GW_ACCOUNT_KV;
   blake2b_state blake2b_ctx;
   blake2b_init(&blake2b_ctx, GW_KEY_BYTES);
   blake2b_update(&blake2b_ctx, (uint8_t *)&id, 4);
   blake2b_update(&blake2b_ctx, (uint8_t *)&type, 1);
-  blake2b_update(&blake2b_ctx, key, GW_KEY_BYTES);
+  blake2b_update(&blake2b_ctx, key, key_len);
   blake2b_final(&blake2b_ctx, raw_key, GW_KEY_BYTES);
 }
 

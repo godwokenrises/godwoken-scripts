@@ -58,6 +58,8 @@ typedef struct gw_context_t {
   gw_load_data_fn sys_load_data;
   gw_store_data_fn sys_store_data;
   gw_get_block_hash_fn sys_get_block_hash;
+  gw_get_script_hash_by_prefix_fn sys_get_script_hash_by_prefix;
+  gw_recover_account_fn sys_recover_account;
   gw_log_fn sys_log;
 
   /* validator specific context */
@@ -100,7 +102,9 @@ int _ensure_account_exists(gw_context_t *ctx, uint32_t account_id) {
 }
 
 int sys_load(gw_context_t *ctx, uint32_t account_id,
-             const uint8_t key[GW_KEY_BYTES], uint8_t value[GW_VALUE_BYTES]) {
+             const uint8_t *key,
+             const size_t key_len,
+             uint8_t value[GW_VALUE_BYTES]) {
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
   }
@@ -110,11 +114,12 @@ int sys_load(gw_context_t *ctx, uint32_t account_id,
   }
 
   uint8_t raw_key[GW_KEY_BYTES] = {0};
-  gw_build_account_key(account_id, key, raw_key);
+  gw_build_account_key(account_id, key, key_len, raw_key);
   return gw_state_fetch(&ctx->kv_state, raw_key, value);
 }
 int sys_store(gw_context_t *ctx, uint32_t account_id,
-              const uint8_t key[GW_KEY_BYTES],
+              const uint8_t *key,
+              const size_t key_len,
               const uint8_t value[GW_VALUE_BYTES]) {
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
@@ -125,7 +130,7 @@ int sys_store(gw_context_t *ctx, uint32_t account_id,
   }
 
   uint8_t raw_key[GW_KEY_BYTES] = {0};
-  gw_build_account_key(account_id, key, raw_key);
+  gw_build_account_key(account_id, key, key_len, raw_key);
   return gw_state_insert(&ctx->kv_state, raw_key, value);
 }
 
@@ -311,6 +316,26 @@ int sys_get_block_hash(gw_context_t *ctx, uint64_t number,
   return gw_state_fetch(&ctx->block_hashes_state, key, block_hash);
 }
 
+int sys_get_script_hash_by_prefix(gw_context_t *ctx, uint8_t *prefix, uint64_t prefix_len,
+                                  uint8_t script_hash[32]) {
+  if (ctx == NULL) {
+    return GW_ERROR_INVALID_CONTEXT;
+  }
+  /* FIXME: must implement this function after `account-lock` contract refactor */
+  return 0;
+}
+
+int sys_recover_account(gw_context_t *ctx,
+                        uint8_t message[32],
+                        uint8_t *signature,
+                        uint64_t signature_len,
+                        uint8_t code_hash[32],
+                        uint8_t *script,
+                        uint64_t *script_len) {
+  /* FIXME: todo */
+  return 0;
+}
+
 int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
                uint32_t *account_id) {
   if (ctx == NULL) {
@@ -386,6 +411,7 @@ int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
          sizeof(gw_script_entry_t));
   ctx->script_entries_size += 1;
   ctx->account_count += 1;
+  *account_id = id;
 
   return 0;
 }
@@ -1069,6 +1095,8 @@ int gw_context_init(gw_context_t *ctx) {
   ctx->sys_store_data = sys_store_data;
   ctx->sys_load_data = sys_load_data;
   ctx->sys_get_block_hash = sys_get_block_hash;
+  ctx->sys_get_script_hash_by_prefix = sys_get_script_hash_by_prefix;
+  ctx->sys_recover_account = sys_recover_account;
   ctx->sys_log = sys_log;
 
   /* initialize context */

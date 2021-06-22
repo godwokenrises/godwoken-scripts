@@ -64,7 +64,7 @@ int read_counter(gw_context_t *ctx, uint64_t *counter) {
   uint8_t key[GW_KEY_BYTES];
   blake2b_hash(key, (uint8_t *)"counter", 7);
   uint8_t value[GW_VALUE_BYTES];
-  int ret = ctx->sys_load(ctx, ctx->transaction_context.to_id, key, value);
+  int ret = ctx->sys_load(ctx, ctx->transaction_context.to_id, key, GW_KEY_BYTES, value);
   if (ret != 0) {
     return ret;
   }
@@ -77,5 +77,5 @@ int write_counter(gw_context_t *ctx, uint64_t counter) {
   blake2b_hash(key, (uint8_t *)"counter", 7);
   uint8_t value[GW_VALUE_BYTES];
   *(uint64_t *)value = counter;
-  return ctx->sys_store(ctx, ctx->transaction_context.to_id, key, value);
+  return ctx->sys_store(ctx, ctx->transaction_context.to_id, key, GW_KEY_BYTES, value);
 }

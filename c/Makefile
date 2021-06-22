@@ -8,14 +8,14 @@ CFLAGS := $(CINCLUDES) $(SECP256K1_INCLUDES) -DCKB_C_STDLIB_PRINTF -fPIC -O3 -no
 LDFLAGS := -Wl,-static -fdata-sections -ffunction-sections -Wl,--gc-sections
 MOLC := moleculec
 MOLC_VERSION := 0.6.1
-PROTOCOL_VERSION := 46d9c4c5b33fcfece3300b6ac9ed3263eb00e3af
+PROTOCOL_VERSION := c3165a6a2663c89cc81d821024fd71fe9cd0c49c
 PROTOCOL_SCHEMA_URL := https://raw.githubusercontent.com/nervosnetwork/godwoken/${PROTOCOL_VERSION}/crates/types/schemas
 
 # docker pull nervos/ckb-riscv-gnu-toolchain:gnu-bionic-20191012
 BUILDER_DOCKER := nervos/ckb-riscv-gnu-toolchain@sha256:aae8a3f79705f67d505d1f1d5ddc694a4fd537ed1c7e9622420a470d59ba2ec3
 
-GENERATORS := build/meta-contract-generator build/sudt-generator build/examples/sum-generator build/examples/account-operation-generator
-VALIDATORS := build/meta-contract-validator build/sudt-validator build/examples/sum-validator build/examples/account-operation-validator
+GENERATORS := build/meta-contract-generator build/sudt-generator build/examples/sum-generator build/examples/account-operation-generator build/examples/recover-account-generator
+VALIDATORS := build/meta-contract-validator build/sudt-validator build/examples/sum-validator build/examples/account-operation-validator build/examples/recover-account-validator
 SECP256K1_HELPER := deps/ckb-production-scripts/build/secp256k1_data_info.h
 
 LIBS := build/libckb-secp256k1.a
@@ -81,6 +81,16 @@ build/examples/account-operation-generator: examples/account_operation.c gw_def.
 	$(OBJCOPY) --strip-debug --strip-all $@
 
 build/examples/account-operation-validator: examples/account_operation.c gw_def.h validator_utils.h
+	$(CC) $(CFLAGS) -DGW_VALIDATOR $(LDFLAGS) -o $@ $<
+	$(OBJCOPY) --only-keep-debug $@ $@.debug
+	$(OBJCOPY) --strip-debug --strip-all $@
+
+build/examples/recover-account-generator: examples/recover_account.c gw_def.h generator_utils.h
+	$(CC) $(CFLAGS) -DGW_GENERATOR $(LDFLAGS) -o $@ $<
+	$(OBJCOPY) --only-keep-debug $@ $@.debug
+	$(OBJCOPY) --strip-debug --strip-all $@
+
+build/examples/recover-account-validator: examples/recover_account.c gw_def.h validator_utils.h
 	$(CC) $(CFLAGS) -DGW_VALIDATOR $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@

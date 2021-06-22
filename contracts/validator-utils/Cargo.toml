@@ -8,5 +8,5 @@ edition = "2018"
 
 [dependencies]
 ckb-std = "0.7.4"
-gw-types = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "46d9c4c5b33fcfece3300b6ac9ed3263eb00e3af", default-features = false }
-gw-common = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "46d9c4c5b33fcfece3300b6ac9ed3263eb00e3af", default-features = false }
+gw-types = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "c3165a6a2663c89cc81d821024fd71fe9cd0c49c", default-features = false }
+gw-common = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "c3165a6a2663c89cc81d821024fd71fe9cd0c49c", default-features = false }
