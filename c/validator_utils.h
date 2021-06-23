@@ -1082,6 +1082,7 @@ int gw_context_init(gw_context_t *ctx) {
   if (ret != 0) {
     return ret;
   }
+
   /* setup syscalls */
   ctx->sys_load = sys_load;
   ctx->sys_load_nonce = sys_load_nonce;
@@ -1111,7 +1112,11 @@ int gw_context_init(gw_context_t *ctx) {
   uint64_t rollup_cell_index = 0;
   ret = _find_cell_by_type_hash(rollup_script_hash, CKB_SOURCE_INPUT,
                                 &rollup_cell_index);
-  if (ret != 0) {
+  if (ret == CKB_INDEX_OUT_OF_BOUND) {
+    /* exit execution with 0 if we are not in a challenge */
+    ckb_debug("can't found rollup cell from inputs which means we are not in a challenge, unlock cell without execution script");
+    ckb_exit(0);
+  } else if (ret != 0) {
     ckb_debug("failed to load rollup cell index");
     return ret;
   }
