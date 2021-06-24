@@ -1,4 +1,5 @@
 use super::*;
+use crate::testing_tool::ETH_ACCOUNT_LOCK_PROGRAM;
 use crate::script_tests::utils::layer1::*;
 use ckb_crypto::secp::{Generator, Privkey, Pubkey};
 use ckb_error::assert_error_eq;
@@ -15,12 +16,6 @@ use sha3::{Digest, Keccak256};
 
 const ERROR_PUBKEY_BLAKE160_HASH: i8 = -31;
 
-lazy_static! {
-    pub static ref ETH_ACCOUNT_LOCK: Bytes = Bytes::from(
-        &include_bytes!("../../../../../godwoken-scripts/c/build/account_locks/eth-account-lock")[..]
-    );
-}
-
 fn gen_tx(dummy: &mut DummyDataLoader, lock_args: Bytes, input_data: Bytes) -> TransactionView {
     let mut rng = thread_rng();
     // setup sighash_all dep
@@ -35,15 +30,15 @@ fn gen_tx(dummy: &mut DummyDataLoader, lock_args: Bytes, input_data: Bytes) -> T
     // dep contract code
     let script_cell = CellOutput::new_builder()
         .capacity(
-            Capacity::bytes(ETH_ACCOUNT_LOCK.len())
+            Capacity::bytes(ETH_ACCOUNT_LOCK_PROGRAM.len())
                 .expect("script capacity")
                 .pack(),
         )
         .build();
-    let script_cell_data_hash = CellOutput::calc_data_hash(&ETH_ACCOUNT_LOCK);
+    let script_cell_data_hash = CellOutput::calc_data_hash(&ETH_ACCOUNT_LOCK_PROGRAM);
     dummy.cells.insert(
         script_out_point.clone(),
-        (script_cell, ETH_ACCOUNT_LOCK.clone()),
+        (script_cell, ETH_ACCOUNT_LOCK_PROGRAM.clone()),
     );
     // setup secp256k1_data dep
     let secp256k1_data_out_point = {

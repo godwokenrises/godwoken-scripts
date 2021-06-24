@@ -1,6 +1,5 @@
 use super::{new_block_info, run_contract};
 use crate::testing_tool::chain::META_VALIDATOR_SCRIPT_TYPE_HASH;
-use ckb_types::bytes::Bytes;
 use core::panic;
 use gw_common::state::State;
 use gw_common::H256;
@@ -13,13 +12,6 @@ use gw_types::{
     packed::{CreateAccount, MetaContractArgs, RollupConfig, Script},
     prelude::*,
 };
-use lazy_static::lazy_static;
-
-lazy_static! {
-    pub static ref ETH_ACCOUNT_LOCK: Bytes = Bytes::from(
-        &include_bytes!("../../../../../godwoken-scripts/c/build/meta-contract-validator")[..]
-    );
-}
 
 #[test]
 fn test_meta_contract() {
