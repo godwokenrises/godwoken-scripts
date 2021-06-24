@@ -40,7 +40,7 @@ int gw_state_insert(gw_state_t *state, const uint8_t key[GW_KEY_BYTES],
   }
 
   if (i < 0) {
-    return GW_ERROR_INSUFFICIENT_CAPACITY;
+    return GW_ERROR_BUFFER_OVERFLOW;
   }
 
   memcpy(state->pairs[i].value, value, GW_VALUE_BYTES);

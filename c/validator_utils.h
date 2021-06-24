@@ -101,10 +101,8 @@ int _ensure_account_exists(gw_context_t *ctx, uint32_t account_id) {
   }
 }
 
-int sys_load(gw_context_t *ctx, uint32_t account_id,
-             const uint8_t *key,
-             const size_t key_len,
-             uint8_t value[GW_VALUE_BYTES]) {
+int sys_load(gw_context_t *ctx, uint32_t account_id, const uint8_t *key,
+             const size_t key_len, uint8_t value[GW_VALUE_BYTES]) {
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
   }
@@ -117,10 +115,8 @@ int sys_load(gw_context_t *ctx, uint32_t account_id,
   gw_build_account_key(account_id, key, key_len, raw_key);
   return gw_state_fetch(&ctx->kv_state, raw_key, value);
 }
-int sys_store(gw_context_t *ctx, uint32_t account_id,
-              const uint8_t *key,
-              const size_t key_len,
-              const uint8_t value[GW_VALUE_BYTES]) {
+int sys_store(gw_context_t *ctx, uint32_t account_id, const uint8_t *key,
+              const size_t key_len, const uint8_t value[GW_VALUE_BYTES]) {
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
   }
@@ -142,7 +138,7 @@ int sys_set_program_return_data(gw_context_t *ctx, uint8_t *data,
   }
   if (len > GW_MAX_RETURN_DATA_SIZE) {
     ckb_debug("Exceeded max return data size");
-    return GW_ERROR_INSUFFICIENT_CAPACITY;
+    return GW_ERROR_BUFFER_OVERFLOW;
   }
   memcpy(ctx->receipt.return_data, data, len);
   ctx->receipt.return_data_len = len;
@@ -179,7 +175,8 @@ int sys_get_script_hash_by_account_id(gw_context_t *ctx, uint32_t account_id,
 }
 
 /* Get nonce by account id */
-int sys_get_account_nonce(gw_context_t *ctx, uint32_t account_id, uint32_t *nonce) {
+int sys_get_account_nonce(gw_context_t *ctx, uint32_t account_id,
+                          uint32_t *nonce) {
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
   }
@@ -252,14 +249,14 @@ int sys_store_data(gw_context_t *ctx, uint64_t data_len, uint8_t *data) {
   /* In validator, we do not need to actually store data.
      We only need to update the data_hash in the state tree
    */
-  
+
   /* Compute data_hash */
   uint8_t data_hash[GW_KEY_BYTES] = {0};
   blake2b_state blake2b_ctx;
   blake2b_init(&blake2b_ctx, GW_KEY_BYTES);
   blake2b_update(&blake2b_ctx, data, data_len);
   blake2b_final(&blake2b_ctx, data_hash, GW_KEY_BYTES);
-  
+
   /* Compute data_hash_key */
   uint8_t raw_key[GW_KEY_BYTES] = {0};
   gw_build_data_hash_key(data_hash, raw_key);
@@ -326,7 +323,8 @@ int sys_get_block_hash(gw_context_t *ctx, uint64_t number,
   return gw_state_fetch(&ctx->block_hashes_state, key, block_hash);
 }
 
-int sys_get_script_hash_by_prefix(gw_context_t *ctx, uint8_t *prefix, uint64_t prefix_len,
+int sys_get_script_hash_by_prefix(gw_context_t *ctx, uint8_t *prefix,
+                                  uint64_t prefix_len,
                                   uint8_t script_hash[32]) {
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
@@ -339,7 +337,7 @@ int sys_get_script_hash_by_prefix(gw_context_t *ctx, uint8_t *prefix, uint64_t p
   size_t i;
   for (i = 0; i < ctx->script_entries_size; i++) {
     gw_script_entry_t entry = ctx->scripts[i];
-    if(memcmp(entry.hash, prefix, prefix_len) == 0) {
+    if (memcmp(entry.hash, prefix, prefix_len) == 0) {
       memcpy(script_hash, entry.hash, 32);
       return 0;
     }
@@ -348,15 +346,99 @@ int sys_get_script_hash_by_prefix(gw_context_t *ctx, uint8_t *prefix, uint64_t p
   return -1;
 }
 
-int sys_recover_account(gw_context_t *ctx,
-                        uint8_t message[32],
-                        uint8_t *signature,
-                        uint64_t signature_len,
-                        uint8_t code_hash[32],
-                        uint8_t *script,
+int sys_recover_account(gw_context_t *ctx, uint8_t message[32],
+                        uint8_t *signature, uint64_t signature_len,
+                        uint8_t code_hash[32], uint8_t *script,
                         uint64_t *script_len) {
-  /* FIXME: todo */
-  return 0;
+  /* iterate all inputs */
+  uint8_t lock_script[GW_MAX_SCRIPT_SIZE];
+  uint64_t len = 0;
+  uint64_t ret = 0;
+  int i;
+  for (i = 0; true; i++) {
+    len = GW_MAX_SCRIPT_SIZE;
+    /* load input's lock */
+    ret = ckb_checked_load_cell_by_field(lock_script, &len, 0, i,
+                                         CKB_SOURCE_INPUT, CKB_CELL_FIELD_LOCK);
+    if (ret != 0) {
+      return ret;
+    }
+    /* convert to molecule */
+    mol_seg_t script_seg;
+    script_seg.ptr = lock_script;
+    script_seg.size = len;
+    if (MolReader_Script_verify(&script_seg, false) != MOL_OK) {
+      return GW_ERROR_INVALID_DATA;
+    }
+    /* check lock's code_hash & hash_type */
+    mol_seg_t code_hash_seg = MolReader_Script_get_code_hash(&script_seg);
+    if (memcmp(code_hash, code_hash_seg.ptr, 32) != 0) {
+      continue;
+    }
+    mol_seg_t hash_type_seg = MolReader_Script_get_hash_type(&script_seg);
+    if ((*(uint8_t *)hash_type_seg.ptr) != SCRIPT_HASH_TYPE_TYPE) {
+      continue;
+    }
+    /* load message from cell.data[32..64] */
+    uint8_t checked_message[32] = {0};
+    len = 32;
+    ret = ckb_load_cell_data(checked_message, &len, 32, i, CKB_SOURCE_INPUT);
+    if (ret != 0) {
+      ckb_debug("recover account: failed to load cell data");
+      continue;
+    }
+    if (len != 64) {
+      ckb_debug("recover account: invalid data format");
+      continue;
+    }
+    /* check message */
+    if (memcmp(message, checked_message, 32) != 0) {
+      continue;
+    }
+    /* load signature */
+    uint8_t witness[GW_MAX_WITNESS_SIZE] = {0};
+    len = GW_MAX_WITNESS_SIZE;
+    ret = ckb_checked_load_witness(witness, &len, 0, i, CKB_SOURCE_INPUT);
+    if (ret != 0) {
+      ckb_debug("recover account: failed to load witness");
+      continue;
+    }
+    mol_seg_t witness_args_seg;
+    witness_args_seg.ptr = witness;
+    witness_args_seg.size = len;
+    if (MolReader_WitnessArgs_verify(&witness_args_seg, false) != MOL_OK) {
+      ckb_debug("recover account: invalid witness args");
+      continue;
+    }
+    mol_seg_t witness_lock_seg =
+        MolReader_WitnessArgs_get_lock(&witness_args_seg);
+    if (MolReader_BytesOpt_is_none(&witness_lock_seg)) {
+      ckb_debug("recover account: witness args has no lock field");
+      continue;
+    }
+    mol_seg_t signature_seg = MolReader_Bytes_raw_bytes(&witness_lock_seg);
+
+    /* check signature */
+    if (signature_len != signature_seg.size) {
+      continue;
+    }
+    if (memcmp(signature, signature_seg.ptr, signature_len) != 0) {
+      continue;
+    }
+
+    /* found script, recover account script */
+    if (*script_len < script_seg.size) {
+      ckb_debug("recover account: buffer overflow");
+      return GW_ERROR_BUFFER_OVERFLOW;
+    }
+    memcpy(script, script_seg.ptr, script_seg.size);
+    *script_len = script_seg.size;
+    return 0;
+  }
+  /* Can't found account signature lock from inputs */
+  ckb_debug("recover account: can't found account signature lock "
+            "from inputs");
+  return GW_ERROR_RECOVER;
 }
 
 int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
@@ -368,7 +450,7 @@ int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
   /* return failure if scripts slots is full */
   if (ctx->script_entries_size >= GW_MAX_SCRIPT_ENTRIES_SIZE) {
     ckb_debug("script slots is full");
-    return GW_ERROR_INSUFFICIENT_CAPACITY;
+    return GW_ERROR_BUFFER_OVERFLOW;
   }
 
   int ret;
@@ -913,7 +995,7 @@ int _load_verify_transaction_witness(
       MolReader_Bytes_raw_bytes(&kv_state_proof_seg);
   if (kv_state_proof_bytes_seg.size > GW_MAX_KV_PROOF_SIZE) {
     ckb_debug("kv state proof is too long");
-    return GW_ERROR_INSUFFICIENT_CAPACITY;
+    return GW_ERROR_BUFFER_OVERFLOW;
   }
   memcpy(kv_state_proof, kv_state_proof_bytes_seg.ptr,
          kv_state_proof_bytes_seg.size);
@@ -944,7 +1026,7 @@ int _load_verify_transaction_witness(
   uint32_t entries_size = MolReader_ScriptVec_length(&scripts_seg);
   if (entries_size > GW_MAX_SCRIPT_ENTRIES_SIZE) {
     ckb_debug("script size is exceeded maximum");
-    return GW_ERROR_INSUFFICIENT_CAPACITY;
+    return GW_ERROR_BUFFER_OVERFLOW;
   }
   *script_entries_size = 0;
   for (uint32_t i = 0; i < entries_size; i++) {
@@ -1030,7 +1112,8 @@ int _gw_check_account_script_is_allowed(uint8_t rollup_script_hash[32],
 
   /* check allowed contract list */
   mol_seg_t contract_list_seg =
-      MolReader_RollupConfig_get_allowed_contract_type_hashes(rollup_config_seg);
+      MolReader_RollupConfig_get_allowed_contract_type_hashes(
+          rollup_config_seg);
   len = MolReader_Byte32Vec_length(&contract_list_seg);
   for (uint32_t i = 0; i < len; i++) {
     mol_seg_res_t allowed_code_hash_res =
@@ -1243,8 +1326,10 @@ int gw_verify_sudt_account(gw_context_t *ctx, uint32_t sudt_id) {
   rollup_config_seg.ptr = ctx->rollup_config;
   rollup_config_seg.size = ctx->rollup_config_size;
   mol_seg_t l2_sudt_validator_script_type_hash =
-    MolReader_RollupConfig_get_l2_sudt_validator_script_type_hash(&rollup_config_seg);
-  if (memcmp(l2_sudt_validator_script_type_hash.ptr, code_hash_seg.ptr, 32) != 0) {
+      MolReader_RollupConfig_get_l2_sudt_validator_script_type_hash(
+          &rollup_config_seg);
+  if (memcmp(l2_sudt_validator_script_type_hash.ptr, code_hash_seg.ptr, 32) !=
+      0) {
     return GW_ERROR_INVALID_SUDT_SCRIPT;
   }
   if (*hash_type_seg.ptr != 1) {
