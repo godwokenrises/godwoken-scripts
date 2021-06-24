@@ -47,7 +47,6 @@ typedef struct gw_context_t {
 
   /* layer2 syscalls */
   gw_load_fn sys_load;
-  gw_load_nonce_fn sys_load_nonce;
   gw_store_fn sys_store;
   gw_set_program_return_data_fn sys_set_program_return_data;
   gw_create_fn sys_create;
@@ -135,21 +134,6 @@ int sys_store(gw_context_t *ctx, uint32_t account_id,
   return gw_state_insert(&ctx->kv_state, raw_key, value);
 }
 
-int sys_load_nonce(gw_context_t *ctx, uint32_t account_id,
-                   uint8_t value[GW_VALUE_BYTES]) {
-  if (ctx == NULL) {
-    return GW_ERROR_INVALID_CONTEXT;
-  }
-  int ret = _ensure_account_exists(ctx, account_id);
-  if (ret != 0) {
-    return ret;
-  }
-
-  uint8_t key[32] = {0};
-  gw_build_nonce_key(account_id, key);
-  return gw_state_fetch(&ctx->kv_state, key, value);
-}
-
 /* set call return data */
 int sys_set_program_return_data(gw_context_t *ctx, uint8_t *data,
                                 uint64_t len) {
@@ -199,14 +183,19 @@ int sys_get_account_nonce(gw_context_t *ctx, uint32_t account_id, uint32_t *nonc
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
   }
-  uint8_t raw_key[32] = {0};
-  gw_build_account_field_key(account_id, GW_ACCOUNT_NONCE, raw_key);
-  uint8_t value[32] = {0};
-  int ret = gw_state_fetch(&ctx->kv_state, raw_key, value);
+  int ret = _ensure_account_exists(ctx, account_id);
   if (ret != 0) {
     return ret;
   }
-  *nonce = *(uint32_t *)value;
+
+  uint8_t raw_key[32] = {0};
+  gw_build_account_field_key(account_id, GW_ACCOUNT_NONCE, raw_key);
+  uint8_t value[32] = {0};
+  ret = gw_state_fetch(&ctx->kv_state, raw_key, value);
+  if (ret != 0) {
+    return ret;
+  }
+  memcpy(nonce, value, sizeof(uint32_t));
   return 0;
 }
 
@@ -1100,7 +1089,6 @@ int gw_context_init(gw_context_t *ctx) {
 
   /* setup syscalls */
   ctx->sys_load = sys_load;
-  ctx->sys_load_nonce = sys_load_nonce;
   ctx->sys_store = sys_store;
   ctx->sys_set_program_return_data = sys_set_program_return_data;
   ctx->sys_create = sys_create;

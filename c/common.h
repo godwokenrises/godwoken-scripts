@@ -45,10 +45,6 @@ void gw_build_account_field_key(uint32_t id,
   key[sizeof(uint32_t)] = field_type;
 }
 
-void gw_build_nonce_key(uint32_t id, uint8_t key[GW_KEY_BYTES]) {
-  gw_build_account_field_key(id, GW_ACCOUNT_NONCE, key);
-}
-
 void gw_build_script_hash_to_account_id_key(uint8_t script_hash[GW_KEY_BYTES],
                                             uint8_t raw_key[GW_KEY_BYTES]) {
   uint8_t type = GW_ACCOUNT_SCRIPT_HASH_TO_ID;

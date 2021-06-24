@@ -97,16 +97,6 @@ typedef int (*gw_load_fn)(struct gw_context_t *ctx, uint32_t account_id,
                           const uint8_t *key,
                           const uint64_t key_len,
                           uint8_t value[GW_VALUE_BYTES]);
-/**
- * Load the nonce of account
- *
- * @param ctx         The godwoken context
- * @param account_id  The account to load nonce
- * @param value       The pointer to save the nonce value of the key (32 bytes)
- * @return            The status code, 0 is success
- */
-typedef int (*gw_load_nonce_fn)(struct gw_context_t *ctx, uint32_t account_id,
-                                uint8_t value[GW_VALUE_BYTES]);
 
 /**
  * Store key,value pair to current account's storage
