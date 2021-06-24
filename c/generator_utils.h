@@ -15,23 +15,28 @@
 #include "common.h"
 
 /* syscalls */
-#define GW_SYS_STORE 3051
-#define GW_SYS_LOAD 3052
-#define GW_SYS_SET_RETURN_DATA 3061
-#define GW_SYS_CREATE 3071
-/* internal syscall only for generator */
-#define GW_SYS_LOAD_TRANSACTION 4051
-#define GW_SYS_LOAD_BLOCKINFO 4052
-#define GW_SYS_LOAD_SCRIPT_HASH_BY_ACCOUNT_ID 4053
-#define GW_SYS_LOAD_ACCOUNT_ID_BY_SCRIPT_HASH 4054
-#define GW_SYS_LOAD_ACCOUNT_SCRIPT 4055
-#define GW_SYS_STORE_DATA 4056
-#define GW_SYS_LOAD_DATA 4057
-#define GW_SYS_GET_BLOCK_HASH 4058
-#define GW_SYS_GET_SCRIPT_HASH_BY_PREFIX 4059
-#define GW_SYS_RECOVER_ACCOUNT 4060
-#define GW_SYS_LOG 4061
-#define GW_SYS_LOAD_ROLLUP_CONFIG 4062
+/* Syscall account store / load / create */
+#define GW_SYS_CREATE 3100
+#define GW_SYS_STORE 3101
+#define GW_SYS_LOAD 3102
+#define GW_SYS_LOAD_SCRIPT_HASH_BY_ACCOUNT_ID 3103
+#define GW_SYS_LOAD_ACCOUNT_ID_BY_SCRIPT_HASH 3104
+#define GW_SYS_LOAD_ACCOUNT_SCRIPT 3105
+#define GW_SYS_GET_SCRIPT_HASH_BY_SHORT_ADDRESS 3106
+/* Syscall call / return */
+#define GW_SYS_SET_RETURN_DATA 3201
+/* Syscall data store / load */
+#define GW_SYS_STORE_DATA 3301
+#define GW_SYS_LOAD_DATA 3302
+/* Syscall load metadata structures */
+#define GW_SYS_LOAD_ROLLUP_CONFIG 3401
+#define GW_SYS_LOAD_TRANSACTION 3402
+#define GW_SYS_LOAD_BLOCKINFO 3403
+#define GW_SYS_GET_BLOCK_HASH 3404
+/* Syscall builtins */
+#define GW_SYS_PAY_FEE 3501
+#define GW_SYS_LOG 3502
+#define GW_SYS_RECOVER_ACCOUNT 3503
 
 typedef struct gw_context_t {
   /* verification context */
@@ -55,6 +60,7 @@ typedef struct gw_context_t {
   gw_get_script_hash_by_prefix_fn sys_get_script_hash_by_prefix;
   gw_recover_account_fn sys_recover_account;
   gw_log_fn sys_log;
+  gw_pay_fee_fn sys_pay_fee;
 } gw_context_t;
 
 int _ensure_account_exists(gw_context_t *ctx, uint32_t account_id) {
@@ -185,7 +191,7 @@ int sys_get_block_hash(gw_context_t *ctx, uint64_t number,
 
 int sys_get_script_hash_by_prefix(gw_context_t *ctx, uint8_t *prefix, uint64_t prefix_len,
                                   uint8_t script_hash[32]) {
-  return syscall(GW_SYS_GET_SCRIPT_HASH_BY_PREFIX, script_hash, prefix, prefix_len, 0, 0, 0);
+  return syscall(GW_SYS_GET_SCRIPT_HASH_BY_SHORT_ADDRESS, script_hash, prefix, prefix_len, 0, 0, 0);
 }
 
 int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
@@ -218,6 +224,19 @@ int sys_log(gw_context_t *ctx, uint32_t account_id, uint8_t service_flag,
   }
 
   return syscall(GW_SYS_LOG, account_id, service_flag, data_length, data, 0, 0);
+}
+
+int sys_pay_fee(gw_context_t *ctx, const uint8_t *payer_addr,
+                const uint64_t short_addr_len, uint32_t sudt_id, uint128_t amount) {
+  if (ctx == NULL) {
+    return GW_ERROR_INVALID_CONTEXT;
+  }
+  int ret = _ensure_account_exists(ctx, sudt_id);
+  if (ret != 0) {
+    return ret;
+  }
+
+  return syscall(GW_SYS_PAY_FEE, payer_addr, short_addr_len, sudt_id, &amount, 0, 0);
 }
 
 int _sys_load_rollup_config(uint8_t *addr, uint64_t *len) {
@@ -255,6 +274,7 @@ int gw_context_init(gw_context_t *ctx) {
   ctx->sys_get_block_hash = sys_get_block_hash;
   ctx->sys_get_script_hash_by_prefix = sys_get_script_hash_by_prefix;
   ctx->sys_recover_account = sys_recover_account;
+  ctx->sys_pay_fee = sys_pay_fee;
   ctx->sys_log = sys_log;
 
   /* initialize context */

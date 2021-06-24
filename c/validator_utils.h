@@ -61,6 +61,7 @@ typedef struct gw_context_t {
   gw_get_script_hash_by_prefix_fn sys_get_script_hash_by_prefix;
   gw_recover_account_fn sys_recover_account;
   gw_log_fn sys_log;
+  gw_pay_fee_fn sys_pay_fee;
 
   /* validator specific context */
   gw_account_merkle_state_t prev_account; /* RawL2Block.prev_account */
@@ -425,6 +426,20 @@ int sys_log(gw_context_t *ctx, uint32_t account_id, uint8_t service_flag,
   if (ret != 0) {
     return ret;
   }
+  /* do nothing */
+  return 0;
+}
+
+int sys_pay_fee(gw_context_t *ctx, const uint8_t *payer_addr,
+                const uint64_t short_addr_len, uint32_t sudt_id, uint128_t amount) {
+  if (ctx == NULL) {
+    return GW_ERROR_INVALID_CONTEXT;
+  }
+  int ret = _ensure_account_exists(ctx, sudt_id);
+  if (ret != 0) {
+    return ret;
+  }
+
   /* do nothing */
   return 0;
 }
@@ -1099,6 +1114,7 @@ int gw_context_init(gw_context_t *ctx) {
   ctx->sys_get_script_hash_by_prefix = sys_get_script_hash_by_prefix;
   ctx->sys_recover_account = sys_recover_account;
   ctx->sys_log = sys_log;
+  ctx->sys_pay_fee = sys_pay_fee;
 
   /* initialize context */
   uint8_t rollup_script_hash[32] = {0};
