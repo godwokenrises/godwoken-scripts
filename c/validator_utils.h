@@ -249,10 +249,30 @@ int sys_store_data(gw_context_t *ctx, uint64_t data_len, uint8_t *data) {
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
   }
-  /* TODO: any verification ? */
-  /* do nothing for now */
-  return 0;
+  /* In validator, we do not need to actually store data.
+     We only need to update the data_hash in the state tree
+   */
+  
+  /* Compute data_hash */
+  uint8_t data_hash[GW_KEY_BYTES] = {0};
+  blake2b_state blake2b_ctx;
+  blake2b_init(&blake2b_ctx, GW_KEY_BYTES);
+  blake2b_update(&blake2b_ctx, data, data_len);
+  blake2b_final(&blake2b_ctx, data_hash, GW_KEY_BYTES);
+  
+  /* Compute data_hash_key */
+  uint8_t raw_key[GW_KEY_BYTES] = {0};
+  gw_build_data_hash_key(data_hash, raw_key);
+
+  /* value */
+  uint32_t one = 1;
+  uint8_t value[GW_VALUE_BYTES] = {0};
+  memcpy(value, &one, sizeof(uint32_t));
+
+  /* update state */
+  return gw_state_insert(&ctx->kv_state, raw_key, value);
 }
+
 /* Load data by data hash */
 int sys_load_data(gw_context_t *ctx, uint8_t data_hash[32], uint64_t *len,
                   uint64_t offset, uint8_t *data) {

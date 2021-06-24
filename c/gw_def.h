@@ -12,7 +12,9 @@ typedef unsigned __int128 uint128_t;
 #define GW_ACCOUNT_KV 0
 #define GW_ACCOUNT_NONCE 1
 #define GW_ACCOUNT_SCRIPT_HASH 2
+/* Non account type */
 #define GW_ACCOUNT_SCRIPT_HASH_TO_ID 3
+#define GW_DATA_HASH_PREFIX 4
 
 /* Limitations */
 /* 24KB (ethereum max contract code size) */
