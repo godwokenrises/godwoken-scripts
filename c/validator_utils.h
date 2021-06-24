@@ -331,8 +331,21 @@ int sys_get_script_hash_by_prefix(gw_context_t *ctx, uint8_t *prefix, uint64_t p
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
   }
-  /* FIXME: must implement this function after `account-lock` contract refactor */
-  return 0;
+
+  if (prefix_len == 0 || prefix_len > 32) {
+    return GW_ERROR_INVALID_DATA;
+  }
+
+  size_t i;
+  for (i = 0; i < ctx->script_entries_size; i++) {
+    gw_script_entry_t entry = ctx->scripts[i];
+    if(memcmp(entry.hash, prefix, prefix_len) == 0) {
+      memcpy(script_hash, entry.hash, 32);
+      return 0;
+    }
+  }
+
+  return -1;
 }
 
 int sys_recover_account(gw_context_t *ctx,
