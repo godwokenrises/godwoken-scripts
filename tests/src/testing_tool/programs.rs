@@ -8,10 +8,12 @@ const SCRIPT_DIR: &'static str = "../build/debug";
 const CHALLENGE_LOCK_PATH: &'static str = "challenge-lock";
 const STATE_VALIDATOR: &'static str = "state-validator";
 const ALWAYS_SUCCESS_PATH: &'static str = "always-success";
-const ETH_LOCK_PATH: &'static str = "eth-account-lock";
 const SECP256K1_DATA_PATH: &'static str = "../c/deps/ckb-production-scripts/build/secp256k1_data";
 const C_SCRIPTS_DIR: &'static str = "../../godwoken-scripts/c/build";
 const META_CONTRACT_BIN_NAME: &'static str = "meta-contract-validator";
+// account locks
+const ETH_LOCK_PATH: &'static str = "eth-account-lock";
+const TRON_LOCK_PATH: &'static str = "tron-account-lock";
 
 lazy_static! {
     pub static ref ALWAYS_SUCCESS_PROGRAM: Bytes = {
@@ -75,6 +77,22 @@ lazy_static! {
         let mut buf = [0u8; 32];
         let mut hasher = new_blake2b();
         hasher.update(&ETH_ACCOUNT_LOCK_PROGRAM);
+        hasher.finalize(&mut buf);
+        buf
+    };
+    pub static ref TRON_ACCOUNT_LOCK_PROGRAM: Bytes = {
+        let mut buf = Vec::new();
+        let mut path = PathBuf::new();
+        path.push(&SCRIPT_DIR);
+        path.push(&TRON_LOCK_PATH);
+        let mut f = fs::File::open(&path).expect("load program");
+        f.read_to_end(&mut buf).expect("read program");
+        Bytes::from(buf.to_vec())
+    };
+    pub static ref TRON_ACCOUNT_LOCK_CODE_HASH: [u8; 32] = {
+        let mut buf = [0u8; 32];
+        let mut hasher = new_blake2b();
+        hasher.update(&TRON_ACCOUNT_LOCK_PROGRAM);
         hasher.finalize(&mut buf);
         buf
     };

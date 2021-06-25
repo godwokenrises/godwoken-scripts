@@ -1,6 +1,6 @@
 use crate::script_tests::utils::layer1::*;
 use crate::testing_tool::programs::{
-    ALWAYS_SUCCESS_CODE_HASH, ALWAYS_SUCCESS_PROGRAM, ETH_ACCOUNT_LOCK_PROGRAM, SECP256K1_DATA,
+    ALWAYS_SUCCESS_CODE_HASH, ALWAYS_SUCCESS_PROGRAM, SECP256K1_DATA, TRON_ACCOUNT_LOCK_PROGRAM,
 };
 use ckb_crypto::secp::{Generator, Privkey, Pubkey};
 use ckb_error::assert_error_eq;
@@ -11,6 +11,7 @@ use ckb_types::{
     packed::{CellDep, CellInput, CellOutput, OutPoint, Script, WitnessArgs},
     prelude::*,
 };
+use gw_generator::account_lock_manage::secp256k1::Secp256k1Tron;
 use gw_generator::account_lock_manage::{secp256k1::Secp256k1Eth, LockAlgorithm};
 use rand::{thread_rng, Rng};
 use sha3::{Digest, Keccak256};
@@ -40,15 +41,15 @@ fn gen_tx(dummy: &mut DummyDataLoader, lock_args: Bytes, message: Bytes) -> Tran
     // eth account lock
     let script_cell = CellOutput::new_builder()
         .capacity(
-            Capacity::bytes(ETH_ACCOUNT_LOCK_PROGRAM.len())
+            Capacity::bytes(TRON_ACCOUNT_LOCK_PROGRAM.len())
                 .expect("script capacity")
                 .pack(),
         )
         .build();
-    let script_cell_data_hash = CellOutput::calc_data_hash(&ETH_ACCOUNT_LOCK_PROGRAM);
+    let script_cell_data_hash = CellOutput::calc_data_hash(&TRON_ACCOUNT_LOCK_PROGRAM);
     dummy.cells.insert(
         script_out_point.clone(),
-        (script_cell, ETH_ACCOUNT_LOCK_PROGRAM.clone()),
+        (script_cell, TRON_ACCOUNT_LOCK_PROGRAM.clone()),
     );
     // owner lock
     let script_cell = CellOutput::new_builder()
@@ -167,7 +168,7 @@ fn sign_message(key: &Privkey, message: [u8; 32]) -> Bytes {
     // calculate eth signing message
     let message = {
         let mut hasher = Keccak256::new();
-        hasher.update("\x19Ethereum Signed Message:\n32");
+        hasher.update("\x19TRON Signed Message:\n32");
         hasher.update(&message);
         let buf = hasher.finalize();
         let mut signing_message = [0u8; 32];
@@ -177,6 +178,9 @@ fn sign_message(key: &Privkey, message: [u8; 32]) -> Bytes {
     let sig = key.sign_recoverable(&message).expect("sign");
     let mut signature = [0u8; 65];
     signature.copy_from_slice(&sig.serialize());
+    if signature[64] == 1 {
+        signature[64] = 28;
+    }
     signature.to_vec().into()
 }
 
@@ -188,7 +192,7 @@ pub fn sha3_pubkey_hash(pubkey: &Pubkey) -> Bytes {
 }
 
 #[test]
-fn test_sign_eth_message() {
+fn test_sign_tron_message() {
     let mut data_loader = DummyDataLoader::default();
     let privkey = Generator::random_privkey();
     let pubkey = privkey.pubkey().expect("pubkey");
@@ -219,7 +223,7 @@ fn test_sign_eth_message() {
     verify_result.expect("pass verification");
     let mut lock_args = vec![0u8; 32];
     lock_args.extend(pubkey_hash.as_ref());
-    let valid = Secp256k1Eth::default()
+    let valid = Secp256k1Tron::default()
         .verify_message(lock_args.into(), signature, message.into())
         .unwrap();
     assert!(valid);
@@ -267,6 +271,6 @@ fn test_wrong_signature() {
     lock_args.extend(pubkey_hash.as_ref());
     let valid = Secp256k1Eth::default()
         .verify_message(lock_args.into(), signature, message.into())
-        .unwrap();
+        .unwrap_or(false);
     assert!(!valid);
 }
