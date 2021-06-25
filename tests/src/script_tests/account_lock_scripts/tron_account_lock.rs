@@ -271,6 +271,6 @@ fn test_wrong_signature() {
     lock_args.extend(pubkey_hash.as_ref());
     let valid = Secp256k1Eth::default()
         .verify_message(lock_args.into(), signature, message.into())
-        .unwrap();
+        .unwrap_or(false);
     assert!(!valid);
 }
