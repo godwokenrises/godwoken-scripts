@@ -46,13 +46,12 @@ typedef struct gw_context_t {
   uint64_t rollup_config_size;
   /* layer2 syscalls */
   gw_load_fn sys_load;
-  gw_load_nonce_fn sys_load_nonce;
+  gw_get_account_nonce_fn sys_get_account_nonce;
   gw_store_fn sys_store;
   gw_set_program_return_data_fn sys_set_program_return_data;
   gw_create_fn sys_create;
   gw_get_account_id_by_script_hash_fn sys_get_account_id_by_script_hash;
   gw_get_script_hash_by_account_id_fn sys_get_script_hash_by_account_id;
-  gw_get_account_nonce_fn sys_get_account_nonce;
   gw_get_account_script_fn sys_get_account_script;
   gw_load_data_fn sys_load_data;
   gw_store_data_fn sys_store_data;
@@ -111,8 +110,8 @@ int sys_store(gw_context_t *ctx, uint32_t account_id,
   return syscall(GW_SYS_STORE, raw_key, value, 0, 0, 0, 0);
 }
 
-int sys_load_nonce(gw_context_t *ctx, uint32_t account_id,
-                   uint8_t value[GW_VALUE_BYTES]) {
+int sys_get_account_nonce(gw_context_t *ctx, uint32_t account_id,
+                   uint32_t *nonce) {
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
   }
@@ -121,15 +120,24 @@ int sys_load_nonce(gw_context_t *ctx, uint32_t account_id,
     return ret;
   }
 
-  uint8_t key[32];
-  gw_build_nonce_key(account_id, key);
-  return syscall(GW_SYS_LOAD, key, value, 0, 0, 0, 0);
+  uint8_t key[32] = {0};
+  gw_build_account_field_key(account_id, GW_ACCOUNT_NONCE, key);
+  uint8_t value[32] = {0};
+  ret = syscall(GW_SYS_LOAD, key, value, 0, 0, 0, 0);
+  if (ret != 0) {
+    return ret;
+  }
+  memcpy(nonce, value, sizeof(uint32_t));
+  return 0;
 }
 
 /* set call return data */
 int sys_set_program_return_data(gw_context_t *ctx,
                                 uint8_t *data,
                                 uint64_t len) {
+  if (ctx == NULL) {
+    return GW_ERROR_INVALID_CONTEXT;
+  }
   return syscall(GW_SYS_SET_RETURN_DATA, data, len, 0, 0, 0, 0);
 }
 
@@ -137,6 +145,9 @@ int sys_set_program_return_data(gw_context_t *ctx,
 int sys_get_account_id_by_script_hash(gw_context_t *ctx,
                                       uint8_t script_hash[32],
                                       uint32_t *account_id) {
+  if (ctx == NULL) {
+    return GW_ERROR_INVALID_CONTEXT;
+  }
   return syscall(GW_SYS_LOAD_ACCOUNT_ID_BY_SCRIPT_HASH, script_hash, account_id,
                  0, 0, 0, 0);
 }
@@ -145,6 +156,9 @@ int sys_get_account_id_by_script_hash(gw_context_t *ctx,
 int sys_get_script_hash_by_account_id(gw_context_t *ctx,
                                       uint32_t account_id,
                                       uint8_t script_hash[32]) {
+  if (ctx == NULL) {
+    return GW_ERROR_INVALID_CONTEXT;
+  }
   return syscall(GW_SYS_LOAD_SCRIPT_HASH_BY_ACCOUNT_ID, account_id, script_hash,
                  0, 0, 0, 0);
 }
@@ -152,6 +166,9 @@ int sys_get_script_hash_by_account_id(gw_context_t *ctx,
 /* Get account script by account id */
 int sys_get_account_script(gw_context_t *ctx, uint32_t account_id,
                            uint64_t *len, uint64_t offset, uint8_t *script) {
+  if (ctx == NULL) {
+    return GW_ERROR_INVALID_CONTEXT;
+  }
   volatile uint64_t inner_len = *len;
   int ret = syscall(GW_SYS_LOAD_ACCOUNT_SCRIPT, script, &inner_len, offset, account_id, 0, 0);
   *len = inner_len;
@@ -159,11 +176,17 @@ int sys_get_account_script(gw_context_t *ctx, uint32_t account_id,
 }
 /* Store data by data hash */
 int sys_store_data(gw_context_t *ctx, uint64_t data_len, uint8_t *data) {
+  if (ctx == NULL) {
+    return GW_ERROR_INVALID_CONTEXT;
+  }
   return syscall(GW_SYS_STORE_DATA, data_len, data, 0, 0, 0, 0);
 }
 /* Load data by data hash */
 int sys_load_data(gw_context_t *ctx, uint8_t data_hash[32], uint64_t *len,
                   uint64_t offset, uint8_t *data) {
+  if (ctx == NULL) {
+    return GW_ERROR_INVALID_CONTEXT;
+  }
   volatile uint64_t inner_len = *len;
   int ret = syscall(GW_SYS_LOAD_DATA, data, &inner_len, offset, data_hash, 0, 0);
   *len = inner_len;
@@ -186,16 +209,29 @@ int _sys_load_block_info(void *addr, uint64_t *len) {
 
 int sys_get_block_hash(gw_context_t *ctx, uint64_t number,
                        uint8_t block_hash[32]) {
+  if (ctx == NULL) {
+    return GW_ERROR_INVALID_CONTEXT;
+  }
   return syscall(GW_SYS_GET_BLOCK_HASH, block_hash, number, 0, 0, 0, 0);
 }
 
 int sys_get_script_hash_by_prefix(gw_context_t *ctx, uint8_t *prefix, uint64_t prefix_len,
                                   uint8_t script_hash[32]) {
+  if (ctx == NULL) {
+    return GW_ERROR_INVALID_CONTEXT;
+  }
+
+  if (prefix_len == 0 || prefix_len > 32) {
+    return GW_ERROR_INVALID_DATA;
+  }
   return syscall(GW_SYS_GET_SCRIPT_HASH_BY_SHORT_ADDRESS, script_hash, prefix, prefix_len, 0, 0, 0);
 }
 
 int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
                uint32_t *account_id) {
+  if (ctx == NULL) {
+    return GW_ERROR_INVALID_CONTEXT;
+  }
   return syscall(GW_SYS_CREATE, script, script_len, account_id, 0, 0, 0);
 }
 
@@ -206,6 +242,9 @@ int sys_recover_account(struct gw_context_t *ctx,
                         uint8_t code_hash[32],
                         uint8_t *script,
                         uint64_t *script_len) {
+  if (ctx == NULL) {
+    return GW_ERROR_INVALID_CONTEXT;
+  }
   volatile uint64_t inner_script_len = 0;
   int ret = syscall(GW_SYS_RECOVER_ACCOUNT, script, &inner_script_len,
                     message, signature, signature_len, code_hash);
@@ -262,12 +301,12 @@ int _sys_load_rollup_config(uint8_t *addr, uint64_t *len) {
 int gw_context_init(gw_context_t *ctx) {
   /* setup syscalls */
   ctx->sys_load = sys_load;
-  ctx->sys_load_nonce = sys_load_nonce;
   ctx->sys_store = sys_store;
   ctx->sys_set_program_return_data = sys_set_program_return_data;
   ctx->sys_create = sys_create;
   ctx->sys_get_account_id_by_script_hash = sys_get_account_id_by_script_hash;
   ctx->sys_get_script_hash_by_account_id = sys_get_script_hash_by_account_id;
+  ctx->sys_get_account_nonce = sys_get_account_nonce;
   ctx->sys_get_account_script = sys_get_account_script;
   ctx->sys_store_data = sys_store_data;
   ctx->sys_load_data = sys_load_data;

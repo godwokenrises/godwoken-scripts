@@ -5,7 +5,7 @@
  *  Include operations:
  *   - sys_load(account_id, key)
  *   - sys_store(account_id, key, value)
- *   - sys_load_nonce(account_id)
+ *   - sys_get_account_nonce(account_id)
  *   - sys_log(account_id, service_flag, data)
  */
 
@@ -62,16 +62,16 @@ int handle_sys_load_nonce(gw_context_t *ctx,
                           const uint8_t *args, const uint32_t args_len,
                           uint32_t *rv_len, uint8_t *rv) {
   if (args_len < 4) {
-    ckb_debug("invalid args length for sys_load_nonce");
+    ckb_debug("invalid args length for sys_get_account_nonce");
     return -1;
   }
   uint32_t account_id = *((uint32_t *)args);
-  uint8_t nonce_value[32] = {0};
-  int ret = ctx->sys_load_nonce(ctx, account_id, nonce_value);
+  uint32_t nonce = 0;
+  int ret = ctx->sys_get_account_nonce(ctx, account_id, &nonce);
   if (ret != 0) {
     return ret;
   }
-  memcpy(rv, nonce_value, 4);
+  memcpy(rv, (uint8_t *)&nonce, 4);
   *rv_len = 4;
   return 0;
 }
