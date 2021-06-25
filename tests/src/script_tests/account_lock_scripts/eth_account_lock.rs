@@ -1,6 +1,8 @@
-use super::*;
-use crate::testing_tool::ETH_ACCOUNT_LOCK_PROGRAM;
+use crate::script_tests::account_lock_scripts::SECP256K1_DATA_BIN;
 use crate::script_tests::utils::layer1::*;
+use crate::testing_tool::programs::{
+    ALWAYS_SUCCESS_CODE_HASH, ALWAYS_SUCCESS_PROGRAM, ETH_ACCOUNT_LOCK_PROGRAM,
+};
 use ckb_crypto::secp::{Generator, Privkey, Pubkey};
 use ckb_error::assert_error_eq;
 use ckb_script::{ScriptError, TransactionScriptsVerifier};
@@ -14,20 +16,29 @@ use gw_generator::account_lock_manage::{secp256k1::Secp256k1Eth, LockAlgorithm};
 use rand::{thread_rng, Rng};
 use sha3::{Digest, Keccak256};
 
-const ERROR_PUBKEY_BLAKE160_HASH: i8 = -31;
+const ERROR_WRONG_SIGNATURE: i8 = 43;
 
-fn gen_tx(dummy: &mut DummyDataLoader, lock_args: Bytes, input_data: Bytes) -> TransactionView {
+fn gen_tx(dummy: &mut DummyDataLoader, lock_args: Bytes, message: Bytes) -> TransactionView {
     let mut rng = thread_rng();
     // setup sighash_all dep
     let script_out_point = {
-        let contract_tx_hash = {
+        let tx_hash = {
             let mut buf = [0u8; 32];
             rng.fill(&mut buf);
             buf.pack()
         };
-        OutPoint::new(contract_tx_hash.clone(), 0)
+        OutPoint::new(tx_hash.clone(), 0)
+    };
+    let owner_lock_script_out_point = {
+        let tx_hash = {
+            let mut buf = [0u8; 32];
+            rng.fill(&mut buf);
+            buf.pack()
+        };
+        OutPoint::new(tx_hash.clone(), 0)
     };
     // dep contract code
+    // eth account lock
     let script_cell = CellOutput::new_builder()
         .capacity(
             Capacity::bytes(ETH_ACCOUNT_LOCK_PROGRAM.len())
@@ -39,6 +50,40 @@ fn gen_tx(dummy: &mut DummyDataLoader, lock_args: Bytes, input_data: Bytes) -> T
     dummy.cells.insert(
         script_out_point.clone(),
         (script_cell, ETH_ACCOUNT_LOCK_PROGRAM.clone()),
+    );
+    // owner lock
+    let script_cell = CellOutput::new_builder()
+        .capacity(
+            Capacity::bytes(ALWAYS_SUCCESS_PROGRAM.len())
+                .expect("script capacity")
+                .pack(),
+        )
+        .build();
+    dummy.cells.insert(
+        owner_lock_script_out_point.clone(),
+        (script_cell, ALWAYS_SUCCESS_PROGRAM.clone()),
+    );
+    // owner lock cell
+    let owner_lock_cell = CellOutput::new_builder()
+        .lock(
+            Script::new_builder()
+                .code_hash((*ALWAYS_SUCCESS_CODE_HASH).pack())
+                .hash_type(ScriptHashType::Data.into())
+                .build(),
+        )
+        .build();
+    let owner_lock_hash: [u8; 32] = owner_lock_cell.lock().calc_script_hash().unpack();
+    let owner_lock_cell_out_point = {
+        let tx_hash = {
+            let mut buf = [0u8; 32];
+            rng.fill(&mut buf);
+            buf.pack()
+        };
+        OutPoint::new(tx_hash, 0)
+    };
+    dummy.cells.insert(
+        owner_lock_cell_out_point.clone(),
+        (owner_lock_cell, Bytes::default()),
     );
     // setup secp256k1_data dep
     let secp256k1_data_out_point = {
@@ -75,6 +120,12 @@ fn gen_tx(dummy: &mut DummyDataLoader, lock_args: Bytes, input_data: Bytes) -> T
                 .dep_type(DepType::Code.into())
                 .build(),
         )
+        .cell_dep(
+            CellDep::new_builder()
+                .out_point(owner_lock_script_out_point)
+                .dep_type(DepType::Code.into())
+                .build(),
+        )
         .output(
             CellOutput::new_builder()
                 .capacity(dummy_capacity.pack())
@@ -82,33 +133,38 @@ fn gen_tx(dummy: &mut DummyDataLoader, lock_args: Bytes, input_data: Bytes) -> T
         )
         .output_data(Bytes::new().pack());
 
-    let previous_tx_hash = {
-        let mut buf = [0u8; 32];
-        rng.fill(&mut buf);
-        buf.pack()
+    let previous_out_point = {
+        let previous_tx_hash = {
+            let mut buf = [0u8; 32];
+            rng.fill(&mut buf);
+            buf.pack()
+        };
+        OutPoint::new(previous_tx_hash, 0)
     };
-    let previous_out_point = OutPoint::new(previous_tx_hash, 0);
-    let script = Script::new_builder()
-        .args(lock_args.pack())
-        .code_hash(script_cell_data_hash.clone())
-        .hash_type(ScriptHashType::Data.into())
-        .build();
-    let previous_output_cell = CellOutput::new_builder()
-        .capacity(dummy_capacity.pack())
-        .lock(script)
-        .build();
+    let previous_output_cell = {
+        let script = Script::new_builder()
+            .args(lock_args.pack())
+            .code_hash(script_cell_data_hash.clone())
+            .hash_type(ScriptHashType::Data.into())
+            .build();
+        CellOutput::new_builder()
+            .capacity(dummy_capacity.pack())
+            .lock(script)
+            .build()
+    };
+    let mut input_data = owner_lock_hash.to_vec();
+    input_data.extend_from_slice(&message);
     dummy.cells.insert(
         previous_out_point.clone(),
-        (previous_output_cell.clone(), input_data),
+        (previous_output_cell.clone(), input_data.into()),
     );
     tx_builder
         .input(CellInput::new(previous_out_point, 0))
+        .input(CellInput::new(owner_lock_cell_out_point, 0))
         .build()
 }
 
-fn sign_message(key: &Privkey, message: [u8; 32]) -> gw_types::packed::Signature {
-    use gw_types::prelude::*;
-
+fn sign_message(key: &Privkey, message: [u8; 32]) -> Bytes {
     // calculate eth signing message
     let message = {
         let mut hasher = Keccak256::new();
@@ -122,7 +178,7 @@ fn sign_message(key: &Privkey, message: [u8; 32]) -> gw_types::packed::Signature
     let sig = key.sign_recoverable(&message).expect("sign");
     let mut signature = [0u8; 65];
     signature.copy_from_slice(&sig.serialize());
-    signature.pack()
+    signature.to_vec().into()
 }
 
 pub fn sha3_pubkey_hash(pubkey: &Pubkey) -> Bytes {
@@ -134,7 +190,7 @@ pub fn sha3_pubkey_hash(pubkey: &Pubkey) -> Bytes {
 
 #[test]
 fn test_sign_eth_message() {
-    let mut data_loader = DummyDataLoader::new();
+    let mut data_loader = DummyDataLoader::default();
     let privkey = Generator::random_privkey();
     let pubkey = privkey.pubkey().expect("pubkey");
     let pubkey_hash = sha3_pubkey_hash(&pubkey);
@@ -142,15 +198,17 @@ fn test_sign_eth_message() {
     let mut message = [0u8; 32];
     rng.fill(&mut message);
     let signature = sign_message(&privkey, message);
-    let tx = gen_tx(
-        &mut data_loader,
-        pubkey_hash.clone(),
-        Bytes::from(message.to_vec()),
-    );
+    let lock_args = {
+        let rollup_script_hash = [42u8; 32];
+        let mut args = rollup_script_hash.to_vec();
+        args.extend_from_slice(&pubkey_hash);
+        args.into()
+    };
+    let tx = gen_tx(&mut data_loader, lock_args, message.to_vec().into());
     let tx = tx
         .as_advanced_builder()
         .set_witnesses(vec![WitnessArgs::new_builder()
-            .lock(Some(signature.as_bytes()).pack())
+            .lock(Some(signature.clone()).pack())
             .build()
             .as_bytes()
             .pack()])
@@ -163,17 +221,23 @@ fn test_sign_eth_message() {
     let mut lock_args = vec![0u8; 32];
     lock_args.extend(pubkey_hash.as_ref());
     let valid = Secp256k1Eth::default()
-        .verify_signature(lock_args.into(), signature, message.into())
+        .verify_message(lock_args.into(), signature, message.into())
         .unwrap();
     assert!(valid);
 }
 
 #[test]
 fn test_wrong_signature() {
-    let mut data_loader = DummyDataLoader::new();
+    let mut data_loader = DummyDataLoader::default();
     let privkey = Generator::random_privkey();
     let pubkey = privkey.pubkey().expect("pubkey");
     let pubkey_hash = sha3_pubkey_hash(&pubkey);
+    let lock_args = {
+        let rollup_script_hash = [42u8; 32];
+        let mut args = rollup_script_hash.to_vec();
+        args.extend_from_slice(&pubkey_hash);
+        args.into()
+    };
     let mut rng = thread_rng();
     let mut message = [0u8; 32];
     rng.fill(&mut message);
@@ -182,15 +246,11 @@ fn test_wrong_signature() {
         rng.fill(&mut wrong_message);
         sign_message(&privkey, wrong_message)
     };
-    let tx = gen_tx(
-        &mut data_loader,
-        pubkey_hash.clone(),
-        Bytes::from(message.to_vec()),
-    );
+    let tx = gen_tx(&mut data_loader, lock_args, message.to_vec().into());
     let tx = tx
         .as_advanced_builder()
         .set_witnesses(vec![WitnessArgs::new_builder()
-            .lock(Some(signature.as_bytes()).pack())
+            .lock(Some(signature.clone()).pack())
             .build()
             .as_bytes()
             .pack()])
@@ -202,13 +262,12 @@ fn test_wrong_signature() {
     let script_cell_index = 0;
     assert_error_eq!(
         verify_result.unwrap_err(),
-        ScriptError::ValidationFailure(ERROR_PUBKEY_BLAKE160_HASH)
-            .input_lock_script(script_cell_index)
+        ScriptError::ValidationFailure(ERROR_WRONG_SIGNATURE).input_lock_script(script_cell_index)
     );
     let mut lock_args = vec![0u8; 32];
     lock_args.extend(pubkey_hash.as_ref());
     let valid = Secp256k1Eth::default()
-        .verify_signature(lock_args.into(), signature, message.into())
+        .verify_message(lock_args.into(), signature, message.into())
         .unwrap();
     assert!(!valid);
 }
