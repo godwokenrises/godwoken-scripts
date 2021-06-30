@@ -18,8 +18,6 @@ GENERATORS := build/meta-contract-generator build/sudt-generator build/examples/
 VALIDATORS := build/meta-contract-validator build/sudt-validator build/examples/sum-validator build/examples/account-operation-validator build/examples/recover-account-validator
 SECP256K1_HELPER := deps/ckb-production-scripts/build/secp256k1_data_info.h
 
-LIBS := build/libckb-secp256k1.a
-
 BINS := $(GENERATORS) $(VALIDATORS)
 
 all-via-docker: generate-protocol $(SECP256K1_HELPER)
@@ -28,7 +26,7 @@ all-via-docker: generate-protocol $(SECP256K1_HELPER)
 debug-all-via-docker: generate-protocol $(SECP256K1_HELPER)
 	docker run --rm -v `pwd`:/code -w /code ${BUILDER_DOCKER} bash -c "make debug-all"
 
-all: $(BINS) $(LIBS)
+all: $(BINS)
 
 clean:
 	rm -f $(BINS)
@@ -118,11 +116,3 @@ install-tools:
 			|| [ "$$(${MOLC} --version | awk '{ print $$2 }' | tr -d ' ')" != "${MOLC_VERSION}" ]; then \
 		cargo install --force --version "${MOLC_VERSION}" "${MOLC}"; \
 	fi
-
-# build account locks lib
-
-build/libckb-secp256k1.a: build/secp256k1.o
-	$(AR) rcs $@ $^
-
-build/secp256k1.o: account_lock_lib/secp256k1.c
-	$(CC) $(CFLAGS) -D __SHARED_LIBRARY__ -c -o $@ $<
