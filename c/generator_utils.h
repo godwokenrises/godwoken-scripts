@@ -138,6 +138,10 @@ int sys_set_program_return_data(gw_context_t *ctx,
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
   }
+  if (len > GW_MAX_DATA_SIZE) {
+    ckb_debug("Exceeded max return data size");
+    return GW_ERROR_BUFFER_OVERFLOW;
+  }
   return syscall(GW_SYS_SET_RETURN_DATA, data, len, 0, 0, 0, 0);
 }
 
@@ -178,6 +182,10 @@ int sys_get_account_script(gw_context_t *ctx, uint32_t account_id,
 int sys_store_data(gw_context_t *ctx, uint64_t data_len, uint8_t *data) {
   if (ctx == NULL) {
     return GW_ERROR_INVALID_CONTEXT;
+  }
+  if (data_len > GW_MAX_DATA_SIZE) {
+    ckb_debug("Exceeded max store data size");
+    return GW_ERROR_INVALID_DATA;
   }
   return syscall(GW_SYS_STORE_DATA, data_len, data, 0, 0, 0, 0);
 }
