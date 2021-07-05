@@ -18,7 +18,7 @@ typedef unsigned __int128 uint128_t;
 
 /* Limitations */
 /* 24KB (ethereum max contract code size) */
-#define GW_MAX_RETURN_DATA_SIZE (24 * 1024)
+#define GW_MAX_DATA_SIZE (24 * 1024)
 /* 128KB */
 #define GW_MAX_L2TX_ARGS_SIZE (128 * 1024)
 /* 128KB + 4KB */
@@ -31,7 +31,6 @@ typedef unsigned __int128 uint128_t;
 /* MAX size of rollup config */
 #define GW_MAX_ROLLUP_CONFIG_SIZE (4 * 1024)
 #define GW_MAX_WITNESS_SIZE (300 * 1024)
-#define GW_MAX_CODE_SIZE (64 * 1024)
 
 #define GW_LOG_SUDT_TRANSFER    0x0
 #define GW_LOG_SUDT_PAY_FEE     0x1
