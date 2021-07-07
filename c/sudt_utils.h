@@ -105,52 +105,52 @@ int _sudt_transfer(gw_context_t *ctx,
                    const uint128_t amount,
                    uint8_t service_flag) {
   int ret;
-  if (memcmp(from_addr, to_addr, short_addr_len) == 0) {
-    ckb_debug("transfer: transfer to self");
-    return ERROR_TO_ADDR;
-  }
   ret = gw_verify_sudt_account(ctx, sudt_id);
   if (ret != 0) {
     ckb_debug("transfer: invalid sudt_id");
     return ret;
   }
 
-  /* check from account */
-  uint128_t from_balance;
-  ret = _sudt_get_balance(ctx, sudt_id, from_addr, short_addr_len, &from_balance);
-  if (ret != 0) {
-    ckb_debug("transfer: can't get sender's balance");
-    return ret;
-  }
-  if (from_balance < amount) {
-    ckb_debug("transfer: insufficient balance");
-    return ERROR_INSUFFICIENT_BALANCE;
-  }
-  uint128_t new_from_balance = from_balance - amount;
+  if (memcmp(from_addr, to_addr, short_addr_len) == 0) {
+    ckb_debug("transfer: transfer to self");
+  } else {
+    /* check from account */
+    uint128_t from_balance;
+    ret = _sudt_get_balance(ctx, sudt_id, from_addr, short_addr_len, &from_balance);
+    if (ret != 0) {
+      ckb_debug("transfer: can't get sender's balance");
+      return ret;
+    }
+    if (from_balance < amount) {
+      ckb_debug("transfer: insufficient balance");
+      return ERROR_INSUFFICIENT_BALANCE;
+    }
+    uint128_t new_from_balance = from_balance - amount;
 
-  /* check to account */
-  uint128_t to_balance;
-  ret = _sudt_get_balance(ctx, sudt_id, to_addr, short_addr_len, &to_balance);
-  if (ret != 0) {
-    ckb_debug("transfer: can't get receiver's balance");
-    return ret;
-  }
-  uint128_t new_to_balance = to_balance + amount;
-  if (new_to_balance < to_balance) {
-    ckb_debug("transfer: balance overflow");
-    return ERROR_AMOUNT_OVERFLOW;
-  }
+    /* check to account */
+    uint128_t to_balance;
+    ret = _sudt_get_balance(ctx, sudt_id, to_addr, short_addr_len, &to_balance);
+    if (ret != 0) {
+      ckb_debug("transfer: can't get receiver's balance");
+      return ret;
+    }
+    uint128_t new_to_balance = to_balance + amount;
+    if (new_to_balance < to_balance) {
+      ckb_debug("transfer: balance overflow");
+      return ERROR_AMOUNT_OVERFLOW;
+    }
 
-  /* update balance */
-  ret = _sudt_set_balance(ctx, sudt_id, from_addr, short_addr_len, new_from_balance);
-  if (ret != 0) {
-    ckb_debug("transfer: update sender's balance failed");
-    return ret;
-  }
-  ret = _sudt_set_balance(ctx, sudt_id, to_addr, short_addr_len, new_to_balance);
-  if (ret != 0) {
-    ckb_debug("transfer: update receiver's balance failed");
-    return ret;
+    /* update balance */
+    ret = _sudt_set_balance(ctx, sudt_id, from_addr, short_addr_len, new_from_balance);
+    if (ret != 0) {
+      ckb_debug("transfer: update sender's balance failed");
+      return ret;
+    }
+    ret = _sudt_set_balance(ctx, sudt_id, to_addr, short_addr_len, new_to_balance);
+    if (ret != 0) {
+      ckb_debug("transfer: update receiver's balance failed");
+      return ret;
+    }
   }
   ret = _sudt_emit_log(ctx, sudt_id, short_addr_len, from_addr, to_addr, amount, service_flag);
   if (ret != 0) {
