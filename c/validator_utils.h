@@ -989,7 +989,7 @@ int _load_verify_transaction_witness(
     mol_seg_t key_seg = MolReader_KVPair_get_k(&kv_res.seg);
     mol_seg_t value_seg = MolReader_KVPair_get_v(&kv_res.seg);
     ret = gw_state_insert(kv_state, key_seg.ptr, value_seg.ptr);
-    if (ret == 0) {
+    if (ret != 0) {
       return ret;
     }
   }
