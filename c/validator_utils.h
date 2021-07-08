@@ -1064,7 +1064,7 @@ int _load_verify_transaction_witness(
   /* load return data hash */
   mol_seg_t return_data_hash_seg =
       MolReader_VerifyTransactionContext_get_return_data_hash(
-          &verify_tx_witness_seg);
+          &verify_tx_ctx_seg);
   memcpy(return_data_hash, return_data_hash_seg.ptr, 32);
 
   return 0;
