@@ -2,6 +2,8 @@ use super::{check_transfer_logs, new_block_info, run_contract, run_contract_get_
 use gw_common::state::{to_short_address, State};
 use gw_generator::dummy_state::DummyState;
 use gw_generator::{error::TransactionError, traits::StateExt};
+use gw_traits::CodeStore;
+use gw_types::packed::BlockInfo;
 use gw_types::{
     core::ScriptHashType,
     packed::{RollupConfig, SUDTArgs, SUDTQuery, SUDTTransfer, Script},
@@ -75,51 +77,25 @@ fn test_sudt() {
     let block_producer_address = to_short_address(&block_producer_script_hash).to_vec();
     // check balance of A, B
     {
-        let args = SUDTArgs::new_builder()
-            .set(
-                SUDTQuery::new_builder()
-                    .short_address(a_address.pack())
-                    .build(),
-            )
-            .build();
-        let return_data = run_contract(
+        check_balance(
             &rollup_config,
             &mut tree,
+            &block_info,
             a_id,
             sudt_id,
-            args.as_bytes(),
-            &block_info,
-        )
-        .expect("execute");
-        let balance = {
-            let mut buf = [0u8; 16];
-            buf.copy_from_slice(&return_data);
-            u128::from_le_bytes(buf)
-        };
-        assert_eq!(balance, init_a_balance);
+            &a_address,
+            init_a_balance,
+        );
 
-        let args = SUDTArgs::new_builder()
-            .set(
-                SUDTQuery::new_builder()
-                    .short_address(b_address.pack())
-                    .build(),
-            )
-            .build();
-        let return_data = run_contract(
+        check_balance(
             &rollup_config,
             &mut tree,
+            &block_info,
             a_id,
             sudt_id,
-            args.as_bytes(),
-            &block_info,
-        )
-        .expect("execute");
-        let balance = {
-            let mut buf = [0u8; 16];
-            buf.copy_from_slice(&return_data);
-            u128::from_le_bytes(buf)
-        };
-        assert_eq!(balance, 0);
+            &b_address,
+            0,
+        );
     }
 
     // transfer from A to B
@@ -157,74 +133,35 @@ fn test_sudt() {
         );
 
         {
-            let args = SUDTArgs::new_builder()
-                .set(
-                    SUDTQuery::new_builder()
-                        .short_address(a_address.pack())
-                        .build(),
-                )
-                .build();
-            let return_data = run_contract(
+            check_balance(
                 &rollup_config,
                 &mut tree,
+                &block_info,
                 a_id,
                 sudt_id,
-                args.as_bytes(),
-                &block_info,
-            )
-            .expect("execute");
-            let balance = {
-                let mut buf = [0u8; 16];
-                buf.copy_from_slice(&return_data);
-                u128::from_le_bytes(buf)
-            };
-            assert_eq!(balance, init_a_balance - value - fee);
+                &a_address,
+                init_a_balance - value - fee,
+            );
 
-            let args = SUDTArgs::new_builder()
-                .set(
-                    SUDTQuery::new_builder()
-                        .short_address(b_address.pack())
-                        .build(),
-                )
-                .build();
-            let return_data = run_contract(
+            check_balance(
                 &rollup_config,
                 &mut tree,
+                &block_info,
                 a_id,
                 sudt_id,
-                args.as_bytes(),
-                &block_info,
-            )
-            .expect("execute");
-            let balance = {
-                let mut buf = [0u8; 16];
-                buf.copy_from_slice(&return_data);
-                u128::from_le_bytes(buf)
-            };
-            assert_eq!(balance, value);
+                &b_address,
+                value,
+            );
 
-            let args = SUDTArgs::new_builder()
-                .set(
-                    SUDTQuery::new_builder()
-                        .short_address(block_producer_address.pack())
-                        .build(),
-                )
-                .build();
-            let return_data = run_contract(
+            check_balance(
                 &rollup_config,
                 &mut tree,
+                &block_info,
                 a_id,
                 sudt_id,
-                args.as_bytes(),
-                &block_info,
-            )
-            .expect("execute");
-            let balance = {
-                let mut buf = [0u8; 16];
-                buf.copy_from_slice(&return_data);
-                u128::from_le_bytes(buf)
-            };
-            assert_eq!(balance, fee);
+                &block_producer_address,
+                fee,
+            );
         }
     }
 }
@@ -409,6 +346,8 @@ fn test_transfer_to_self() {
     let block_producer_script_hash = tree
         .get_script_hash(block_producer_id)
         .expect("get script hash");
+    let block_producer_address = to_short_address(&block_producer_script_hash).to_vec();
+    let block_producer_balance = 0;
     let block_info = new_block_info(block_producer_id, 10, 0);
 
     // init balance for a
@@ -447,12 +386,30 @@ fn test_transfer_to_self() {
             a_script_hash,
             value,
         );
+        check_balance(
+            &rollup_config,
+            &mut tree,
+            &block_info,
+            a_id,
+            sudt_id,
+            &a_address,
+            init_a_balance,
+        );
+        check_balance(
+            &rollup_config,
+            &mut tree,
+            &block_info,
+            a_id,
+            sudt_id,
+            &block_producer_address,
+            block_producer_balance,
+        );
     }
 
     // transfer from A to A, normal value
+    let fee: u128 = 20;
     {
         let value: u128 = 1000;
-        let fee: u128 = 20;
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
@@ -481,6 +438,24 @@ fn test_transfer_to_self() {
             a_script_hash,
             value,
         );
+        check_balance(
+            &rollup_config,
+            &mut tree,
+            &block_info,
+            a_id,
+            sudt_id,
+            &a_address,
+            init_a_balance - fee,
+        );
+        check_balance(
+            &rollup_config,
+            &mut tree,
+            &block_info,
+            a_id,
+            sudt_id,
+            &block_producer_address,
+            block_producer_balance + fee,
+        );
     }
 
     // transfer from A to A, insufficient balance
@@ -508,6 +483,24 @@ fn test_transfer_to_self() {
             err => panic!("unexpected {:?}", err),
         };
         assert_eq!(err_code, ERROR_INSUFFICIENT_BALANCE);
+        check_balance(
+            &rollup_config,
+            &mut tree,
+            &block_info,
+            a_id,
+            sudt_id,
+            &a_address,
+            init_a_balance - fee,
+        );
+        check_balance(
+            &rollup_config,
+            &mut tree,
+            &block_info,
+            a_id,
+            sudt_id,
+            &block_producer_address,
+            block_producer_balance + fee,
+        );
     }
 }
 
@@ -555,6 +548,8 @@ fn test_transfer_to_self_overflow() {
     let block_producer_script_hash = tree
         .get_script_hash(block_producer_id)
         .expect("get script hash");
+    let block_producer_address = to_short_address(&block_producer_script_hash).to_vec();
+    let block_producer_balance = 0;
     let block_info = new_block_info(block_producer_id, 10, 0);
 
     // init balance for a
@@ -593,6 +588,25 @@ fn test_transfer_to_self_overflow() {
             a_script_hash,
             value,
         );
+
+        check_balance(
+            &rollup_config,
+            &mut tree,
+            &block_info,
+            a_id,
+            sudt_id,
+            &a_address,
+            init_a_balance,
+        );
+        check_balance(
+            &rollup_config,
+            &mut tree,
+            &block_info,
+            a_id,
+            sudt_id,
+            &block_producer_address,
+            block_producer_balance,
+        );
     }
 
     // transfer from A to A, 1 value
@@ -627,6 +641,24 @@ fn test_transfer_to_self_overflow() {
             a_script_hash,
             value,
         );
+        check_balance(
+            &rollup_config,
+            &mut tree,
+            &block_info,
+            a_id,
+            sudt_id,
+            &a_address,
+            init_a_balance,
+        );
+        check_balance(
+            &rollup_config,
+            &mut tree,
+            &block_info,
+            a_id,
+            sudt_id,
+            &block_producer_address,
+            block_producer_balance,
+        );
     }
 
     // transfer from A to A, overflow balance
@@ -640,7 +672,7 @@ fn test_transfer_to_self_overflow() {
                     .build(),
             )
             .build();
-        let err = run_contract(
+        let run_result = run_contract_get_result(
             &rollup_config,
             &mut tree,
             a_id,
@@ -648,15 +680,38 @@ fn test_transfer_to_self_overflow() {
             args.as_bytes(),
             &block_info,
         )
-        .expect_err("err");
-        let err_code = match err {
-            TransactionError::InvalidExitCode(code) => code,
-            err => panic!("unexpected {:?}", err),
-        };
-        assert_eq!(err_code, ERROR_AMOUNT_OVERFLOW);
+        .expect("ok");
+        assert_eq!(run_result.logs.len(), 2);
+        check_transfer_logs(
+            &run_result.logs,
+            sudt_id,
+            block_producer_script_hash,
+            0,
+            a_script_hash,
+            a_script_hash,
+            value,
+        );
+        check_balance(
+            &rollup_config,
+            &mut tree,
+            &block_info,
+            a_id,
+            sudt_id,
+            &a_address,
+            init_a_balance,
+        );
+        check_balance(
+            &rollup_config,
+            &mut tree,
+            &block_info,
+            a_id,
+            sudt_id,
+            &block_producer_address,
+            block_producer_balance,
+        );
     }
 
-    // transfer from A to A, overflow balance
+    // transfer from A to A with a large value
     {
         let value: u128 = u128::MAX - 1;
         let args = SUDTArgs::new_builder()
@@ -667,7 +722,7 @@ fn test_transfer_to_self_overflow() {
                     .build(),
             )
             .build();
-        let err = run_contract(
+        let run_result = run_contract_get_result(
             &rollup_config,
             &mut tree,
             a_id,
@@ -675,12 +730,35 @@ fn test_transfer_to_self_overflow() {
             args.as_bytes(),
             &block_info,
         )
-        .expect_err("err");
-        let err_code = match err {
-            TransactionError::InvalidExitCode(code) => code,
-            err => panic!("unexpected {:?}", err),
-        };
-        assert_eq!(err_code, ERROR_AMOUNT_OVERFLOW);
+        .expect("ok");
+        assert_eq!(run_result.logs.len(), 2);
+        check_transfer_logs(
+            &run_result.logs,
+            sudt_id,
+            block_producer_script_hash,
+            0,
+            a_script_hash,
+            a_script_hash,
+            value,
+        );
+        check_balance(
+            &rollup_config,
+            &mut tree,
+            &block_info,
+            a_id,
+            sudt_id,
+            &a_address,
+            init_a_balance,
+        );
+        check_balance(
+            &rollup_config,
+            &mut tree,
+            &block_info,
+            a_id,
+            sudt_id,
+            &block_producer_address,
+            block_producer_balance,
+        );
     }
 }
 
@@ -714,6 +792,7 @@ fn test_transfer_overflow() {
         )
         .expect("create account");
     let a_script_hash = tree.get_script_hash(a_id).expect("get script hash");
+    let a_address = to_short_address(&a_script_hash).to_vec();
     let b_id = tree
         .create_account_from_script(
             Script::new_builder()
@@ -759,5 +838,60 @@ fn test_transfer_overflow() {
             err => panic!("unexpected {:?}", err),
         };
         assert_eq!(err_code, ERROR_AMOUNT_OVERFLOW);
+
+        // check balance
+        check_balance(
+            &rollup_config,
+            &mut tree,
+            &block_info,
+            a_id,
+            sudt_id,
+            &a_address,
+            init_a_balance,
+        );
+
+        check_balance(
+            &rollup_config,
+            &mut tree,
+            &block_info,
+            a_id,
+            sudt_id,
+            &b_address,
+            init_b_balance,
+        );
     }
+}
+
+fn check_balance<S: State + CodeStore>(
+    rollup_config: &RollupConfig,
+    tree: &mut S,
+    block_info: &BlockInfo,
+    sender_id: u32,
+    sudt_id: u32,
+    short_address: &[u8],
+    expected_balance: u128,
+) {
+    // check balance
+    let args = SUDTArgs::new_builder()
+        .set(
+            SUDTQuery::new_builder()
+                .short_address(short_address.pack())
+                .build(),
+        )
+        .build();
+    let return_data = run_contract(
+        &rollup_config,
+        tree,
+        sender_id,
+        sudt_id,
+        args.as_bytes(),
+        &block_info,
+    )
+    .expect("execute");
+    let balance = {
+        let mut buf = [0u8; 16];
+        buf.copy_from_slice(&return_data);
+        u128::from_le_bytes(buf)
+    };
+    assert_eq!(balance, expected_balance);
 }

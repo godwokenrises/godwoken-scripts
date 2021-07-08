@@ -122,6 +122,14 @@ int _sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
 
   uint128_t new_from_balance = from_balance - amount;
 
+  /* update sender balance */
+  ret = _sudt_set_balance(ctx, sudt_id, from_addr, short_addr_len,
+                          new_from_balance);
+  if (ret != 0) {
+    ckb_debug("transfer: update sender's balance failed");
+    return ret;
+  }
+
   /* check to account */
   uint128_t to_balance = 0;
   ret = _sudt_get_balance(ctx, sudt_id, to_addr, short_addr_len, &to_balance);
@@ -137,13 +145,7 @@ int _sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
     return ERROR_AMOUNT_OVERFLOW;
   }
 
-  /* update balance */
-  ret = _sudt_set_balance(ctx, sudt_id, from_addr, short_addr_len,
-                          new_from_balance);
-  if (ret != 0) {
-    ckb_debug("transfer: update sender's balance failed");
-    return ret;
-  }
+  /* update receiver balance */
   ret =
       _sudt_set_balance(ctx, sudt_id, to_addr, short_addr_len, new_to_balance);
   if (ret != 0) {
