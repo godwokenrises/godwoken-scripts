@@ -111,20 +111,21 @@ int _sudt_transfer(gw_context_t *ctx,
     return ret;
   }
 
+  /* check from account */
+  uint128_t from_balance;
+  ret = _sudt_get_balance(ctx, sudt_id, from_addr, short_addr_len, &from_balance);
+  if (ret != 0) {
+    ckb_debug("transfer: can't get sender's balance");
+    return ret;
+  }
+  if (from_balance < amount) {
+    ckb_debug("transfer: insufficient balance");
+    return ERROR_INSUFFICIENT_BALANCE;
+  }
+
   if (memcmp(from_addr, to_addr, short_addr_len) == 0) {
     ckb_debug("transfer: transfer to self");
   } else {
-    /* check from account */
-    uint128_t from_balance;
-    ret = _sudt_get_balance(ctx, sudt_id, from_addr, short_addr_len, &from_balance);
-    if (ret != 0) {
-      ckb_debug("transfer: can't get sender's balance");
-      return ret;
-    }
-    if (from_balance < amount) {
-      ckb_debug("transfer: insufficient balance");
-      return ERROR_INSUFFICIENT_BALANCE;
-    }
     uint128_t new_from_balance = from_balance - amount;
 
     /* check to account */
