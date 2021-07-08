@@ -230,6 +230,7 @@ int sys_get_account_script(gw_context_t *ctx, uint32_t account_id,
   size_t new_len;
   size_t data_len = entry->script_len;
   if (offset >= data_len) {
+    ckb_debug("account script offset is bigger than actual script len");
     new_len = 0;
   } else if ((offset + *len) > data_len) {
     new_len = data_len - offset;
@@ -239,6 +240,7 @@ int sys_get_account_script(gw_context_t *ctx, uint32_t account_id,
   if (new_len > 0) {
     memcpy(script, entry->script + offset, new_len);
   }
+  *len = new_len;
   return 0;
 }
 /* Store data by data hash */
