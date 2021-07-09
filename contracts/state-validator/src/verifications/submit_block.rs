@@ -563,12 +563,16 @@ fn check_block_transactions(block: &L2Block, kv_state: &KVState) -> Result<(), E
     }
 
     // check post account tree state
-    let last_checkpoint_root = raw_block
-        .state_checkpoint_list()
-        .into_iter()
-        .last()
-        .map(|checkpoint| checkpoint.unpack())
-        .unwrap_or_else(|| prev_state_checkpoint);
+    let last_checkpoint_root = if block.transactions().is_empty() {
+        prev_state_checkpoint
+    } else {
+        raw_block
+            .state_checkpoint_list()
+            .into_iter()
+            .last()
+            .map(|checkpoint| checkpoint.unpack())
+            .ok_or(Error::InvalidStateCheckpoint)?
+    };
     let block_post_state_root = {
         let account = raw_block.post_account();
         calculate_state_checkpoint(&account.merkle_root().unpack(), account.count().unpack())
