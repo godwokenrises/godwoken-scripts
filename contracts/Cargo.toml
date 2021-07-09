@@ -7,8 +7,8 @@ members = [
   "stake-lock",
   "state-validator",
   "always-success",
-  "account-locks/eth-account-lock",
-  "account-locks/tron-account-lock",
+  "eth-account-lock",
+  "tron-account-lock",
   "validator-utils",
   "secp256k1-utils",
 ]
