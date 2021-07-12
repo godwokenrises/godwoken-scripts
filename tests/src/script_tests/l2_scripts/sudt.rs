@@ -120,7 +120,7 @@ fn test_sudt() {
             &block_info,
         )
         .expect("execute");
-        assert!(run_result.return_data.is_empty());
+        assert_eq!(run_result.return_data.is_empty(), false);
         assert_eq!(run_result.logs.len(), 2);
         check_transfer_logs(
             &run_result.logs,
@@ -131,6 +131,15 @@ fn test_sudt() {
             b_script_hash,
             value,
         );
+
+        // Check return data
+        {
+            let mut expected_data = [0u8; 48];
+            expected_data[0..16].copy_from_slice(&(init_a_balance - value - fee).to_le_bytes());
+            expected_data[16..32].copy_from_slice(&fee.to_le_bytes());
+            expected_data[32..48].copy_from_slice(&value.to_le_bytes());
+            assert_eq!(run_result.return_data, expected_data);
+        }
 
         {
             check_balance(

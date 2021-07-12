@@ -102,6 +102,44 @@ int main() {
       ckb_debug("transfer token failed");
       return ret;
     }
+    /* set return data, from addr balance | block producer balance | to addr balance */
+    uint8_t return_data[48] = {0};
+    uint128_t balance = 0;
+
+    uint32_t block_producer_id = ctx.block_info.block_producer_id;
+    uint8_t block_producer_script_hash[32] = {0};
+    ret = ctx.sys_get_script_hash_by_account_id(&ctx, block_producer_id, block_producer_script_hash);
+    if (ret != 0) {
+        ckb_debug("can't find block producer id");
+        return ret;
+    }
+
+    ret = sudt_get_balance(&ctx, sudt_id, short_addr_len, from_addr, &balance);
+    if (ret != 0) {
+        ckb_debug("get from balance failed");
+        return ret;
+    }
+    memcpy(return_data, (uint8_t *)(&balance), 16);
+
+    ret = sudt_get_balance(&ctx, sudt_id, short_addr_len, block_producer_script_hash, &balance);
+    if (ret != 0) {
+        ckb_debug("get block producer balance failed");
+        return ret;
+    }
+    memcpy(return_data + 16, (uint8_t *)(&balance), 16);
+
+    ret = sudt_get_balance(&ctx, sudt_id, short_addr_len, to_addr, &balance);
+    if (ret != 0) {
+        ckb_debug("get to balance failed");
+        return ret;
+    }
+    memcpy(return_data + 32, (uint8_t *)(&balance), 16);
+
+    ret = ctx.sys_set_program_return_data(&ctx, (uint8_t *)&return_data, 48);
+    if (ret != 0) {
+        ckb_debug("set return data failed");
+        return ret;
+    }
   } else {
     return GW_ERROR_UNKNOWN_ARGS;
   }
