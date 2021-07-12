@@ -74,7 +74,7 @@ int _ensure_account_exists(gw_context_t *ctx, uint32_t account_id) {
       return 0;
     }
   }
-  return GW_ERROR_ACCOUNT_NOT_FOUND;
+  return GW_FATAL_ACCOUNT_NOT_FOUND;
 }
 
 int sys_load(gw_context_t *ctx, uint32_t account_id,
@@ -82,7 +82,7 @@ int sys_load(gw_context_t *ctx, uint32_t account_id,
              const uint64_t key_len,
              uint8_t value[GW_VALUE_BYTES]) {
   if (ctx == NULL) {
-    return GW_ERROR_INVALID_CONTEXT;
+    return GW_FATAL_INVALID_CONTEXT;
   }
   int ret = _ensure_account_exists(ctx, account_id);
   if (ret != 0) {
@@ -98,7 +98,7 @@ int sys_store(gw_context_t *ctx, uint32_t account_id,
               const uint64_t key_len,
               const uint8_t value[GW_VALUE_BYTES]) {
   if (ctx == NULL) {
-    return GW_ERROR_INVALID_CONTEXT;
+    return GW_FATAL_INVALID_CONTEXT;
   }
   int ret = _ensure_account_exists(ctx, account_id);
   if (ret != 0) {
@@ -113,7 +113,7 @@ int sys_store(gw_context_t *ctx, uint32_t account_id,
 int sys_get_account_nonce(gw_context_t *ctx, uint32_t account_id,
                    uint32_t *nonce) {
   if (ctx == NULL) {
-    return GW_ERROR_INVALID_CONTEXT;
+    return GW_FATAL_INVALID_CONTEXT;
   }
   int ret = _ensure_account_exists(ctx, account_id);
   if (ret != 0) {
@@ -136,11 +136,11 @@ int sys_set_program_return_data(gw_context_t *ctx,
                                 uint8_t *data,
                                 uint64_t len) {
   if (ctx == NULL) {
-    return GW_ERROR_INVALID_CONTEXT;
+    return GW_FATAL_INVALID_CONTEXT;
   }
   if (len > GW_MAX_DATA_SIZE) {
     ckb_debug("Exceeded max return data size");
-    return GW_ERROR_BUFFER_OVERFLOW;
+    return GW_FATAL_BUFFER_OVERFLOW;
   }
   return syscall(GW_SYS_SET_RETURN_DATA, data, len, 0, 0, 0, 0);
 }
@@ -150,7 +150,7 @@ int sys_get_account_id_by_script_hash(gw_context_t *ctx,
                                       uint8_t script_hash[32],
                                       uint32_t *account_id) {
   if (ctx == NULL) {
-    return GW_ERROR_INVALID_CONTEXT;
+    return GW_FATAL_INVALID_CONTEXT;
   }
   return syscall(GW_SYS_LOAD_ACCOUNT_ID_BY_SCRIPT_HASH, script_hash, account_id,
                  0, 0, 0, 0);
@@ -161,7 +161,7 @@ int sys_get_script_hash_by_account_id(gw_context_t *ctx,
                                       uint32_t account_id,
                                       uint8_t script_hash[32]) {
   if (ctx == NULL) {
-    return GW_ERROR_INVALID_CONTEXT;
+    return GW_FATAL_INVALID_CONTEXT;
   }
   return syscall(GW_SYS_LOAD_SCRIPT_HASH_BY_ACCOUNT_ID, account_id, script_hash,
                  0, 0, 0, 0);
@@ -171,7 +171,7 @@ int sys_get_script_hash_by_account_id(gw_context_t *ctx,
 int sys_get_account_script(gw_context_t *ctx, uint32_t account_id,
                            uint64_t *len, uint64_t offset, uint8_t *script) {
   if (ctx == NULL) {
-    return GW_ERROR_INVALID_CONTEXT;
+    return GW_FATAL_INVALID_CONTEXT;
   }
   volatile uint64_t inner_len = *len;
   int ret = syscall(GW_SYS_LOAD_ACCOUNT_SCRIPT, script, &inner_len, offset, account_id, 0, 0);
@@ -181,11 +181,11 @@ int sys_get_account_script(gw_context_t *ctx, uint32_t account_id,
 /* Store data by data hash */
 int sys_store_data(gw_context_t *ctx, uint64_t data_len, uint8_t *data) {
   if (ctx == NULL) {
-    return GW_ERROR_INVALID_CONTEXT;
+    return GW_FATAL_INVALID_CONTEXT;
   }
   if (data_len > GW_MAX_DATA_SIZE) {
     ckb_debug("Exceeded max store data size");
-    return GW_ERROR_INVALID_DATA;
+    return GW_FATAL_INVALID_DATA;
   }
   return syscall(GW_SYS_STORE_DATA, data_len, data, 0, 0, 0, 0);
 }
@@ -193,7 +193,7 @@ int sys_store_data(gw_context_t *ctx, uint64_t data_len, uint8_t *data) {
 int sys_load_data(gw_context_t *ctx, uint8_t data_hash[32], uint64_t *len,
                   uint64_t offset, uint8_t *data) {
   if (ctx == NULL) {
-    return GW_ERROR_INVALID_CONTEXT;
+    return GW_FATAL_INVALID_CONTEXT;
   }
   volatile uint64_t inner_len = *len;
   int ret = syscall(GW_SYS_LOAD_DATA, data, &inner_len, offset, data_hash, 0, 0);
@@ -218,7 +218,7 @@ int _sys_load_block_info(void *addr, uint64_t *len) {
 int sys_get_block_hash(gw_context_t *ctx, uint64_t number,
                        uint8_t block_hash[32]) {
   if (ctx == NULL) {
-    return GW_ERROR_INVALID_CONTEXT;
+    return GW_FATAL_INVALID_CONTEXT;
   }
   return syscall(GW_SYS_GET_BLOCK_HASH, block_hash, number, 0, 0, 0, 0);
 }
@@ -226,11 +226,11 @@ int sys_get_block_hash(gw_context_t *ctx, uint64_t number,
 int sys_get_script_hash_by_prefix(gw_context_t *ctx, uint8_t *prefix, uint64_t prefix_len,
                                   uint8_t script_hash[32]) {
   if (ctx == NULL) {
-    return GW_ERROR_INVALID_CONTEXT;
+    return GW_FATAL_INVALID_CONTEXT;
   }
 
   if (prefix_len == 0 || prefix_len > 32) {
-    return GW_ERROR_INVALID_DATA;
+    return GW_FATAL_INVALID_DATA;
   }
   return syscall(GW_SYS_GET_SCRIPT_HASH_BY_SHORT_ADDRESS, script_hash, prefix, prefix_len, 0, 0, 0);
 }
@@ -238,7 +238,7 @@ int sys_get_script_hash_by_prefix(gw_context_t *ctx, uint8_t *prefix, uint64_t p
 int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
                uint32_t *account_id) {
   if (ctx == NULL) {
-    return GW_ERROR_INVALID_CONTEXT;
+    return GW_FATAL_INVALID_CONTEXT;
   }
   return syscall(GW_SYS_CREATE, script, script_len, account_id, 0, 0, 0);
 }
@@ -251,7 +251,7 @@ int sys_recover_account(struct gw_context_t *ctx,
                         uint8_t *script,
                         uint64_t *script_len) {
   if (ctx == NULL) {
-    return GW_ERROR_INVALID_CONTEXT;
+    return GW_FATAL_INVALID_CONTEXT;
   }
   volatile uint64_t inner_script_len = 0;
   int ret = syscall(GW_SYS_RECOVER_ACCOUNT, script, &inner_script_len,
@@ -263,7 +263,7 @@ int sys_recover_account(struct gw_context_t *ctx,
 int sys_log(gw_context_t *ctx, uint32_t account_id, uint8_t service_flag,
             uint64_t data_length, const uint8_t *data) {
   if (ctx == NULL) {
-    return GW_ERROR_INVALID_CONTEXT;
+    return GW_FATAL_INVALID_CONTEXT;
   }
   int ret = _ensure_account_exists(ctx, account_id);
   if (ret != 0) {
@@ -276,7 +276,7 @@ int sys_log(gw_context_t *ctx, uint32_t account_id, uint8_t service_flag,
 int sys_pay_fee(gw_context_t *ctx, const uint8_t *payer_addr,
                 const uint64_t short_addr_len, uint32_t sudt_id, uint128_t amount) {
   if (ctx == NULL) {
-    return GW_ERROR_INVALID_CONTEXT;
+    return GW_FATAL_INVALID_CONTEXT;
   }
   int ret = _ensure_account_exists(ctx, sudt_id);
   if (ret != 0) {
@@ -293,14 +293,14 @@ int _sys_load_rollup_config(uint8_t *addr, uint64_t *len) {
 
   if (*len > GW_MAX_ROLLUP_CONFIG_SIZE) {
     ckb_debug("length too long");
-    return GW_ERROR_INVALID_DATA;
+    return GW_FATAL_INVALID_DATA;
   }
   mol_seg_t config_seg;
   config_seg.ptr = addr;
   config_seg.size = *len;
   if (MolReader_RollupConfig_verify(&config_seg, false) != MOL_OK) {
     ckb_debug("rollup config cell data is not RollupConfig format");
-    return GW_ERROR_INVALID_DATA;
+    return GW_FATAL_INVALID_DATA;
   }
 
   return ret;
@@ -332,7 +332,7 @@ int gw_context_init(gw_context_t *ctx) {
     return ret;
   }
   if (len > GW_MAX_L2TX_SIZE) {
-    return GW_ERROR_INVALID_DATA;
+    return GW_FATAL_INVALID_DATA;
   }
 
   mol_seg_t l2transaction_seg;
@@ -381,14 +381,14 @@ int gw_verify_sudt_account(gw_context_t *ctx, uint32_t sudt_id) {
     return ret;
   }
   if (script_len > GW_MAX_SCRIPT_SIZE) {
-    return GW_ERROR_INVALID_SUDT_SCRIPT;
+    return GW_FATAL_INVALID_SUDT_SCRIPT;
   }
   mol_seg_t script_seg;
   script_seg.ptr = script_buffer;
   script_seg.size = script_len;
   if (MolReader_Script_verify(&script_seg, false) != MOL_OK) {
     ckb_debug("load account script: invalid script");
-    return GW_ERROR_INVALID_SUDT_SCRIPT;
+    return GW_FATAL_INVALID_SUDT_SCRIPT;
   }
   mol_seg_t code_hash_seg = MolReader_Script_get_code_hash(&script_seg);
   mol_seg_t hash_type_seg = MolReader_Script_get_hash_type(&script_seg);
@@ -399,10 +399,10 @@ int gw_verify_sudt_account(gw_context_t *ctx, uint32_t sudt_id) {
   mol_seg_t l2_sudt_validator_script_type_hash =
     MolReader_RollupConfig_get_l2_sudt_validator_script_type_hash(&rollup_config_seg);
   if (memcmp(l2_sudt_validator_script_type_hash.ptr, code_hash_seg.ptr, 32) != 0) {
-    return GW_ERROR_INVALID_SUDT_SCRIPT;
+    return GW_FATAL_INVALID_SUDT_SCRIPT;
   }
   if (*hash_type_seg.ptr != 1) {
-    return GW_ERROR_INVALID_SUDT_SCRIPT;
+    return GW_FATAL_INVALID_SUDT_SCRIPT;
   }
   return 0;
 }

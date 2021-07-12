@@ -49,7 +49,7 @@ int main() {
   args_seg.ptr = ctx.transaction_context.args;
   args_seg.size = ctx.transaction_context.args_len;
   if (MolReader_SUDTArgs_verify(&args_seg, false) != MOL_OK) {
-    return GW_ERROR_INVALID_DATA;
+    return GW_FATAL_INVALID_DATA;
   }
   mol_union_t msg = MolReader_SUDTArgs_unpack(&args_seg);
   uint32_t sudt_id = ctx.transaction_context.to_id;
@@ -103,7 +103,7 @@ int main() {
       return ret;
     }
   } else {
-    return GW_ERROR_UNKNOWN_ARGS;
+    return GW_FATAL_UNKNOWN_ARGS;
   }
 
   return gw_finalize(&ctx);

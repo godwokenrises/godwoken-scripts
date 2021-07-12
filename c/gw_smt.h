@@ -40,7 +40,7 @@ int gw_state_insert(gw_state_t *state, const uint8_t key[GW_KEY_BYTES],
   }
 
   if (i < 0) {
-    return GW_ERROR_BUFFER_OVERFLOW;
+    return GW_FATAL_BUFFER_OVERFLOW;
   }
 
   memcpy(state->pairs[i].value, value, GW_VALUE_BYTES);
@@ -56,7 +56,7 @@ int gw_state_fetch(gw_state_t *state, const uint8_t key[GW_KEY_BYTES],
       return 0;
     }
   }
-  return GW_ERROR_NOT_FOUND;
+  return GW_FATAL_STATE_KEY_NOT_FOUND;
 }
 
 int _gw_pair_cmp(const void *a, const void *b) {
@@ -178,10 +178,10 @@ int gw_smt_calculate_root(uint8_t buffer[32], const gw_state_t *state,
     switch (proof[proof_index++]) {
     case 0x4C:
       if (stack_top >= _GW_SMT_STACK_SIZE) {
-        return GW_ERROR_INVALID_STACK;
+        return GW_FATAL_INVALID_STACK;
       }
       if (leave_index >= state->len) {
-        return GW_ERROR_INVALID_PROOF;
+        return GW_FATAL_INVALID_PROOF;
       }
       memcpy(stack_keys[stack_top], state->pairs[leave_index].key,
              GW_KEY_BYTES);
@@ -200,10 +200,10 @@ int gw_smt_calculate_root(uint8_t buffer[32], const gw_state_t *state,
       break;
     case 0x50: {
       if (stack_top == 0) {
-        return GW_ERROR_INVALID_STACK;
+        return GW_FATAL_INVALID_STACK;
       }
       if (proof_index + 33 > proof_length) {
-        return GW_ERROR_INVALID_PROOF;
+        return GW_FATAL_INVALID_PROOF;
       }
       uint8_t height = proof[proof_index++];
       const uint8_t *current_proof = &proof[proof_index];
@@ -219,10 +219,10 @@ int gw_smt_calculate_root(uint8_t buffer[32], const gw_state_t *state,
     } break;
     case 0x48: {
       if (stack_top < 2) {
-        return GW_ERROR_INVALID_STACK;
+        return GW_FATAL_INVALID_STACK;
       }
       if (proof_index >= proof_length) {
-        return GW_ERROR_INVALID_PROOF;
+        return GW_FATAL_INVALID_PROOF;
       }
       uint8_t height = proof[proof_index++];
       uint8_t *key_a = stack_keys[stack_top - 2];
@@ -240,7 +240,7 @@ int gw_smt_calculate_root(uint8_t buffer[32], const gw_state_t *state,
         _gw_set_bit(sibling_key_a, height);
       }
       if (memcmp(sibling_key_a, key_b, 32) != 0 || (a_set == b_set)) {
-        return GW_ERROR_INVALID_SIBLING;
+        return GW_FATAL_INVALID_SIBLING;
       }
       if (a_set) {
         _gw_merge(value_b, value_a, value_a);
@@ -251,15 +251,15 @@ int gw_smt_calculate_root(uint8_t buffer[32], const gw_state_t *state,
       stack_top++;
     } break;
     default:
-      return GW_ERROR_INVALID_PROOF;
+      return GW_FATAL_INVALID_PROOF;
     }
   }
   /* All leaves must be used */
   if (leave_index != state->len) {
-    return GW_ERROR_INVALID_PROOF;
+    return GW_FATAL_INVALID_PROOF;
   }
   if (stack_top != 1) {
-    return GW_ERROR_INVALID_STACK;
+    return GW_FATAL_INVALID_STACK;
   }
   memcpy(buffer, stack_values[0], 32);
   return 0;
@@ -273,7 +273,7 @@ int gw_smt_verify(const uint8_t hash[32], const gw_state_t *state,
     return ret;
   }
   if (memcmp(buffer, hash, 32) != 0) {
-    return GW_ERROR_INVALID_PROOF;
+    return GW_FATAL_INVALID_PROOF;
   }
   return 0;
 }
