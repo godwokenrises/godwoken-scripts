@@ -17,7 +17,7 @@
 
 int handle_fee(gw_context_t *ctx, mol_seg_t fee_seg) {
   if (ctx == NULL) {
-    return GW_ERROR_INVALID_CONTEXT;
+    return GW_FATAL_INVALID_CONTEXT;
   }
 
   /* payer's short address */
@@ -52,7 +52,7 @@ int main() {
   args_seg.ptr = ctx.transaction_context.args;
   args_seg.size = ctx.transaction_context.args_len;
   if (MolReader_MetaContractArgs_verify(&args_seg, false) != MOL_OK) {
-    return GW_ERROR_INVALID_DATA;
+    return GW_FATAL_INVALID_DATA;
   }
   mol_union_t msg = MolReader_MetaContractArgs_unpack(&args_seg);
 
@@ -77,7 +77,7 @@ int main() {
       return ret;
     }
   } else {
-    return GW_ERROR_UNKNOWN_ARGS;
+    return GW_FATAL_UNKNOWN_ARGS;
   }
   return gw_finalize(&ctx);
 }

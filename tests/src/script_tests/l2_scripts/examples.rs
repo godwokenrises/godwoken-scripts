@@ -1,4 +1,7 @@
-use crate::testing_tool::chain::build_backend_manage;
+use crate::{
+    script_tests::error_codes::{GW_ERROR_NOT_FOUND, GW_ERROR_RECOVER, GW_FATAL_ACCOUNT_NOT_FOUND},
+    testing_tool::chain::build_backend_manage,
+};
 
 use super::{
     new_block_info, DummyChainStore, SudtLog, SudtLogType, ACCOUNT_OP_PROGRAM,
@@ -20,11 +23,6 @@ use gw_types::{
     packed::{RawL2Transaction, RollupConfig, Script},
     prelude::*,
 };
-
-const ERROR_ACCOUNT_NOT_FOUND: i8 = 51;
-// the value is 203
-const ERROR_NOT_FOUND: i8 = -53;
-const ERROR_RECOVER: i8 = -52;
 
 #[test]
 fn test_example_sum() {
@@ -212,7 +210,7 @@ fn test_example_account_operation() {
             TransactionError::InvalidExitCode(code) => code,
             err => panic!("unexpected {:?}", err),
         };
-        assert_eq!(err_code, ERROR_ACCOUNT_NOT_FOUND);
+        assert_eq!(err_code, GW_FATAL_ACCOUNT_NOT_FOUND as i8);
     }
 
     // Store: success
@@ -251,7 +249,7 @@ fn test_example_account_operation() {
             TransactionError::InvalidExitCode(code) => code,
             err => panic!("unexpected {:?}", err),
         };
-        assert_eq!(err_code, ERROR_ACCOUNT_NOT_FOUND);
+        assert_eq!(err_code, GW_FATAL_ACCOUNT_NOT_FOUND as i8);
     }
 
     // LoadNonce: success
@@ -282,7 +280,7 @@ fn test_example_account_operation() {
             TransactionError::InvalidExitCode(code) => code,
             err => panic!("unexpected {:?}", err),
         };
-        assert_eq!(err_code, ERROR_ACCOUNT_NOT_FOUND);
+        assert_eq!(err_code, GW_FATAL_ACCOUNT_NOT_FOUND as i8);
     }
 
     // Log: success
@@ -336,7 +334,7 @@ fn test_example_account_operation() {
             TransactionError::InvalidExitCode(code) => code,
             err => panic!("unexpected {:?}", err),
         };
-        assert_eq!(err_code, ERROR_ACCOUNT_NOT_FOUND);
+        assert_eq!(err_code, GW_FATAL_ACCOUNT_NOT_FOUND as i8);
     }
 }
 
@@ -426,7 +424,7 @@ fn test_example_recover_account() {
             err => panic!("unexpected {:?}", err),
         };
         println!("err_code: {}", err_code);
-        assert_eq!(err_code, ERROR_RECOVER);
+        assert_eq!(err_code, GW_ERROR_RECOVER as i8);
     }
 
     // Wrong code hash
@@ -450,6 +448,6 @@ fn test_example_recover_account() {
             err => panic!("unexpected {:?}", err),
         };
         println!("err_code: {}", err_code);
-        assert_eq!(err_code, ERROR_NOT_FOUND);
+        assert_eq!(err_code, GW_ERROR_NOT_FOUND as i8);
     }
 }
