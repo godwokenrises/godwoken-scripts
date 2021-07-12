@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 /* Data Fatals */
 pub const GW_FATAL_BUFFER_OVERFLOW: u8 = 100;
 pub const GW_FATAL_INVALID_CONTEXT: u8 = 101;
