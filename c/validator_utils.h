@@ -905,6 +905,7 @@ int _load_verify_transaction_witness(
   mol_seg_t tx_proof_seg =
       MolReader_VerifyTransactionWitness_get_tx_proof(&verify_tx_witness_seg);
   mol_seg_t raw_tx_proof_seg = MolReader_Bytes_raw_bytes(&tx_proof_seg);
+  gw_state_normalize(&txs_state);
   ret = gw_smt_verify(tx_witness_root_seg.ptr, &txs_state, raw_tx_proof_seg.ptr,
                       raw_tx_proof_seg.size);
   if (ret != 0) {
@@ -975,10 +976,10 @@ int _load_verify_transaction_witness(
   }
   /* Merkle proof */
   if (block_hashes_size > 0) {
-    gw_state_normalize(block_hashes_state);
     mol_seg_t block_hashes_proof_seg =
         MolReader_VerifyTransactionWitness_get_block_hashes_proof(
             &verify_tx_witness_seg);
+    gw_state_normalize(block_hashes_state);
     ret =
         gw_smt_verify(block_merkle_root, block_hashes_state,
                       block_hashes_proof_seg.ptr, block_hashes_proof_seg.size);
@@ -1294,6 +1295,7 @@ int gw_context_init(gw_context_t *ctx) {
   ctx->account_count = ctx->prev_account.count;
 
   /* verify kv_state merkle proof */
+  gw_state_normalize(&ctx->kv_state);
   ret = gw_smt_verify(ctx->prev_account.merkle_root, &ctx->kv_state,
                       ctx->kv_state_proof, ctx->kv_state_proof_size);
   if (ret != 0) {
