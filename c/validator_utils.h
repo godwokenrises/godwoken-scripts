@@ -1303,7 +1303,23 @@ int gw_context_init(gw_context_t *ctx) {
     return ret;
   }
 
-  return 0;
+  /* increase sender nonce */
+  uint8_t nonce_key[32] = {0};
+  uint8_t nonce_value[32] = {0};
+  uint32_t from_id = ctx->transaction_context.from_id;
+  uint32_t nonce = 0;
+
+  gw_build_account_field_key(from_id, GW_ACCOUNT_NONCE, nonce_key);
+  ret = gw_state_fetch(&ctx->kv_state, nonce_key, nonce_value);
+  if (ret != 0) {
+      ckb_debug("failed to fetch sender nonce value");
+      return ret;
+  }
+  memcpy(&nonce, nonce_value, sizeof(uint32_t));
+
+  nonce = nonce + 1;
+  memcpy(nonce_value, &nonce, sizeof(uint32_t));
+  return gw_state_insert(&ctx->kv_state, nonce_key, nonce_value);
 }
 
 int gw_finalize(gw_context_t *ctx) {
