@@ -49,7 +49,7 @@ pub fn verify_enter_challenge(
         let merkle_proof = CompiledMerkleProof(witness.block_proof().unpack());
         let leaves = vec![(
             RawL2Block::compute_smt_key(challenged_block.number().unpack()).into(),
-            challenged_block.to_entity().hash().into(),
+            challenged_block.hash().into(),
         )];
         merkle_proof
             .verify::<Blake2bHasher>(&prev_global_state.block().merkle_root().unpack(), leaves)?
@@ -60,7 +60,7 @@ pub fn verify_enter_challenge(
     }
     let challenge_target = challenge_cell.args.target();
     let challenged_block_hash: [u8; 32] = challenge_target.block_hash().unpack();
-    if challenged_block.to_entity().hash() != challenged_block_hash {
+    if challenged_block.hash() != challenged_block_hash {
         return Err(Error::InvalidChallengeTarget);
     }
     let target_type: ChallengeTargetType = challenge_target

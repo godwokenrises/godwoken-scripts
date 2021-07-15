@@ -160,17 +160,15 @@ fn check_reverted_blocks(
     if reverted_blocks.is_empty() {
         return Err(Error::InvalidRevertedBlocks);
     }
-    let reverted_block_hashes: Vec<H256> = reverted_blocks
-        .iter()
-        .map(|b| b.to_entity().hash().into())
-        .collect();
+    let reverted_block_hashes: Vec<H256> =
+        reverted_blocks.iter().map(|b| b.hash().into()).collect();
     let reverted_block_smt_keys: Vec<H256> = reverted_blocks
         .iter()
         .map(|b| RawL2Block::compute_smt_key(b.number().unpack()).into())
         .collect();
     // check reverted_blocks is continues
     {
-        let mut prev_hash: Byte32 = reverted_blocks[0].to_entity().hash().pack();
+        let mut prev_hash: Byte32 = reverted_blocks[0].hash().pack();
         let mut prev_number = reverted_blocks[0].number().unpack();
         for b in reverted_blocks[1..].iter() {
             let hash = b.parent_block_hash();
@@ -304,7 +302,7 @@ pub fn verify(
         &rollup_type_hash,
         config,
         &challenge_cell,
-        &challenged_block.to_entity().hash().into(),
+        &challenged_block.hash().into(),
     )?;
     check_rewards(&rollup_type_hash, config, &reverted_blocks, &challenge_cell)?;
     let reverted_global_state = check_reverted_blocks(

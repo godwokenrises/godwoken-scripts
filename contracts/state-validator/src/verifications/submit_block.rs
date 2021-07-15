@@ -389,7 +389,7 @@ fn load_block_context_and_state(
     }
 
     let post_block_root: [u8; 32] = post_global_state.block().merkle_root().unpack();
-    let block_hash: H256 = raw_block.to_entity().hash().into();
+    let block_hash: H256 = raw_block.hash().into();
     if !block_merkle_proof
         .verify::<Blake2bHasher>(
             &post_block_root.into(),
@@ -548,7 +548,7 @@ fn check_block_transactions(block: &L2BlockReader, kv_state: &KVState) -> Result
     let leaves = block
         .transactions()
         .iter()
-        .map(|tx| tx.to_entity().witness_hash().into())
+        .map(|tx| tx.witness_hash().into())
         .collect();
     let merkle_root: H256 = calculate_merkle_root(leaves)?;
     if tx_witness_root != merkle_root {
@@ -607,7 +607,7 @@ fn check_block_withdrawals(block: &L2BlockReader) -> Result<(), Error> {
     let leaves = block
         .withdrawals()
         .iter()
-        .map(|withdrawal| withdrawal.to_entity().witness_hash().into())
+        .map(|withdrawal| withdrawal.witness_hash().into())
         .collect();
     let merkle_root = calculate_merkle_root(leaves)?;
     if withdrawal_witness_root != merkle_root {
