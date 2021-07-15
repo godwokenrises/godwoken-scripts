@@ -334,7 +334,7 @@ int sys_load_data(gw_context_t *ctx, uint8_t data_hash[32], uint64_t *len,
   }
   /* dead code */
   ckb_debug("can't find data cell");
-  return -1;
+  return GW_FATAL_INVALID_CONTEXT;
 }
 
 int sys_get_block_hash(gw_context_t *ctx, uint64_t number,
@@ -367,7 +367,8 @@ int sys_get_script_hash_by_prefix(gw_context_t *ctx, uint8_t *prefix,
     }
   }
 
-  return -1;
+  /* we don't know wether the script isn't exists or the validation context is missing */
+  return GW_FATAL_INVALID_CONTEXT;
 }
 
 int sys_recover_account(gw_context_t *ctx, uint8_t message[32],
