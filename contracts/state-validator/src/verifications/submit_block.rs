@@ -223,11 +223,10 @@ fn check_layer2_deposit(
         if request.account_script.hash_type() != ScriptHashType::Type.into() {
             return Err(Error::UnknownEOAScript);
         }
-        if config
+        if !config
             .allowed_eoa_type_hashes()
             .into_iter()
-            .find(|code_hash| code_hash == &request.account_script.code_hash())
-            .is_none()
+            .any(|code_hash| code_hash == request.account_script.code_hash())
         {
             return Err(Error::UnknownEOAScript);
         }
@@ -625,7 +624,7 @@ pub fn verify(
     prev_global_state: &GlobalState,
     post_global_state: &GlobalState,
 ) -> Result<(), Error> {
-    check_status(&prev_global_state, Status::Running)?;
+    check_status(prev_global_state, Status::Running)?;
 
     // check checkpoints
     check_state_checkpoints(block)?;
@@ -669,7 +668,7 @@ pub fn verify(
     // Mint token: deposit requests -> layer2 SUDT
     check_layer2_deposit(&rollup_type_hash, config, &mut kv_state, &deposit_cells)?;
     // Check transactions
-    check_block_transactions(&block, &kv_state)?;
+    check_block_transactions(block, &kv_state)?;
 
     // Verify Post state
     let actual_post_global_state = {
