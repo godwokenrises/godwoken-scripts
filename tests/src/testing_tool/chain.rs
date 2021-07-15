@@ -4,6 +4,7 @@ use gw_block_producer::{
     withdrawal::AvailableCustodians,
 };
 use gw_chain::chain::{Chain, L1Action, L1ActionContext, SyncEvent, SyncParam};
+use gw_common::H256;
 use gw_config::{BackendConfig, GenesisConfig};
 use gw_generator::{
     account_lock_manage::{always_success::AlwaysSuccess, AccountLockManage},
@@ -139,11 +140,16 @@ pub fn apply_block_result(
     block_result: ProduceBlockResult,
     deposit_requests: Vec<DepositRequest>,
 ) {
+    let l2block = block_result.block.clone();
     let transaction = build_sync_tx(rollup_cell, block_result);
     let l2block_committed_info = L2BlockCommittedInfo::default();
 
     let update = L1Action {
-        context: L1ActionContext::SubmitTxs { deposit_requests },
+        context: L1ActionContext::SubmitBlock {
+            l2block,
+            deposit_requests,
+            reverted_block_hashes: Vec::default(),
+        },
         transaction,
         l2block_committed_info,
     };
@@ -151,8 +157,8 @@ pub fn apply_block_result(
         updates: vec![update],
         reverts: Default::default(),
     };
-    let event = chain.sync(param).unwrap();
-    assert_eq!(event, SyncEvent::Success);
+    chain.sync(param).unwrap();
+    assert!(chain.last_sync_event().is_success());
 }
 
 pub fn construct_block(
@@ -205,6 +211,7 @@ pub fn construct_block(
         rollup_config_hash: &rollup_config_hash,
         max_withdrawal_capacity,
         available_custodians,
+        reverted_block_root: H256::zero(),
     };
     produce_block(param)
 }
