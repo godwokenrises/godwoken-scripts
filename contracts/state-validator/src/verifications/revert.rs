@@ -56,7 +56,7 @@ fn check_challenge_cell(
     check_challenge_maturity(config, challenge_cell)?;
     // check other challenge cells
     let has_output_challenge =
-        find_challenge_cell(&rollup_type_hash, config, Source::Output)?.is_some();
+        find_challenge_cell(rollup_type_hash, config, Source::Output)?.is_some();
     if has_output_challenge {
         return Err(Error::InvalidChallengeCell);
     }

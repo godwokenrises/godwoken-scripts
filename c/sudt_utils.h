@@ -8,13 +8,6 @@
 #include "overflow_add.h"
 #include "stdio.h"
 
-/* errors */
-#define ERROR_INSUFFICIENT_BALANCE 12
-#define ERROR_AMOUNT_OVERFLOW 13
-#define ERROR_TO_ADDR 14
-#define ERROR_ACCOUNT_NOT_EXISTS 15
-#define ERROR_SHORT_ADDR_LEN 16
-
 /* Prepare withdrawal fields */
 #define WITHDRAWAL_LOCK_HASH 1
 #define WITHDRAWAL_AMOUNT 2
@@ -81,7 +74,7 @@ int sudt_get_balance(gw_context_t *ctx, const uint32_t sudt_id,
                      const uint64_t short_addr_len,
                      const uint8_t *short_address, uint128_t *balance) {
   if (short_addr_len > 32) {
-    return ERROR_SHORT_ADDR_LEN;
+    return GW_SUDT_ERROR_SHORT_ADDR_LEN;
   }
   int ret = gw_verify_sudt_account(ctx, sudt_id);
   if (ret != 0) {
@@ -113,7 +106,7 @@ int _sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
   }
   if (from_balance < amount) {
     ckb_debug("transfer: insufficient balance");
-    return ERROR_INSUFFICIENT_BALANCE;
+    return GW_SUDT_ERROR_INSUFFICIENT_BALANCE;
   }
 
   if (memcmp(from_addr, to_addr, short_addr_len) == 0) {
@@ -142,7 +135,7 @@ int _sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
   int overflow = uint128_overflow_add(&new_to_balance, to_balance, amount);
   if (overflow) {
     ckb_debug("transfer: balance overflow");
-    return ERROR_AMOUNT_OVERFLOW;
+    return GW_SUDT_ERROR_AMOUNT_OVERFLOW;
   }
 
   /* update receiver balance */
@@ -166,7 +159,7 @@ int sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
                   const uint64_t short_addr_len, const uint8_t *from_addr,
                   const uint8_t *to_addr, const uint128_t amount) {
   if (short_addr_len > 32) {
-    return ERROR_SHORT_ADDR_LEN;
+    return GW_SUDT_ERROR_SHORT_ADDR_LEN;
   }
   return _sudt_transfer(ctx, sudt_id, short_addr_len, from_addr, to_addr,
                         amount, GW_LOG_SUDT_TRANSFER);
@@ -178,7 +171,7 @@ int sudt_pay_fee(gw_context_t *ctx, const uint32_t sudt_id,
                  const uint128_t amount) {
   if (short_addr_len > 32) {
     ckb_debug("invalid short address len");
-    return ERROR_SHORT_ADDR_LEN;
+    return GW_SUDT_ERROR_SHORT_ADDR_LEN;
   }
   uint32_t to_id = ctx->block_info.block_producer_id;
   /* The script hash's pointer also it's prefix's pointer */

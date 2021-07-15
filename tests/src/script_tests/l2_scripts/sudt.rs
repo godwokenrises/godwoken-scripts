@@ -1,4 +1,7 @@
 use super::{check_transfer_logs, new_block_info, run_contract, run_contract_get_result};
+use crate::script_tests::error_codes::{
+    GW_SUDT_ERROR_AMOUNT_OVERFLOW, GW_SUDT_ERROR_INSUFFICIENT_BALANCE,
+};
 use gw_common::state::{to_short_address, State};
 use gw_generator::dummy_state::DummyState;
 use gw_generator::{error::TransactionError, traits::StateExt};
@@ -10,8 +13,6 @@ use gw_types::{
     prelude::*,
 };
 
-const ERROR_INSUFFICIENT_BALANCE: i8 = 12i8;
-const ERROR_AMOUNT_OVERFLOW: i8 = 13i8;
 const DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH: [u8; 32] = [3u8; 32];
 
 #[test]
@@ -237,7 +238,7 @@ fn test_insufficient_balance() {
             TransactionError::InvalidExitCode(code) => code,
             err => panic!("unexpected {:?}", err),
         };
-        assert_eq!(err_code, ERROR_INSUFFICIENT_BALANCE);
+        assert_eq!(err_code, GW_SUDT_ERROR_INSUFFICIENT_BALANCE);
     }
 }
 
@@ -482,7 +483,7 @@ fn test_transfer_to_self() {
             TransactionError::InvalidExitCode(code) => code,
             err => panic!("unexpected {:?}", err),
         };
-        assert_eq!(err_code, ERROR_INSUFFICIENT_BALANCE);
+        assert_eq!(err_code, GW_SUDT_ERROR_INSUFFICIENT_BALANCE);
         check_balance(
             &rollup_config,
             &mut tree,
@@ -837,7 +838,7 @@ fn test_transfer_overflow() {
             TransactionError::InvalidExitCode(code) => code,
             err => panic!("unexpected {:?}", err),
         };
-        assert_eq!(err_code, ERROR_AMOUNT_OVERFLOW);
+        assert_eq!(err_code, GW_SUDT_ERROR_AMOUNT_OVERFLOW);
 
         // check balance
         check_balance(

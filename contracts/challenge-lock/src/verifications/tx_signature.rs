@@ -91,7 +91,7 @@ pub fn verify_tx_signature(
 
     let message = calc_tx_message(
         raw_tx,
-        &rollup_script_hash,
+        rollup_script_hash,
         &sender_script_hash,
         &receiver_script_hash,
     );

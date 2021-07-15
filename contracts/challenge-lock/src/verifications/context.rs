@@ -83,11 +83,10 @@ pub fn verify_tx_context(input: TxContextInput) -> Result<TxContext, Error> {
         debug!("sender script has invalid script hash type: Data");
         return Err(Error::UnknownEOAScript);
     }
-    if rollup_config
+    if !rollup_config
         .allowed_eoa_type_hashes()
         .into_iter()
-        .find(|code_hash| code_hash == &sender_script.code_hash())
-        .is_none()
+        .any(|code_hash| code_hash == sender_script.code_hash())
     {
         debug!(
             "sender script has unknown code_hash: {}",
@@ -101,11 +100,10 @@ pub fn verify_tx_context(input: TxContextInput) -> Result<TxContext, Error> {
         debug!("receiver script has invalid script hash type: Data");
         return Err(Error::UnknownContractScript);
     }
-    if rollup_config
+    if !rollup_config
         .allowed_contract_type_hashes()
         .into_iter()
-        .find(|code_hash| code_hash == &receiver_script.code_hash())
-        .is_none()
+        .any(|code_hash| code_hash == receiver_script.code_hash())
     {
         debug!(
             "receiver script has unknown code_hash: {}",

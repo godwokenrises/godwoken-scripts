@@ -89,11 +89,10 @@ pub fn main() -> Result<(), Error> {
             };
             match rollup_action.to_enum() {
                 RollupActionUnion::RollupSubmitBlock(args) => {
-                    if args
+                    if !args
                         .reverted_block_hashes()
                         .into_iter()
-                        .find(|hash| hash == &withdrawal_block_hash)
-                        .is_none()
+                        .any(|hash| hash == withdrawal_block_hash)
                     {
                         return Err(Error::InvalidRevertedBlocks);
                     }

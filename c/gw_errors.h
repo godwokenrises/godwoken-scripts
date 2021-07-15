@@ -1,34 +1,49 @@
 #ifndef GW_ERRORS_H_
 #define GW_ERRORS_H_
 
-/* Godwoken System Fatal Errors
-   Shouldn't be recovered by user programs.
+/* Godwoken Errors
+   The exit code of CKB-VM is -128 ~ 127
+   The 1 ~ 127 is used by Godwoken runtime(validator_utils.h & generator_utils.h).
+   (To avoid conflict with backend we actually using 50 ~ 127)
+   The Backend VM layer such as Polyjuice uses -1 ~ -128
+
+   In Godwoken runtime, we seperate errors into Fatal & Errors, 
+   Fatals represents errors that shouldn't be recovered by user programs,
+    typically caused by lack of validation context.
+   Errors represents the syscall errors caused by the user input.
  */
 
-/* Data Fatals */
-#define GW_FATAL_BUFFER_OVERFLOW 100
-#define GW_FATAL_INVALID_CONTEXT 101
-#define GW_FATAL_INVALID_DATA 102
-#define GW_FATAL_MISMATCH_RETURN_DATA 103
-#define GW_FATAL_UNKNOWN_ARGS 104
-#define GW_FATAL_INVALID_SUDT_SCRIPT 105
+/* Data Fatals 5x */
+#define GW_FATAL_BUFFER_OVERFLOW 50
+#define GW_FATAL_INVALID_CONTEXT 51
+#define GW_FATAL_INVALID_DATA 52
+#define GW_FATAL_MISMATCH_RETURN_DATA 53
+#define GW_FATAL_UNKNOWN_ARGS 54
+#define GW_FATAL_INVALID_SUDT_SCRIPT 55
 
-/* Notfound Fatals */
-#define GW_FATAL_DATA_CELL_NOT_FOUND 110
-#define GW_FATAL_STATE_KEY_NOT_FOUND 111
-#define GW_FATAL_SIGNATURE_CELL_NOT_FOUND 112
-#define GW_FATAL_ACCOUNT_NOT_FOUND 113
+/* Notfound Fatals 6x */
+#define GW_FATAL_DATA_CELL_NOT_FOUND 60
+#define GW_FATAL_STATE_KEY_NOT_FOUND 61
+#define GW_FATAL_SIGNATURE_CELL_NOT_FOUND 62
+#define GW_FATAL_ACCOUNT_NOT_FOUND 63
 
-/* Merkle Fatals */
-#define GW_FATAL_INVALID_PROOF 120
-#define GW_FATAL_INVALID_STACK 121
-#define GW_FATAL_INVALID_SIBLING 122
+/* Merkle Fatals 7x */
+#define GW_FATAL_INVALID_PROOF 70
+#define GW_FATAL_INVALID_STACK 71
+#define GW_FATAL_INVALID_SIBLING 72
 
-/* User Errors */
-#define GW_ERROR_DUPLICATED_SCRIPT_HASH 200
-#define GW_ERROR_UNKNOWN_SCRIPT_CODE_HASH 201
-#define GW_ERROR_INVALID_CONTRACT_SCRIPT 202
-#define GW_ERROR_NOT_FOUND 203
-#define GW_ERROR_RECOVER 204
+/* Syscall Errors */
+#define GW_ERROR_DUPLICATED_SCRIPT_HASH 80
+#define GW_ERROR_UNKNOWN_SCRIPT_CODE_HASH 81
+#define GW_ERROR_INVALID_CONTRACT_SCRIPT 82
+#define GW_ERROR_NOT_FOUND 83
+#define GW_ERROR_RECOVER 84
+
+/* sUDT errors */
+#define GW_SUDT_ERROR_INSUFFICIENT_BALANCE 92
+#define GW_SUDT_ERROR_AMOUNT_OVERFLOW 93
+#define GW_SUDT_ERROR_TO_ADDR 94
+#define GW_SUDT_ERROR_ACCOUNT_NOT_EXISTS 95
+#define GW_SUDT_ERROR_SHORT_ADDR_LEN 96
 
 #endif
