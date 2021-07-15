@@ -4,6 +4,7 @@ use core::result::Result;
 // Import heap related library from `alloc`
 // https://doc.rust-lang.org/alloc/index.html
 use alloc::{collections::BTreeMap, vec, vec::Vec};
+use validator_utils::gw_types::packed::{L2BlockReader, WithdrawalRequestReader};
 
 // Import CKB syscalls and structures
 // https://nervosnetwork.github.io/ckb-std/riscv64imac-unknown-none-elf/doc/ckb_std/index.html
@@ -37,7 +38,7 @@ use gw_common::{
 use gw_types::{
     bytes::Bytes,
     core::{ScriptHashType, Status},
-    packed::{Byte32, GlobalState, L2Block, RawL2Block, RollupConfig, WithdrawalRequest},
+    packed::{Byte32, GlobalState, RawL2Block, RollupConfig},
     prelude::*,
 };
 
@@ -58,9 +59,9 @@ fn build_assets_map_from_cells<'a, I: Iterator<Item = &'a CellValue>>(
     Ok(assets)
 }
 
-fn check_withdrawal_cells(
+fn check_withdrawal_cells<'a>(
     context: &BlockContext,
-    mut withdrawal_requests: Vec<WithdrawalRequest>,
+    mut withdrawal_requests: Vec<WithdrawalRequestReader<'a>>,
     withdrawal_cells: &[WithdrawalCell],
 ) -> Result<(), Error> {
     // iter outputs withdrawal cells, check each cell has a corresponded withdrawal request
@@ -274,7 +275,7 @@ fn check_layer2_withdrawal(
     rollup_type_hash: &H256,
     config: &RollupConfig,
     kv_state: &mut KVState,
-    block: &L2Block,
+    block: &L2BlockReader,
 ) -> Result<(), Error> {
     /// Pay fee to block producer
     fn pay_fee(
@@ -301,7 +302,7 @@ fn check_layer2_withdrawal(
     };
     let block_producer_short_address = to_short_address(&block_producer_script_hash);
 
-    for request in withdrawals {
+    for request in withdrawals.iter() {
         let raw = request.raw();
         let l2_sudt_script_hash: [u8; 32] =
             build_l2_sudt_script(rollup_type_hash, config, &raw.sudt_script_hash().unpack()).hash();
@@ -351,7 +352,7 @@ fn check_layer2_withdrawal(
 fn load_block_context_and_state(
     rollup_type_hash: H256,
     config: &RollupConfig,
-    l2block: &L2Block,
+    l2block: &L2BlockReader,
     prev_global_state: &GlobalState,
     post_global_state: &GlobalState,
 ) -> Result<(BlockContext, KVState), Error> {
@@ -364,7 +365,7 @@ fn load_block_context_and_state(
     }
 
     // verify parent block hash
-    if raw_block.parent_block_hash() != prev_global_state.tip_block_hash() {
+    if raw_block.parent_block_hash().as_slice() != prev_global_state.tip_block_hash().as_slice() {
         return Err(Error::InvalidBlock);
     }
 
@@ -388,7 +389,7 @@ fn load_block_context_and_state(
     }
 
     let post_block_root: [u8; 32] = post_global_state.block().merkle_root().unpack();
-    let block_hash: H256 = raw_block.hash().into();
+    let block_hash: H256 = raw_block.to_entity().hash().into();
     if !block_merkle_proof
         .verify::<Blake2bHasher>(
             &post_block_root.into(),
@@ -441,7 +442,7 @@ fn load_block_context_and_state(
 fn verify_block_producer(
     config: &RollupConfig,
     context: &BlockContext,
-    block: &L2Block,
+    block: &L2BlockReader,
 ) -> Result<(), Error> {
     let raw_block = block.raw();
     let owner_lock_hash = raw_block.stake_cell_owner_lock_hash();
@@ -468,7 +469,7 @@ fn verify_block_producer(
         let expected_stake_lock_args = input_stake_cell
             .args
             .as_builder()
-            .stake_block_number(raw_block.number())
+            .stake_block_number(raw_block.number().to_entity())
             .build();
         if expected_stake_lock_args != output_stake_cell.args
             || input_stake_cell.capacity > output_stake_cell.capacity
@@ -481,7 +482,7 @@ fn verify_block_producer(
     Ok(())
 }
 
-fn check_state_checkpoints(block: &L2Block) -> Result<(), Error> {
+fn check_state_checkpoints(block: &L2BlockReader) -> Result<(), Error> {
     let raw_block = block.raw();
     let checkpoint_list = raw_block.state_checkpoint_list();
 
@@ -504,7 +505,7 @@ fn check_state_checkpoints(block: &L2Block) -> Result<(), Error> {
     } else {
         // return last transaction state checkpoint
         checkpoint_list
-            .into_iter()
+            .iter()
             .last()
             .ok_or(Error::InvalidStateCheckpoint)?
     };
@@ -516,7 +517,7 @@ fn check_state_checkpoints(block: &L2Block) -> Result<(), Error> {
         )
         .pack()
     };
-    if last_state_checkpoint != block_state_checkpoint {
+    if last_state_checkpoint.as_slice() != block_state_checkpoint.as_slice() {
         debug!(
             "Mismatch last_state_checkpoint: {:?}, block_state_checkpoint: {:?}",
             last_state_checkpoint, block_state_checkpoint
@@ -527,7 +528,7 @@ fn check_state_checkpoints(block: &L2Block) -> Result<(), Error> {
     Ok(())
 }
 
-fn check_block_transactions(block: &L2Block, kv_state: &KVState) -> Result<(), Error> {
+fn check_block_transactions(block: &L2BlockReader, kv_state: &KVState) -> Result<(), Error> {
     // check tx_witness_root
     let raw_block = block.raw();
 
@@ -546,8 +547,8 @@ fn check_block_transactions(block: &L2Block, kv_state: &KVState) -> Result<(), E
 
     let leaves = block
         .transactions()
-        .into_iter()
-        .map(|tx| tx.witness_hash().into())
+        .iter()
+        .map(|tx| tx.to_entity().witness_hash().into())
         .collect();
     let merkle_root: H256 = calculate_merkle_root(leaves)?;
     if tx_witness_root != merkle_root {
@@ -567,7 +568,7 @@ fn check_block_transactions(block: &L2Block, kv_state: &KVState) -> Result<(), E
     } else {
         raw_block
             .state_checkpoint_list()
-            .into_iter()
+            .iter()
             .last()
             .map(|checkpoint| checkpoint.unpack())
             .ok_or(Error::InvalidStateCheckpoint)?
@@ -587,7 +588,7 @@ fn check_block_transactions(block: &L2Block, kv_state: &KVState) -> Result<(), E
     Ok(())
 }
 
-fn check_block_withdrawals(block: &L2Block) -> Result<(), Error> {
+fn check_block_withdrawals(block: &L2BlockReader) -> Result<(), Error> {
     // check withdrawal_witness_root
     let submit_withdrawals = block.raw().submit_withdrawals();
 
@@ -605,8 +606,8 @@ fn check_block_withdrawals(block: &L2Block) -> Result<(), Error> {
 
     let leaves = block
         .withdrawals()
-        .into_iter()
-        .map(|withdrawal| withdrawal.witness_hash().into())
+        .iter()
+        .map(|withdrawal| withdrawal.to_entity().witness_hash().into())
         .collect();
     let merkle_root = calculate_merkle_root(leaves)?;
     if withdrawal_witness_root != merkle_root {
@@ -620,7 +621,7 @@ fn check_block_withdrawals(block: &L2Block) -> Result<(), Error> {
 pub fn verify(
     rollup_type_hash: H256,
     config: &RollupConfig,
-    block: &L2Block,
+    block: &L2BlockReader,
     prev_global_state: &GlobalState,
     post_global_state: &GlobalState,
 ) -> Result<(), Error> {
@@ -647,7 +648,8 @@ pub fn verify(
     // collect deposit cells
     let deposit_cells = collect_deposit_locks(&context.rollup_type_hash, config, Source::Input)?;
     // Check new cells and reverted cells: deposit / withdrawal / custodian
-    let withdrawal_requests = block.withdrawals().into_iter().collect();
+    let withdrawal_requests_vec = block.withdrawals();
+    let withdrawal_requests = withdrawal_requests_vec.iter().collect();
     check_withdrawal_cells(&context, withdrawal_requests, &withdrawal_cells)?;
     let input_finalized_assets = check_input_custodian_cells(config, &context, withdrawal_cells)?;
     check_output_custodian_cells(
@@ -684,7 +686,7 @@ pub fn verify(
         prev_global_state
             .clone()
             .as_builder()
-            .account(account_merkle_state)
+            .account(account_merkle_state.to_entity())
             .block(block_merkle_state)
             .tip_block_hash(context.block_hash.pack())
             .last_finalized_block_number(last_finalized_block_number.pack())

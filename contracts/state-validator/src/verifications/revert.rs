@@ -5,10 +5,9 @@ use gw_common::{
 };
 use gw_types::{
     core::Status,
-    packed::{BlockMerkleState, Byte32, GlobalState, RawL2Block, RollupConfig, RollupRevert},
+    packed::{BlockMerkleState, Byte32, GlobalState, RawL2Block, RollupConfig},
     prelude::*,
 };
-use validator_utils::gw_common;
 use validator_utils::gw_types;
 use validator_utils::{
     cells::{
@@ -25,6 +24,10 @@ use validator_utils::{
         high_level::load_input_since,
         since::{LockValue, Since},
     },
+};
+use validator_utils::{
+    gw_common,
+    gw_types::packed::{RawL2BlockReader, RollupRevertReader},
 };
 
 use super::{check_rollup_lock_cells_except_stake, check_status};
@@ -89,12 +92,12 @@ pub fn get_receiver_cells_capacity(
 fn check_rewards(
     rollup_type_hash: &H256,
     config: &RollupConfig,
-    reverted_blocks: &[RawL2Block],
+    reverted_blocks: &[RawL2BlockReader],
     challenge_cell: &ChallengeCell,
 ) -> Result<(), Error> {
     let reverted_block_stake_set: BTreeSet<_> = reverted_blocks
         .iter()
-        .map(|b| b.stake_cell_owner_lock_hash())
+        .map(|b| b.stake_cell_owner_lock_hash().to_entity())
         .collect();
 
     let stake_cells = collect_stake_cells(rollup_type_hash, config, Source::Input)?;
@@ -149,34 +152,36 @@ fn check_rewards(
 
 fn check_reverted_blocks(
     config: &RollupConfig,
-    reverted_blocks: &[RawL2Block],
-    revert_args: &RollupRevert,
+    reverted_blocks: &[RawL2BlockReader],
+    revert_args: &RollupRevertReader,
     prev_global_state: &GlobalState,
     post_global_state: &GlobalState,
 ) -> Result<GlobalState, Error> {
     if reverted_blocks.is_empty() {
         return Err(Error::InvalidRevertedBlocks);
     }
-    let reverted_block_hashes: Vec<H256> =
-        reverted_blocks.iter().map(|b| b.hash().into()).collect();
+    let reverted_block_hashes: Vec<H256> = reverted_blocks
+        .iter()
+        .map(|b| b.to_entity().hash().into())
+        .collect();
     let reverted_block_smt_keys: Vec<H256> = reverted_blocks
         .iter()
         .map(|b| RawL2Block::compute_smt_key(b.number().unpack()).into())
         .collect();
     // check reverted_blocks is continues
     {
-        let mut prev_hash: Byte32 = reverted_blocks[0].hash().pack();
+        let mut prev_hash: Byte32 = reverted_blocks[0].to_entity().hash().pack();
         let mut prev_number = reverted_blocks[0].number().unpack();
         for b in reverted_blocks[1..].iter() {
             let hash = b.parent_block_hash();
-            if hash != prev_hash {
+            if hash.as_slice() != prev_hash.as_slice() {
                 return Err(Error::InvalidRevertedBlocks);
             }
             let number: u64 = b.number().unpack();
             if number != prev_number + 1 {
                 return Err(Error::InvalidRevertedBlocks);
             }
-            prev_hash = hash;
+            prev_hash = hash.to_entity();
             prev_number = number;
         }
 
@@ -239,7 +244,7 @@ fn check_reverted_blocks(
         let block_count = reverted_blocks[0].number();
         BlockMerkleState::new_builder()
             .merkle_root(block_root.pack())
-            .count(block_count)
+            .count(block_count.to_entity())
             .build()
     };
     let account_merkle_state = reverted_blocks[0].prev_account();
@@ -256,9 +261,9 @@ fn check_reverted_blocks(
         prev_global_state
             .clone()
             .as_builder()
-            .account(account_merkle_state)
+            .account(account_merkle_state.to_entity())
             .block(block_merkle_state)
-            .tip_block_hash(tip_block_hash)
+            .tip_block_hash(tip_block_hash.to_entity())
             .last_finalized_block_number(last_finalized_block_number.pack())
             .reverted_block_root(reverted_block_root)
             .status(status.into())
@@ -274,7 +279,7 @@ fn check_reverted_blocks(
 pub fn verify(
     rollup_type_hash: H256,
     config: &RollupConfig,
-    revert_args: RollupRevert,
+    revert_args: RollupRevertReader,
     prev_global_state: &GlobalState,
     post_global_state: &GlobalState,
 ) -> Result<(), Error> {
@@ -288,7 +293,8 @@ pub fn verify(
         return Err(Error::InvalidStakeCell);
     }
     // load reverted blocks
-    let reverted_blocks: Vec<_> = revert_args.reverted_blocks().into_iter().collect();
+    let reverted_blocks_vec = revert_args.reverted_blocks();
+    let reverted_blocks: Vec<_> = reverted_blocks_vec.iter().collect();
     // check challenge cells
     let challenge_cell = find_challenge_cell(&rollup_type_hash, config, Source::Input)?
         .ok_or(Error::InvalidChallengeCell)?;
@@ -298,7 +304,7 @@ pub fn verify(
         &rollup_type_hash,
         config,
         &challenge_cell,
-        &challenged_block.hash().into(),
+        &challenged_block.to_entity().hash().into(),
     )?;
     check_rewards(&rollup_type_hash, config, &reverted_blocks, &challenge_cell)?;
     let reverted_global_state = check_reverted_blocks(

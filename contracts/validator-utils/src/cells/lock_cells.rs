@@ -20,7 +20,7 @@ use gw_types::{
     bytes::Bytes,
     core::ScriptHashType,
     packed::{
-        Byte32, DepositLockArgs, RollupConfig, StakeLockArgs, WithdrawalLockArgs,
+        Byte32, Byte32Reader, DepositLockArgs, RollupConfig, StakeLockArgs, WithdrawalLockArgs,
         WithdrawalLockArgsReader,
     },
     prelude::*,
@@ -139,7 +139,7 @@ pub fn find_block_producer_stake_cell(
     rollup_type_hash: &H256,
     config: &RollupConfig,
     source: Source,
-    owner_lock_hash: &Byte32,
+    owner_lock_hash: &Byte32Reader,
 ) -> Result<Option<StakeCell>, Error> {
     let mut cells = collect_stake_cells(rollup_type_hash, config, source)?;
     // return an error if more than one stake cell returned
@@ -153,7 +153,7 @@ pub fn find_block_producer_stake_cell(
     }
     if cells
         .iter()
-        .any(|cell| &cell.args.owner_lock_hash() != owner_lock_hash)
+        .any(|cell| cell.args.owner_lock_hash().as_slice() != owner_lock_hash.as_slice())
     {
         debug!("found stake cell with unexpected owner_lock_hash");
         return Err(Error::InvalidStakeCell);

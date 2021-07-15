@@ -1,20 +1,21 @@
 use ckb_std::{
     ckb_constants::Source,
-    high_level::{
-        load_cell_data, load_cell_data_hash, load_cell_type_hash, load_witness_args, QueryIter,
-    },
-    syscalls::SysError,
+    debug,
+    high_level::{load_cell_data, load_cell_data_hash, load_cell_type_hash, QueryIter},
+    syscalls::{load_witness, SysError},
 };
 use gw_types::{
-    bytes::Bytes,
     packed::{
-        GlobalState, GlobalStateReader, RollupAction, RollupActionReader, RollupConfig,
-        RollupConfigReader,
+        GlobalState, GlobalStateReader, RollupActionReader, RollupConfig, RollupConfigReader,
+        WitnessArgsReader,
     },
     prelude::*,
 };
 
 use crate::error::Error;
+
+/// 524_288 we choose this value because it is smaller than the MAX_BLOCK_BYTES which is 597K
+pub const MAX_ROLLUP_WITNESS_SIZE: usize = 1 << 19;
 
 pub fn search_rollup_cell(rollup_type_hash: &[u8; 32], source: Source) -> Option<usize> {
     QueryIter::new(load_cell_type_hash, source)
@@ -52,17 +53,25 @@ pub fn search_rollup_state(
     }
 }
 
-pub fn parse_rollup_action(index: usize, source: Source) -> Result<RollupAction, Error> {
-    use ckb_std::ckb_types::prelude::Unpack;
+pub fn parse_rollup_action(
+    buf: &mut [u8; MAX_ROLLUP_WITNESS_SIZE],
+    index: usize,
+    source: Source,
+) -> Result<RollupActionReader, Error> {
+    let loaded_len = load_witness(buf, 0, index, source)?;
+    debug!("load rollup witness, loaded len: {}", loaded_len);
 
-    let witness_args = load_witness_args(index, source)?;
-    let output_type: Bytes = witness_args
-        .output_type()
-        .to_opt()
-        .ok_or(Error::Encoding)?
-        .unpack();
-    match RollupActionReader::verify(&output_type, false) {
-        Ok(_) => Ok(RollupAction::new_unchecked(output_type)),
-        Err(_) => Err(Error::Encoding),
-    }
+    let witness_args = WitnessArgsReader::from_slice(&buf[..loaded_len]).map_err(|_err| {
+        debug!("witness is not a valid WitnessArgsReader");
+        Error::Encoding
+    })?;
+    let output = witness_args.output_type().to_opt().ok_or_else(|| {
+        debug!("WitnessArgs#output_type is none");
+        Error::Encoding
+    })?;
+    let action = RollupActionReader::from_slice(output.raw_data()).map_err(|_err| {
+        debug!("output is not a valid RollupActionReader");
+        Error::Encoding
+    })?;
+    Ok(action)
 }

@@ -63,7 +63,7 @@ pub fn verify_tx_signature(
     let tx = unlock_args.l2tx();
     let account_count: u32 = ctx.account_count().unpack();
     let kv_state = KVState::new(
-        ctx.kv_state(),
+        ctx.kv_state().as_reader(),
         unlock_args.kv_state_proof().unpack(),
         account_count,
         None,
