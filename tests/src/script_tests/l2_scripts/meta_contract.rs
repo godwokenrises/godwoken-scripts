@@ -57,6 +57,7 @@ fn test_meta_contract() {
                 .build(),
         )
         .build();
+    let sender_nonce = tree.get_nonce(a_id).unwrap();
     let return_data = run_contract(
         &rollup_config,
         &mut tree,
@@ -66,6 +67,8 @@ fn test_meta_contract() {
         &block_info,
     )
     .expect("execute");
+    let new_sender_nonce = tree.get_nonce(a_id).unwrap();
+    assert_eq!(sender_nonce + 1, new_sender_nonce, "nonce should increased");
     let account_id = {
         let mut buf = [0u8; 4];
         buf.copy_from_slice(&return_data);

@@ -103,6 +103,7 @@ fn test_sudt() {
     {
         let value = 4000u128;
         let fee = 42u128;
+        let sender_nonce = tree.get_nonce(a_id).unwrap();
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
@@ -121,6 +122,8 @@ fn test_sudt() {
             &block_info,
         )
         .expect("execute");
+        let new_sender_nonce = tree.get_nonce(a_id).unwrap();
+        assert_eq!(sender_nonce + 1, new_sender_nonce, "nonce increased");
         assert!(run_result.return_data.is_empty());
         assert_eq!(run_result.logs.len(), 2);
         check_transfer_logs(
@@ -359,6 +362,7 @@ fn test_transfer_to_self() {
     {
         let value: u128 = 0;
         let fee: u128 = 0;
+        let sender_nonce = tree.get_nonce(a_id).unwrap();
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
@@ -377,6 +381,8 @@ fn test_transfer_to_self() {
             &block_info,
         )
         .expect("run contract");
+        let new_sender_nonce = tree.get_nonce(a_id).unwrap();
+        assert_eq!(sender_nonce + 1, new_sender_nonce, "nonce increased");
         assert_eq!(run_result.logs.len(), 2);
         check_transfer_logs(
             &run_result.logs,

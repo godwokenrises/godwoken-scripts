@@ -12,7 +12,7 @@
  */
 
 #include "ckb_syscalls.h"
-#include "common.h"
+#include "gw_def.h"
 
 /* syscalls */
 /* Syscall account store / load / create */
@@ -44,6 +44,8 @@ typedef struct gw_context_t {
   gw_block_info_t block_info;
   uint8_t rollup_config[GW_MAX_ROLLUP_CONFIG_SIZE];
   uint64_t rollup_config_size;
+  /* original sender nonce */
+  uint32_t original_sender_nonce;
   /* layer2 syscalls */
   gw_load_fn sys_load;
   gw_get_account_nonce_fn sys_get_account_nonce;
@@ -60,21 +62,30 @@ typedef struct gw_context_t {
   gw_recover_account_fn sys_recover_account;
   gw_log_fn sys_log;
   gw_pay_fee_fn sys_pay_fee;
+  _gw_load_raw_fn _internal_load_raw;
+  _gw_store_raw_fn _internal_store_raw;
 } gw_context_t;
 
-int _ensure_account_exists(gw_context_t *ctx, uint32_t account_id) {
-  uint8_t script_hash[32];
-  int ret = ctx->sys_get_script_hash_by_account_id(ctx, account_id, script_hash);
-  if (ret != 0) {
-    return ret;
+#include "common.h"
+
+int _internal_load_raw(gw_context_t *ctx,
+             const uint8_t raw_key[GW_VALUE_BYTES],
+             uint8_t value[GW_VALUE_BYTES]) {
+  if (ctx == NULL) {
+    return GW_FATAL_INVALID_CONTEXT;
   }
-  for (int i = 0; i < 32; i++) {
-    /* if account not exists script_hash will be zero */
-    if (script_hash[i] != 0) {
-      return 0;
-    }
+
+  return syscall(GW_SYS_LOAD, raw_key, value, 0, 0, 0, 0);
+}
+
+int _internal_store_raw(gw_context_t *ctx,
+              const uint8_t raw_key[GW_KEY_BYTES],
+              const uint8_t value[GW_VALUE_BYTES]) {
+  if (ctx == NULL) {
+    return GW_FATAL_INVALID_CONTEXT;
   }
-  return GW_FATAL_ACCOUNT_NOT_FOUND;
+
+  return syscall(GW_SYS_STORE, raw_key, value, 0, 0, 0, 0);
 }
 
 int sys_load(gw_context_t *ctx, uint32_t account_id,
@@ -323,6 +334,8 @@ int gw_context_init(gw_context_t *ctx) {
   ctx->sys_recover_account = sys_recover_account;
   ctx->sys_pay_fee = sys_pay_fee;
   ctx->sys_log = sys_log;
+  ctx->_internal_load_raw = _internal_load_raw;
+  ctx->_internal_store_raw = _internal_store_raw;
 
   /* initialize context */
   uint8_t tx_buf[GW_MAX_L2TX_SIZE] = {0};
@@ -365,11 +378,24 @@ int gw_context_init(gw_context_t *ctx) {
     return ret;
   }
 
+  /* init original sender nonce */
+  ret = _load_sender_nonce(ctx, &ctx->original_sender_nonce);
+  if(ret != 0) {
+    ckb_debug("failed to init original sender nonce");
+    return ret;
+  }
+
   return 0;
 }
 
 int gw_finalize(gw_context_t *ctx) {
-  /* do nothing */
+  /* update sender nonce */
+  int ret = _increase_sender_nonce(ctx);
+  if(ret != 0) {
+    ckb_debug("failed to update original sender nonce");
+    return ret;
+  }
+
   return 0;
 }
 

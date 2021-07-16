@@ -2,8 +2,10 @@
 #define GW_VALIDATOR_H_
 
 #include "ckb_syscalls.h"
-#include "common.h"
 #include "gw_smt.h"
+#include "gw_def.h"
+#include "blockchain.h"
+
 #define SCRIPT_HASH_TYPE_DATA 0
 #define SCRIPT_HASH_TYPE_TYPE 1
 #define TARGET_TYPE_TRANSACTION 0
@@ -61,6 +63,8 @@ typedef struct gw_context_t {
   gw_recover_account_fn sys_recover_account;
   gw_log_fn sys_log;
   gw_pay_fee_fn sys_pay_fee;
+  _gw_load_raw_fn _internal_load_raw;
+  _gw_store_raw_fn _internal_store_raw;
 
   /* validator specific context */
   gw_account_merkle_state_t prev_account; /* RawL2Block.prev_account */
@@ -68,6 +72,9 @@ typedef struct gw_context_t {
 
   /* challenged tx index */
   uint32_t tx_index;
+
+  /* sender's original nonce */
+  uint32_t original_sender_nonce;
 
   /* kv state */
   gw_state_t kv_state;
@@ -93,25 +100,27 @@ typedef struct gw_context_t {
   gw_call_receipt_t receipt;
 } gw_context_t;
 
-/* ensure account id is exist */
-int _ensure_account_exists(gw_context_t *ctx, uint32_t account_id) {
-  if (account_id < ctx->account_count) {
-    return 0;
-  } else {
-    return GW_FATAL_ACCOUNT_NOT_FOUND;
+#include "common.h"
+
+int _internal_load_raw(gw_context_t *ctx,
+             const uint8_t raw_key[GW_VALUE_BYTES],
+             uint8_t value[GW_VALUE_BYTES]) {
+  if (ctx == NULL) {
+    return GW_FATAL_INVALID_CONTEXT;
   }
+
+  return gw_state_fetch(&ctx->kv_state, raw_key, value);
 }
 
-/* check zero hash */
-int _is_zero_hash(uint8_t hash[32]) {
-  for (int i = 0; i < 32; i++) {
-    if (hash[i] != 0) {
-      return false;
-    }
+int _internal_store_raw(gw_context_t *ctx,
+              const uint8_t raw_key[GW_KEY_BYTES],
+              const uint8_t value[GW_VALUE_BYTES]) {
+  if (ctx == NULL) {
+    return GW_FATAL_INVALID_CONTEXT;
   }
-  return true;
-}
 
+  return gw_state_insert(&ctx->kv_state, raw_key, value);
+}
 
 int sys_load(gw_context_t *ctx, uint32_t account_id, const uint8_t *key,
              const size_t key_len, uint8_t value[GW_VALUE_BYTES]) {
@@ -1246,6 +1255,8 @@ int gw_context_init(gw_context_t *ctx) {
   ctx->sys_recover_account = sys_recover_account;
   ctx->sys_log = sys_log;
   ctx->sys_pay_fee = sys_pay_fee;
+  ctx->_internal_load_raw = _internal_load_raw;
+  ctx->_internal_store_raw = _internal_store_raw;
 
   /* initialize context */
   uint8_t rollup_script_hash[32] = {0};
@@ -1304,29 +1315,27 @@ int gw_context_init(gw_context_t *ctx) {
     return ret;
   }
 
-  /* increase sender nonce */
-  uint8_t nonce_key[32] = {0};
-  uint8_t nonce_value[32] = {0};
-  uint32_t from_id = ctx->transaction_context.from_id;
-  uint32_t nonce = 0;
-
-  gw_build_account_field_key(from_id, GW_ACCOUNT_NONCE, nonce_key);
-  ret = gw_state_fetch(&ctx->kv_state, nonce_key, nonce_value);
-  if (ret != 0) {
-      ckb_debug("failed to fetch sender nonce value");
-      return ret;
+  /* init original sender nonce */
+  ret = _load_sender_nonce(ctx, &ctx->original_sender_nonce);
+  if(ret != 0) {
+    ckb_debug("failed to init original sender nonce");
+    return ret;
   }
-  memcpy(&nonce, nonce_value, sizeof(uint32_t));
 
-  nonce = nonce + 1;
-  memcpy(nonce_value, &nonce, sizeof(uint32_t));
-  return gw_state_insert(&ctx->kv_state, nonce_key, nonce_value);
+  return 0;
 }
 
 int gw_finalize(gw_context_t *ctx) {
   if (ctx->post_account.count != ctx->account_count) {
     ckb_debug("account count not match");
     return GW_FATAL_INVALID_DATA;
+  }
+
+  /* update sender nonce */
+  int ret = _increase_sender_nonce(ctx);
+  if(ret != 0) {
+    ckb_debug("failed to update original sender nonce");
+    return ret;
   }
 
   uint8_t return_data_hash[32] = {0};
@@ -1341,7 +1350,7 @@ int gw_finalize(gw_context_t *ctx) {
   }
 
   gw_state_normalize(&ctx->kv_state);
-  int ret = gw_smt_verify(ctx->post_account.merkle_root, &ctx->kv_state,
+  ret = gw_smt_verify(ctx->post_account.merkle_root, &ctx->kv_state,
                           ctx->kv_state_proof, ctx->kv_state_proof_size);
   if (ret != 0) {
     ckb_debug("failed to merkle verify post account merkle root");

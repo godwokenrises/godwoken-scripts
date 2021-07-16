@@ -6,9 +6,13 @@
 #include "godwoken.h"
 #include "gw_def.h"
 #include "gw_errors.h"
+#include "gw_smt.h"
 #include "stddef.h"
 
-/* common functions */
+/* common functions,
+   This file should be included in the generator_utils.h & validator_utils.h
+    after the gw_context_t structure is defined.
+ */
 
 /* Implement of gw_blake2b_hash_fn
  * Note: this function is used in layer2 contract
@@ -100,5 +104,82 @@ int gw_parse_block_info(gw_block_info_t *block_info, mol_seg_t *src) {
   block_info->block_producer_id = *(uint32_t *)block_producer_id_seg.ptr;
   return 0;
 }
+
+/* check zero hash */
+int _is_zero_hash(uint8_t hash[32]) {
+  for (int i = 0; i < 32; i++) {
+    if (hash[i] != 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/* ensure account id is exist */
+int _ensure_account_exists(gw_context_t *ctx, uint32_t account_id) {
+  uint8_t script_hash[32];
+  int ret = ctx->sys_get_script_hash_by_account_id(ctx, account_id, script_hash);
+  if (ret != 0) {
+    return ret;
+  }
+
+  if (_is_zero_hash(script_hash)) {
+    return GW_FATAL_ACCOUNT_NOT_FOUND;
+  }
+
+  return 0;
+}
+
+int _load_sender_nonce(gw_context_t * ctx, uint32_t * sender_nonce) {
+  if (ctx == NULL) {
+    return GW_FATAL_INVALID_CONTEXT;
+  }
+  /* sender nonce */
+  uint8_t nonce_key[32] = {0};
+  uint8_t nonce_value[32] = {0};
+
+  gw_build_account_field_key(ctx->transaction_context.from_id, GW_ACCOUNT_NONCE, nonce_key);
+  int ret = ctx->_internal_load_raw(ctx, nonce_key, nonce_value);
+  if (ret != 0) {
+      ckb_debug("failed to fetch sender nonce value");
+      return ret;
+  }
+  memcpy(sender_nonce, nonce_value, sizeof(uint32_t));
+  return 0;
+}
+
+int _increase_sender_nonce(gw_context_t * ctx) {
+  if (ctx == NULL) {
+    return GW_FATAL_INVALID_CONTEXT;
+  }
+  /* load sender nonce */
+  uint32_t new_nonce = 0;
+  int ret = _load_sender_nonce(ctx, &new_nonce);
+  if (ret != 0) {
+    return ret;
+  }
+  if (new_nonce < ctx->original_sender_nonce) {
+    ckb_debug("sender's new_nonce is less than original_nonce");
+    return GW_FATAL_INVALID_CONTEXT;
+  } else if (new_nonce == ctx->original_sender_nonce) {
+    ckb_debug("new_nonce is equals to original_nonce, increase 1");
+    new_nonce += 1;
+    uint8_t nonce_key[32] = {0};
+    uint8_t nonce_value[32] = {0};
+    /* prepare key value */
+    gw_build_account_field_key(ctx->transaction_context.from_id, GW_ACCOUNT_NONCE, nonce_key);
+    memcpy(nonce_value, (uint8_t *)&new_nonce, sizeof(uint32_t));
+
+    ret = ctx->_internal_store_raw(ctx, nonce_key, nonce_value);
+    if (ret != 0) {
+        ckb_debug("failed to update sender nonce value");
+        return ret;
+    }
+  }
+
+  return 0;
+}
+
+
 
 #endif /* GW_COMMON_H_ */

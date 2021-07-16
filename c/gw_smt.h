@@ -1,4 +1,9 @@
-#include "common.h"
+#ifndef GW_SMT_H_
+#define GW_SMT_H_
+
+#include "gw_def.h"
+#include "gw_errors.h"
+#include "blake2b.h"
 
 #define _GW_SMT_STACK_SIZE 32
 
@@ -277,3 +282,5 @@ int gw_smt_verify(const uint8_t hash[32], const gw_state_t *state,
   }
   return 0;
 }
+
+#endif /* GW_SMT_H_ */
