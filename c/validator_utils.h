@@ -840,9 +840,6 @@ int _load_tx_checkpoint(mol_seg_t *raw_l2block_seg, uint32_t tx_index,
       MolReader_SubmitWithdrawals_get_withdrawal_count(&submit_withdrawals_seg);
   uint32_t withdrawals_count = *((uint32_t *)withdrawals_count_seg.ptr);
 
-  uint32_t prev_tx_checkpoint_index = withdrawals_count + tx_index - 1;
-  uint32_t post_tx_checkpoint_index = withdrawals_count + tx_index;
-
   mol_seg_t checkpoint_list_seg =
       MolReader_RawL2Block_get_state_checkpoint_list(raw_l2block_seg);
 
@@ -858,6 +855,8 @@ int _load_tx_checkpoint(mol_seg_t *raw_l2block_seg, uint32_t tx_index,
     }
     memcpy(prev_tx_checkpoint, prev_state_checkpoint_seg.ptr, 32);
   } else {
+    uint32_t prev_tx_checkpoint_index = withdrawals_count + tx_index - 1;
+
     mol_seg_res_t checkpoint_res =
         MolReader_Byte32Vec_get(&checkpoint_list_seg, prev_tx_checkpoint_index);
     if (MOL_OK != checkpoint_res.errno || 32 != checkpoint_res.seg.size) {
@@ -868,6 +867,8 @@ int _load_tx_checkpoint(mol_seg_t *raw_l2block_seg, uint32_t tx_index,
   }
 
   // load post tx checkpoint
+  uint32_t post_tx_checkpoint_index = withdrawals_count + tx_index;
+
   mol_seg_res_t checkpoint_res =
       MolReader_Byte32Vec_get(&checkpoint_list_seg, post_tx_checkpoint_index);
   if (MOL_OK != checkpoint_res.errno || 32 != checkpoint_res.seg.size) {
