@@ -3,7 +3,7 @@ use gw_block_producer::{
     produce_block::{produce_block, ProduceBlockParam, ProduceBlockResult},
     withdrawal::AvailableCustodians,
 };
-use gw_chain::chain::{Chain, L1Action, L1ActionContext, SyncEvent, SyncParam};
+use gw_chain::chain::{Chain, L1Action, L1ActionContext, SyncParam};
 use gw_common::H256;
 use gw_config::{BackendConfig, GenesisConfig};
 use gw_generator::{
