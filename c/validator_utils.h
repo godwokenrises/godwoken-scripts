@@ -1,10 +1,10 @@
 #ifndef GW_VALIDATOR_H_
 #define GW_VALIDATOR_H_
 
-#include "ckb_syscalls.h"
-#include "gw_smt.h"
-#include "gw_def.h"
 #include "blockchain.h"
+#include "ckb_syscalls.h"
+#include "gw_def.h"
+#include "gw_smt.h"
 
 #define SCRIPT_HASH_TYPE_DATA 0
 #define SCRIPT_HASH_TYPE_TYPE 1
@@ -106,9 +106,8 @@ typedef struct gw_context_t {
 
 #include "common.h"
 
-int _internal_load_raw(gw_context_t *ctx,
-             const uint8_t raw_key[GW_VALUE_BYTES],
-             uint8_t value[GW_VALUE_BYTES]) {
+int _internal_load_raw(gw_context_t *ctx, const uint8_t raw_key[GW_VALUE_BYTES],
+                       uint8_t value[GW_VALUE_BYTES]) {
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
   }
@@ -116,9 +115,8 @@ int _internal_load_raw(gw_context_t *ctx,
   return gw_state_fetch(&ctx->kv_state, raw_key, value);
 }
 
-int _internal_store_raw(gw_context_t *ctx,
-              const uint8_t raw_key[GW_KEY_BYTES],
-              const uint8_t value[GW_VALUE_BYTES]) {
+int _internal_store_raw(gw_context_t *ctx, const uint8_t raw_key[GW_KEY_BYTES],
+                        const uint8_t value[GW_VALUE_BYTES]) {
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
   }
@@ -236,7 +234,7 @@ int sys_get_account_script(gw_context_t *ctx, uint32_t account_id,
     return ret;
   }
 
-  if(_is_zero_hash(script_hash)) {
+  if (_is_zero_hash(script_hash)) {
     ckb_debug("account script_hash is zero, which means account isn't exist");
     return GW_ERROR_NOT_FOUND;
   }
@@ -252,7 +250,8 @@ int sys_get_account_script(gw_context_t *ctx, uint32_t account_id,
   }
 
   if (entry == NULL) {
-    ckb_debug("account script_hash exist, but we can't found, we miss the neccesary context");
+    ckb_debug("account script_hash exist, but we can't found, we miss the "
+              "neccesary context");
     return GW_FATAL_ACCOUNT_NOT_FOUND;
   }
 
@@ -380,7 +379,8 @@ int sys_get_script_hash_by_prefix(gw_context_t *ctx, uint8_t *prefix,
     }
   }
 
-  /* we don't know wether the script isn't exists or the validation context is missing */
+  /* we don't know wether the script isn't exists or the validation context is
+   * missing */
   return GW_FATAL_INVALID_CONTEXT;
 }
 
@@ -1419,7 +1419,7 @@ int gw_context_init(gw_context_t *ctx) {
 
   /* init original sender nonce */
   ret = _load_sender_nonce(ctx, &ctx->original_sender_nonce);
-  if(ret != 0) {
+  if (ret != 0) {
     ckb_debug("failed to init original sender nonce");
     return ret;
   }
@@ -1435,7 +1435,7 @@ int gw_finalize(gw_context_t *ctx) {
 
   /* update sender nonce */
   int ret = _increase_sender_nonce(ctx);
-  if(ret != 0) {
+  if (ret != 0) {
     ckb_debug("failed to update original sender nonce");
     return ret;
   }
