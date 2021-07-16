@@ -76,6 +76,10 @@ typedef struct gw_context_t {
   /* sender's original nonce */
   uint32_t original_sender_nonce;
 
+  /* tx check point */
+  uint8_t prev_tx_checkpoint[32];
+  uint8_t post_tx_checkpoint[32];
+
   /* kv state */
   gw_state_t kv_state;
   gw_pair_t kv_pairs[GW_MAX_KV_PAIRS];
@@ -824,6 +828,56 @@ int _load_verification_context(
   return 0;
 }
 
+/*
+ * Load transaction checkpoints
+ */
+int _load_tx_checkpoint(mol_seg_t *raw_l2block_seg, uint32_t tx_index,
+                        uint8_t prev_tx_checkpoint[32],
+                        uint8_t post_tx_checkpoint[32]) {
+  mol_seg_t submit_withdrawals_seg =
+      MolReader_RawL2Block_get_submit_withdrawals(raw_l2block_seg);
+  mol_seg_t withdrawals_count_seg =
+      MolReader_SubmitWithdrawals_get_withdrawal_count(&submit_withdrawals_seg);
+  uint32_t withdrawals_count = *((uint32_t *)withdrawals_count_seg.ptr);
+
+  uint32_t prev_tx_checkpoint_index = withdrawals_count + tx_index - 1;
+  uint32_t post_tx_checkpoint_index = withdrawals_count + tx_index;
+
+  mol_seg_t checkpoint_list_seg =
+      MolReader_RawL2Block_get_state_checkpoint_list(raw_l2block_seg);
+
+  // load prev tx checkpoint
+  if (0 == tx_index) {
+    mol_seg_t submit_txs_seg =
+        MolReader_RawL2Block_get_submit_transactions(raw_l2block_seg);
+    mol_seg_t prev_state_checkpoint_seg =
+        MolReader_SubmitTransactions_get_prev_state_checkpoint(&submit_txs_seg);
+    if (32 != prev_state_checkpoint_seg.size) {
+      ckb_debug("invalid prev state checkpoint");
+      return GW_FATAL_INVALID_DATA;
+    }
+    memcpy(prev_tx_checkpoint, prev_state_checkpoint_seg.ptr, 32);
+  } else {
+    mol_seg_res_t checkpoint_res =
+        MolReader_Byte32Vec_get(&checkpoint_list_seg, prev_tx_checkpoint_index);
+    if (MOL_OK != checkpoint_res.errno || 32 != checkpoint_res.seg.size) {
+      ckb_debug("invalid prev tx checkpoint");
+      return GW_FATAL_INVALID_DATA;
+    }
+    memcpy(prev_tx_checkpoint, checkpoint_res.seg.ptr, 32);
+  }
+
+  // load post tx checkpoint
+  mol_seg_res_t checkpoint_res =
+      MolReader_Byte32Vec_get(&checkpoint_list_seg, post_tx_checkpoint_index);
+  if (MOL_OK != checkpoint_res.errno || 32 != checkpoint_res.seg.size) {
+    ckb_debug("invalid post tx checkpoint");
+    return GW_FATAL_INVALID_DATA;
+  }
+  memcpy(post_tx_checkpoint, checkpoint_res.seg.ptr, 32);
+  return 0;
+}
+
 /* Load verify transaction witness
  */
 int _load_verify_transaction_witness(
@@ -837,7 +891,8 @@ int _load_verify_transaction_witness(
     uint64_t *script_entries_size, gw_account_merkle_state_t *prev_account,
     gw_account_merkle_state_t *post_account, uint8_t return_data_hash[32],
     gw_state_t *block_hashes_state,
-    gw_pair_t block_hashes_pairs[GW_MAX_GET_BLOCK_HASH_DEPTH]) {
+    gw_pair_t block_hashes_pairs[GW_MAX_GET_BLOCK_HASH_DEPTH],
+    uint8_t prev_tx_checkpoint[32], uint8_t post_tx_checkpoint[32]) {
   /* load witness from challenge cell */
   int ret;
   uint8_t buf[GW_MAX_WITNESS_SIZE];
@@ -1036,6 +1091,13 @@ int _load_verify_transaction_witness(
   memcpy(kv_state_proof, kv_state_proof_bytes_seg.ptr,
          kv_state_proof_bytes_seg.size);
   *kv_state_proof_size = kv_state_proof_bytes_seg.size;
+
+  /* load tx checkpoint */
+  ret = _load_tx_checkpoint(&raw_l2block_seg, tx_index, prev_tx_checkpoint,
+                            post_tx_checkpoint);
+  if (ret != 0) {
+    return ret;
+  }
 
   /* load prev account state */
   mol_seg_t prev_account_seg =
@@ -1298,7 +1360,8 @@ int gw_context_init(gw_context_t *ctx) {
       &ctx->block_info, &ctx->kv_state, ctx->kv_pairs, ctx->kv_state_proof,
       &ctx->kv_state_proof_size, ctx->scripts, &ctx->script_entries_size,
       &ctx->prev_account, &ctx->post_account, ctx->return_data_hash,
-      &ctx->block_hashes_state, ctx->block_hashes_pairs);
+      &ctx->block_hashes_state, ctx->block_hashes_pairs,
+      ctx->prev_tx_checkpoint, ctx->post_tx_checkpoint);
   if (ret != 0) {
     ckb_debug("failed to load verify transaction witness");
     return ret;
