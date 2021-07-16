@@ -250,4 +250,30 @@ typedef int (*gw_log_fn)(struct gw_context_t *ctx, uint32_t account_id, uint8_t 
 typedef int (*gw_pay_fee_fn)(struct gw_context_t *ctx, const uint8_t *payer_addr,
                              const uint64_t short_addr_len, uint32_t sudt_id, uint128_t amount);
 
+/**
+ * Load value by raw key from state tree
+ *
+ * @param ctx        The godwoken context
+ * @param raw_key        The key (less than 32 bytes)
+ * @param key_len    The key length (less then 32)
+ * @param value      The pointer to save the value of the key (32 bytes)
+ * @return           The status code, 0 is success
+ */
+typedef int (*_gw_load_raw_fn)(struct gw_context_t *ctx,
+                          const uint8_t raw_key[GW_KEY_BYTES],
+                          uint8_t value[GW_VALUE_BYTES]);
+
+/**
+ * Store key,value pair to state tree
+ *
+ * @param ctx        The godwoken context
+ * @param account_id account to read
+ * @param key        The key (less than 32 bytes)
+ * @param key_len    The key length (less then 32)
+ * @param value      The value
+ * @return           The status code, 0 is success
+ */
+typedef int (*_gw_store_raw_fn)(struct gw_context_t *ctx,
+                           const uint8_t raw_key[GW_KEY_BYTES],
+                           const uint8_t value[GW_VALUE_BYTES]);
 #endif /* GW_DEF_H_ */

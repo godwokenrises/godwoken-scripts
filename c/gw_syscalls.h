@@ -1,8 +1,6 @@
 #ifndef GW_SYSCALLS_H_
 #define GW_SYSCALLS_H_
 
-#include "common.h"
-
 #ifdef GW_GENERATOR
 #include "generator_utils.h"
 #endif

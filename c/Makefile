@@ -28,7 +28,13 @@ debug-all-via-docker: generate-protocol $(SECP256K1_HELPER)
 
 all: $(BINS)
 
-clean:
+clean-examples:
+	rm -f build/examples/*.debug
+	rm -f build/examples/*.h
+	rm -f build/examples/*.o
+	rm -f build/examples/*.a
+
+clean: clean-examples
 	rm -f $(BINS)
 	rm -f build/*.debug
 	rm -f build/*.h
