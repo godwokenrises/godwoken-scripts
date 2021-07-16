@@ -892,7 +892,8 @@ int _load_verify_transaction_witness(
     gw_account_merkle_state_t *post_account, uint8_t return_data_hash[32],
     gw_state_t *block_hashes_state,
     gw_pair_t block_hashes_pairs[GW_MAX_GET_BLOCK_HASH_DEPTH],
-    uint8_t prev_tx_checkpoint[32], uint8_t post_tx_checkpoint[32]) {
+    uint8_t prev_tx_checkpoint[32], uint8_t post_tx_checkpoint[32],
+    uint32_t *prev_tx_account_count) {
   /* load witness from challenge cell */
   int ret;
   uint8_t buf[GW_MAX_WITNESS_SIZE];
@@ -1098,6 +1099,10 @@ int _load_verify_transaction_witness(
   if (ret != 0) {
     return ret;
   }
+
+  mol_seg_t account_count_seg =
+      MolReader_VerifyTransactionContext_get_account_count(&verify_tx_ctx_seg);
+  *prev_tx_account_count = *((uint32_t *)account_count_seg.ptr);
 
   /* load prev account state */
   mol_seg_t prev_account_seg =
@@ -1361,13 +1366,11 @@ int gw_context_init(gw_context_t *ctx) {
       &ctx->kv_state_proof_size, ctx->scripts, &ctx->script_entries_size,
       &ctx->prev_account, &ctx->post_account, ctx->return_data_hash,
       &ctx->block_hashes_state, ctx->block_hashes_pairs,
-      ctx->prev_tx_checkpoint, ctx->post_tx_checkpoint);
+      ctx->prev_tx_checkpoint, ctx->post_tx_checkpoint, &ctx->account_count);
   if (ret != 0) {
     ckb_debug("failed to load verify transaction witness");
     return ret;
   }
-  /* set current account count */
-  ctx->account_count = ctx->prev_account.count;
 
   /* verify kv_state merkle proof */
   gw_state_normalize(&ctx->kv_state);
