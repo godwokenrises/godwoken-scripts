@@ -1,7 +1,9 @@
 // Import from `core` instead of from `std` since we are in no-std mode
 use core::{convert::TryInto, result::Result};
 
+use validator_utils::cells::rollup::MAX_ROLLUP_WITNESS_SIZE;
 use validator_utils::gw_types;
+use validator_utils::gw_types::packed::RollupActionUnionReader;
 use validator_utils::{
     cells::rollup::{
         load_rollup_config, parse_rollup_action, search_rollup_cell, search_rollup_state,
@@ -17,7 +19,7 @@ use validator_utils::{
 
 use gw_types::{
     core::ChallengeTargetType,
-    packed::{ChallengeLockArgs, ChallengeLockArgsReader, RollupActionUnion},
+    packed::{ChallengeLockArgs, ChallengeLockArgsReader},
     prelude::*,
 };
 
@@ -54,15 +56,17 @@ pub fn main() -> Result<(), Error> {
     let (rollup_script_hash, lock_args) = parse_lock_args()?;
 
     // check rollup cell
+    let mut rollup_action_witness = [0u8; MAX_ROLLUP_WITNESS_SIZE];
     let index =
         search_rollup_cell(&rollup_script_hash, Source::Output).ok_or(Error::RollupCellNotFound)?;
-    let action = parse_rollup_action(index, Source::Output)?;
+    let action = parse_rollup_action(&mut rollup_action_witness, index, Source::Output)?;
     match action.to_enum() {
-        RollupActionUnion::RollupEnterChallenge(_) | RollupActionUnion::RollupRevert(_) => {
+        RollupActionUnionReader::RollupEnterChallenge(_)
+        | RollupActionUnionReader::RollupRevert(_) => {
             // state-validator will do the verification
             return Ok(());
         }
-        RollupActionUnion::RollupCancelChallenge(_) => {}
+        RollupActionUnionReader::RollupCancelChallenge(_) => {}
         _ => {
             debug!("unsupport action {:?}", action.to_enum());
             return Err(Error::InvalidArgs);

@@ -5,10 +5,12 @@ use validator_utils::{
     cells::{
         rollup::{
             load_rollup_config, parse_rollup_action, search_rollup_cell, search_rollup_state,
+            MAX_ROLLUP_WITNESS_SIZE,
         },
         utils::search_lock_hash,
     },
     ckb_std::high_level::load_cell_lock,
+    gw_types::packed::RollupActionUnionReader,
 };
 
 // Import CKB syscalls and structures
@@ -20,8 +22,8 @@ use crate::ckb_std::{
 use gw_types::{
     core::ScriptHashType,
     packed::{
-        CustodianLockArgs, CustodianLockArgsReader, RollupActionUnion,
-        UnlockCustodianViaRevertWitness, UnlockCustodianViaRevertWitnessReader,
+        CustodianLockArgs, CustodianLockArgsReader, UnlockCustodianViaRevertWitness,
+        UnlockCustodianViaRevertWitnessReader,
     },
     prelude::*,
 };
@@ -95,18 +97,19 @@ pub fn main() -> Result<(), Error> {
 
     // check deposit block is reverted
     let deposit_block_hash = lock_args.deposit_block_hash();
+    let mut rollup_action_witness = [0u8; MAX_ROLLUP_WITNESS_SIZE];
     let rollup_action = {
         let index = search_rollup_cell(&rollup_type_hash, Source::Output)
             .ok_or(Error::RollupCellNotFound)?;
-        parse_rollup_action(index, Source::Output)?
+        parse_rollup_action(&mut rollup_action_witness, index, Source::Output)?
     };
 
     match rollup_action.to_enum() {
-        RollupActionUnion::RollupSubmitBlock(args) => {
+        RollupActionUnionReader::RollupSubmitBlock(args) => {
             if args
                 .reverted_block_hashes()
-                .into_iter()
-                .any(|hash| hash == deposit_block_hash)
+                .iter()
+                .any(|hash| hash.as_slice() == deposit_block_hash.as_slice())
             {
                 return Ok(());
             }

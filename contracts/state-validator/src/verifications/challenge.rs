@@ -3,15 +3,18 @@ use core::convert::TryInto;
 use gw_common::{smt::Blake2bHasher, sparse_merkle_tree::CompiledMerkleProof, H256};
 use gw_types::{
     core::{ChallengeTargetType, Status},
-    packed::{GlobalState, RollupConfig, RollupEnterChallenge},
+    packed::{GlobalState, RollupConfig},
     prelude::*,
 };
-use validator_utils::gw_common;
 use validator_utils::gw_types;
 use validator_utils::{
     cells::lock_cells::find_challenge_cell,
     ckb_std::{ckb_constants::Source, debug},
     error::Error,
+};
+use validator_utils::{
+    gw_common,
+    gw_types::packed::{RawL2Block, RollupEnterChallengeReader},
 };
 
 use super::{check_rollup_lock_cells, check_status};
@@ -19,7 +22,7 @@ use super::{check_rollup_lock_cells, check_status};
 pub fn verify_enter_challenge(
     rollup_type_hash: H256,
     config: &RollupConfig,
-    args: RollupEnterChallenge,
+    args: RollupEnterChallengeReader,
     prev_global_state: &GlobalState,
     post_global_state: &GlobalState,
 ) -> Result<(), Error> {
@@ -45,7 +48,7 @@ pub fn verify_enter_challenge(
     let valid = {
         let merkle_proof = CompiledMerkleProof(witness.block_proof().unpack());
         let leaves = vec![(
-            challenged_block.smt_key().into(),
+            RawL2Block::compute_smt_key(challenged_block.number().unpack()).into(),
             challenged_block.hash().into(),
         )];
         merkle_proof

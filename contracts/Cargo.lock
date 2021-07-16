@@ -130,7 +130,7 @@ dependencies = [
 [[package]]
 name = "gw-common"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=5070f2d32c60d1a5953742a38ac618e57656a41c#5070f2d32c60d1a5953742a38ac618e57656a41c"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=aeb5a94f8c9bb3642fd1ee5e794ad61a77a54c29#aeb5a94f8c9bb3642fd1ee5e794ad61a77a54c29"
 dependencies = [
  "cfg-if",
  "gw-hash",
@@ -140,7 +140,7 @@ dependencies = [
 [[package]]
 name = "gw-hash"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=5070f2d32c60d1a5953742a38ac618e57656a41c#5070f2d32c60d1a5953742a38ac618e57656a41c"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=aeb5a94f8c9bb3642fd1ee5e794ad61a77a54c29#aeb5a94f8c9bb3642fd1ee5e794ad61a77a54c29"
 dependencies = [
  "blake2b-ref",
 ]
@@ -148,7 +148,7 @@ dependencies = [
 [[package]]
 name = "gw-types"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=5070f2d32c60d1a5953742a38ac618e57656a41c#5070f2d32c60d1a5953742a38ac618e57656a41c"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=aeb5a94f8c9bb3642fd1ee5e794ad61a77a54c29#aeb5a94f8c9bb3642fd1ee5e794ad61a77a54c29"
 dependencies = [
  "cfg-if",
  "gw-hash",

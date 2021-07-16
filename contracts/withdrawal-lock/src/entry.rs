@@ -1,12 +1,15 @@
 // Import from `core` instead of from `std` since we are in no-std mode
 use core::result::Result;
 
-use validator_utils::gw_types::{
-    self,
-    core::ScriptHashType,
-    packed::{
-        CustodianLockArgs, CustodianLockArgsReader, RollupActionUnion,
-        UnlockWithdrawalWitnessUnion, WithdrawalLockArgs, WithdrawalLockArgsReader,
+use validator_utils::{
+    cells::rollup::MAX_ROLLUP_WITNESS_SIZE,
+    gw_types::{
+        self,
+        core::ScriptHashType,
+        packed::{
+            CustodianLockArgs, CustodianLockArgsReader, RollupActionUnionReader,
+            UnlockWithdrawalWitnessUnion, WithdrawalLockArgs, WithdrawalLockArgsReader,
+        },
     },
 };
 use validator_utils::{
@@ -80,19 +83,20 @@ pub fn main() -> Result<(), Error> {
     // execute verification
     match unlock_args.to_enum() {
         UnlockWithdrawalWitnessUnion::UnlockWithdrawalViaRevert(unlock_args) => {
+            let mut rollup_action_witness = [0u8; MAX_ROLLUP_WITNESS_SIZE];
             let withdrawal_block_hash = lock_args.withdrawal_block_hash();
             // prove the block is reverted
             let rollup_action = {
                 let index = search_rollup_cell(&rollup_type_hash, Source::Output)
                     .ok_or(Error::RollupCellNotFound)?;
-                parse_rollup_action(index, Source::Output)?
+                parse_rollup_action(&mut rollup_action_witness, index, Source::Output)?
             };
             match rollup_action.to_enum() {
-                RollupActionUnion::RollupSubmitBlock(args) => {
+                RollupActionUnionReader::RollupSubmitBlock(args) => {
                     if !args
                         .reverted_block_hashes()
-                        .into_iter()
-                        .any(|hash| hash == withdrawal_block_hash)
+                        .iter()
+                        .any(|hash| hash.as_slice() == withdrawal_block_hash.as_slice())
                     {
                         return Err(Error::InvalidRevertedBlocks);
                     }

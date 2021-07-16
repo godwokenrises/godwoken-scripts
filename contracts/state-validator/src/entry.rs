@@ -4,11 +4,12 @@ use core::result::Result;
 // Import heap related library from `alloc`
 // https://doc.rust-lang.org/alloc/index.html
 use validator_utils::{
-    cells::rollup::{load_rollup_config, parse_rollup_action},
+    cells::rollup::{load_rollup_config, parse_rollup_action, MAX_ROLLUP_WITNESS_SIZE},
     ckb_std::{
         ckb_types::prelude::Unpack as CKBUnpack,
         high_level::{load_cell_capacity, load_cell_data, load_script},
     },
+    gw_types::packed::RollupActionUnionReader,
     type_id::{check_type_id, TYPE_ID_SIZE},
 };
 
@@ -21,7 +22,7 @@ use crate::{
 
 use gw_types::{
     bytes::Bytes,
-    packed::{GlobalState, GlobalStateReader, RollupActionUnion},
+    packed::{GlobalState, GlobalStateReader},
     prelude::*,
 };
 use validator_utils::gw_types;
@@ -69,9 +70,12 @@ pub fn main() -> Result<(), Error> {
     let post_global_state = parse_global_state(Source::GroupOutput)?;
     let rollup_config = load_rollup_config(&prev_global_state.rollup_config_hash().unpack())?;
     let rollup_type_hash = load_script_hash()?.into();
-    let action = parse_rollup_action(0, Source::GroupOutput)?;
+
+    // load rollup action
+    let mut rollup_witness_buf = [0u8; MAX_ROLLUP_WITNESS_SIZE];
+    let action = parse_rollup_action(&mut rollup_witness_buf, 0, Source::GroupOutput)?;
     match action.to_enum() {
-        RollupActionUnion::RollupSubmitBlock(args) => {
+        RollupActionUnionReader::RollupSubmitBlock(args) => {
             // verify submit block
             verifications::submit_block::verify(
                 rollup_type_hash,
@@ -88,7 +92,7 @@ pub fn main() -> Result<(), Error> {
                 &prev_global_state,
             )?;
         }
-        RollupActionUnion::RollupEnterChallenge(args) => {
+        RollupActionUnionReader::RollupEnterChallenge(args) => {
             // verify enter challenge
             verifications::challenge::verify_enter_challenge(
                 rollup_type_hash,
@@ -98,7 +102,7 @@ pub fn main() -> Result<(), Error> {
                 &post_global_state,
             )?;
         }
-        RollupActionUnion::RollupCancelChallenge(_args) => {
+        RollupActionUnionReader::RollupCancelChallenge(_args) => {
             // verify cancel challenge
             verifications::challenge::verify_cancel_challenge(
                 rollup_type_hash,
@@ -107,7 +111,7 @@ pub fn main() -> Result<(), Error> {
                 &post_global_state,
             )?;
         }
-        RollupActionUnion::RollupRevert(args) => {
+        RollupActionUnionReader::RollupRevert(args) => {
             // verify revert
             verifications::revert::verify(
                 rollup_type_hash,

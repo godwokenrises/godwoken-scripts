@@ -36,7 +36,7 @@ pub fn verify_tx_execution(
     let ctx = unlock_args.context();
     let tx = unlock_args.l2tx();
     let kv_state = KVState::new(
-        ctx.kv_state(),
+        ctx.kv_state().as_reader(),
         unlock_args.kv_state_proof().unpack(),
         ctx.account_count().unpack(),
         None,
