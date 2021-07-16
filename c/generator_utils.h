@@ -19,10 +19,7 @@
 #define GW_SYS_CREATE 3100
 #define GW_SYS_STORE 3101
 #define GW_SYS_LOAD 3102
-#define GW_SYS_LOAD_SCRIPT_HASH_BY_ACCOUNT_ID 3103
-#define GW_SYS_LOAD_ACCOUNT_ID_BY_SCRIPT_HASH 3104
 #define GW_SYS_LOAD_ACCOUNT_SCRIPT 3105
-#define GW_SYS_GET_SCRIPT_HASH_BY_SHORT_ADDRESS 3106
 /* Syscall call / return */
 #define GW_SYS_SET_RETURN_DATA 3201
 /* Syscall data store / load */
@@ -163,8 +160,15 @@ int sys_get_account_id_by_script_hash(gw_context_t *ctx,
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
   }
-  return syscall(GW_SYS_LOAD_ACCOUNT_ID_BY_SCRIPT_HASH, script_hash, account_id,
-                 0, 0, 0, 0);
+  uint8_t raw_key[32] = {0};
+  uint8_t value[32] = {0};
+  gw_build_script_hash_to_account_id_key(script_hash, raw_key);
+  int ret = _internal_load_raw(ctx, raw_key, value);
+  if (ret != 0) {
+    return ret;
+  }
+  *account_id = *((uint32_t *)value);
+  return 0;
 }
 
 /* Get account script_hash by account id */
@@ -174,8 +178,15 @@ int sys_get_script_hash_by_account_id(gw_context_t *ctx,
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
   }
-  return syscall(GW_SYS_LOAD_SCRIPT_HASH_BY_ACCOUNT_ID, account_id, script_hash,
-                 0, 0, 0, 0);
+
+  int ret = _ensure_account_exists(ctx, account_id);
+  if (ret != 0) {
+    return ret;
+  }
+
+  uint8_t raw_key[32] = {0};
+  gw_build_account_field_key(account_id, GW_ACCOUNT_SCRIPT_HASH, raw_key);
+  return _internal_load_raw(ctx, raw_key, script_hash);
 }
 
 /* Get account script by account id */
@@ -184,8 +195,22 @@ int sys_get_account_script(gw_context_t *ctx, uint32_t account_id,
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
   }
+
+  /* get account script hash */
+  int ret;
+  uint8_t script_hash[32] = {0};
+  ret = sys_get_script_hash_by_account_id(ctx, account_id, script_hash);
+  if (ret != 0) {
+    return ret;
+  }
+
+  if (_is_zero_hash(script_hash)) {
+    ckb_debug("account script_hash is zero, which means account isn't exist");
+    return GW_ERROR_NOT_FOUND;
+  }
+
   volatile uint64_t inner_len = *len;
-  int ret = syscall(GW_SYS_LOAD_ACCOUNT_SCRIPT, script, &inner_len, offset, account_id, 0, 0);
+  ret = syscall(GW_SYS_LOAD_ACCOUNT_SCRIPT, script, &inner_len, offset, account_id, 0, 0);
   *len = inner_len;
   return ret;
 }
@@ -206,8 +231,22 @@ int sys_load_data(gw_context_t *ctx, uint8_t data_hash[32], uint64_t *len,
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
   }
+
+  /* Check data_hash_key */
+  int data_exists = 0;
+  int ret = _check_data_hash_exist(ctx, data_hash, &data_exists);
+  if(ret != 0) {
+    return ret;
+  }
+
+  if (!data_exists) {
+    ckb_debug("data hash not exist");
+    /* return not found if data isn't exist in the state tree */
+    return GW_ERROR_NOT_FOUND;
+  }
+
   volatile uint64_t inner_len = *len;
-  int ret = syscall(GW_SYS_LOAD_DATA, data, &inner_len, offset, data_hash, 0, 0);
+  ret = syscall(GW_SYS_LOAD_DATA, data, &inner_len, offset, data_hash, 0, 0);
   *len = inner_len;
   return ret;
 }
@@ -243,7 +282,8 @@ int sys_get_script_hash_by_prefix(gw_context_t *ctx, uint8_t *prefix, uint64_t p
   if (prefix_len == 0 || prefix_len > 32) {
     return GW_FATAL_INVALID_DATA;
   }
-  return syscall(GW_SYS_GET_SCRIPT_HASH_BY_SHORT_ADDRESS, script_hash, prefix, prefix_len, 0, 0, 0);
+
+  return _load_script_hash_by_short_script_hash(ctx, prefix, prefix_len, script_hash);
 }
 
 int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
@@ -251,6 +291,24 @@ int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
   }
+
+  /* calculate script_hash */
+  uint8_t script_hash[32] = {0};
+  blake2b_state blake2b_ctx;
+  blake2b_init(&blake2b_ctx, 32);
+  blake2b_update(&blake2b_ctx, script, script_len);
+  blake2b_final(&blake2b_ctx, script_hash, 32);
+
+  /* check existance */
+  int account_exist = 0;
+  int ret = _check_account_exists_by_script_hash(ctx, script_hash, &account_exist);
+  if(ret != 0) {
+    return ret;
+  }
+  if(account_exist) {
+    return GW_ERROR_DUPLICATED_SCRIPT_HASH;
+  }
+
   return syscall(GW_SYS_CREATE, script, script_len, account_id, 0, 0, 0);
 }
 

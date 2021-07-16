@@ -1,7 +1,4 @@
-use crate::{
-    script_tests::error_codes::{GW_ERROR_NOT_FOUND, GW_ERROR_RECOVER, GW_FATAL_ACCOUNT_NOT_FOUND},
-    testing_tool::chain::build_backend_manage,
-};
+use crate::testing_tool::chain::build_backend_manage;
 
 use super::{
     new_block_info, DummyChainStore, SudtLog, SudtLogType, ACCOUNT_OP_PROGRAM,
@@ -14,6 +11,9 @@ use gw_generator::{
     backend_manage::Backend,
     dummy_state::DummyState,
     error::TransactionError,
+    syscalls::error_codes::{
+        GW_ERROR_ACCOUNT_NOT_FOUND, GW_ERROR_NOT_FOUND, GW_ERROR_RECOVER, GW_FATAL_UNKNOWN_ARGS,
+    },
     traits::StateExt,
     Generator, RollupContext,
 };
@@ -210,7 +210,7 @@ fn test_example_account_operation() {
             TransactionError::InvalidExitCode(code) => code,
             err => panic!("unexpected {:?}", err),
         };
-        assert_eq!(err_code, GW_FATAL_ACCOUNT_NOT_FOUND as i8);
+        assert_eq!(err_code, GW_ERROR_ACCOUNT_NOT_FOUND as i8);
     }
 
     // Store: success
@@ -249,7 +249,7 @@ fn test_example_account_operation() {
             TransactionError::InvalidExitCode(code) => code,
             err => panic!("unexpected {:?}", err),
         };
-        assert_eq!(err_code, GW_FATAL_ACCOUNT_NOT_FOUND as i8);
+        assert_eq!(err_code, GW_ERROR_ACCOUNT_NOT_FOUND as i8);
     }
 
     // LoadNonce: success
@@ -280,7 +280,7 @@ fn test_example_account_operation() {
             TransactionError::InvalidExitCode(code) => code,
             err => panic!("unexpected {:?}", err),
         };
-        assert_eq!(err_code, GW_FATAL_ACCOUNT_NOT_FOUND as i8);
+        assert_eq!(err_code, GW_ERROR_ACCOUNT_NOT_FOUND as i8);
     }
 
     // Log: success
@@ -334,7 +334,7 @@ fn test_example_account_operation() {
             TransactionError::InvalidExitCode(code) => code,
             err => panic!("unexpected {:?}", err),
         };
-        assert_eq!(err_code, GW_FATAL_ACCOUNT_NOT_FOUND as i8);
+        assert_eq!(err_code, GW_ERROR_ACCOUNT_NOT_FOUND as i8);
     }
 }
 
@@ -448,6 +448,6 @@ fn test_example_recover_account() {
             err => panic!("unexpected {:?}", err),
         };
         println!("err_code: {}", err_code);
-        assert_eq!(err_code, GW_ERROR_NOT_FOUND as i8);
+        assert_eq!(err_code, GW_FATAL_UNKNOWN_ARGS);
     }
 }

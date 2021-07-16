@@ -15,6 +15,7 @@ typedef unsigned __int128 uint128_t;
 /* Non account type */
 #define GW_ACCOUNT_SCRIPT_HASH_TO_ID 3
 #define GW_DATA_HASH_PREFIX 4
+#define GW_SHORT_ACCOUNT_SCRIPT_HASH_TO_SCRIPT_HASH 5
 
 /* Limitations */
 /* 24KB (ethereum max contract code size) */
@@ -32,10 +33,12 @@ typedef unsigned __int128 uint128_t;
 #define GW_MAX_ROLLUP_CONFIG_SIZE (4 * 1024)
 #define GW_MAX_WITNESS_SIZE (300 * 1024)
 
-#define GW_LOG_SUDT_TRANSFER    0x0
-#define GW_LOG_SUDT_PAY_FEE     0x1
+#define GW_LOG_SUDT_TRANSFER 0x0
+#define GW_LOG_SUDT_PAY_FEE 0x1
 #define GW_LOG_POLYJUICE_SYSTEM 0x2
-#define GW_LOG_POLYJUICE_USER   0x3
+#define GW_LOG_POLYJUICE_USER 0x3
+
+#define GW_DEFAULT_SHORT_SCRIPT_HASH_LEN 20
 
 /* Godwoken context */
 typedef struct {
@@ -68,7 +71,6 @@ int gw_finalize(struct gw_context_t *ctx);
  */
 int gw_verify_sudt_account(struct gw_context_t *ctx, uint32_t sudt_id);
 
-
 /* layer2 syscalls */
 
 /**
@@ -95,8 +97,7 @@ typedef int (*gw_create_fn)(struct gw_context_t *ctx, uint8_t *script,
  * @return           The status code, 0 is success
  */
 typedef int (*gw_load_fn)(struct gw_context_t *ctx, uint32_t account_id,
-                          const uint8_t *key,
-                          const uint64_t key_len,
+                          const uint8_t *key, const uint64_t key_len,
                           uint8_t value[GW_VALUE_BYTES]);
 
 /**
@@ -110,8 +111,7 @@ typedef int (*gw_load_fn)(struct gw_context_t *ctx, uint32_t account_id,
  * @return           The status code, 0 is success
  */
 typedef int (*gw_store_fn)(struct gw_context_t *ctx, uint32_t account_id,
-                           const uint8_t *key,
-                           const uint64_t key_len,
+                           const uint8_t *key, const uint64_t key_len,
                            const uint8_t value[GW_VALUE_BYTES]);
 
 /**
@@ -202,7 +202,8 @@ typedef int (*gw_get_block_hash_fn)(struct gw_context_t *ctx, uint64_t number,
  * @return            The status code, 0 is success
  */
 typedef int (*gw_get_script_hash_by_prefix_fn)(struct gw_context_t *ctx,
-                                               uint8_t *prefix, uint64_t prefix_len,
+                                               uint8_t *prefix,
+                                               uint64_t prefix_len,
                                                uint8_t script_hash[32]);
 /**
  * Recover an EoA account script by signature
@@ -218,11 +219,9 @@ typedef int (*gw_get_script_hash_by_prefix_fn)(struct gw_context_t *ctx,
  */
 
 typedef int (*gw_recover_account_fn)(struct gw_context_t *ctx,
-                                     uint8_t message[32],
-                                     uint8_t *signature,
+                                     uint8_t message[32], uint8_t *signature,
                                      uint64_t signature_len,
-                                     uint8_t code_hash[32],
-                                     uint8_t *script,
+                                     uint8_t code_hash[32], uint8_t *script,
                                      uint64_t *script_len);
 
 /**
@@ -230,13 +229,15 @@ typedef int (*gw_recover_account_fn)(struct gw_context_t *ctx,
  *
  * @param ctx            The godwoken context
  * @param account_id     The account to emit log
- * @param service_flag   The service flag of log, for category different log types
+ * @param service_flag   The service flag of log, for category different log
+ * types
  * @param data           The log data
  * @param data_length    The length of the log data
  * @return               The status code, 0 is success
  */
-typedef int (*gw_log_fn)(struct gw_context_t *ctx, uint32_t account_id, uint8_t service_flag,
-                         uint64_t data_length, const uint8_t *data);
+typedef int (*gw_log_fn)(struct gw_context_t *ctx, uint32_t account_id,
+                         uint8_t service_flag, uint64_t data_length,
+                         const uint8_t *data);
 
 /**
  * Record fee payment
@@ -247,8 +248,10 @@ typedef int (*gw_log_fn)(struct gw_context_t *ctx, uint32_t account_id, uint8_t 
  * @param amount         The amount of fee
  * @return               The status code, 0 is success
  */
-typedef int (*gw_pay_fee_fn)(struct gw_context_t *ctx, const uint8_t *payer_addr,
-                             const uint64_t short_addr_len, uint32_t sudt_id, uint128_t amount);
+typedef int (*gw_pay_fee_fn)(struct gw_context_t *ctx,
+                             const uint8_t *payer_addr,
+                             const uint64_t short_addr_len, uint32_t sudt_id,
+                             uint128_t amount);
 
 /**
  * Load value by raw key from state tree
@@ -260,8 +263,8 @@ typedef int (*gw_pay_fee_fn)(struct gw_context_t *ctx, const uint8_t *payer_addr
  * @return           The status code, 0 is success
  */
 typedef int (*_gw_load_raw_fn)(struct gw_context_t *ctx,
-                          const uint8_t raw_key[GW_KEY_BYTES],
-                          uint8_t value[GW_VALUE_BYTES]);
+                               const uint8_t raw_key[GW_KEY_BYTES],
+                               uint8_t value[GW_VALUE_BYTES]);
 
 /**
  * Store key,value pair to state tree
@@ -274,6 +277,6 @@ typedef int (*_gw_load_raw_fn)(struct gw_context_t *ctx,
  * @return           The status code, 0 is success
  */
 typedef int (*_gw_store_raw_fn)(struct gw_context_t *ctx,
-                           const uint8_t raw_key[GW_KEY_BYTES],
-                           const uint8_t value[GW_VALUE_BYTES]);
+                                const uint8_t raw_key[GW_KEY_BYTES],
+                                const uint8_t value[GW_VALUE_BYTES]);
 #endif /* GW_DEF_H_ */
