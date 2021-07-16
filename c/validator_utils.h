@@ -1,10 +1,10 @@
 #ifndef GW_VALIDATOR_H_
 #define GW_VALIDATOR_H_
 
-#include "ckb_syscalls.h"
-#include "gw_smt.h"
-#include "gw_def.h"
 #include "blockchain.h"
+#include "ckb_syscalls.h"
+#include "gw_def.h"
+#include "gw_smt.h"
 
 #define SCRIPT_HASH_TYPE_DATA 0
 #define SCRIPT_HASH_TYPE_TYPE 1
@@ -76,6 +76,10 @@ typedef struct gw_context_t {
   /* sender's original nonce */
   uint32_t original_sender_nonce;
 
+  /* tx check point */
+  uint8_t prev_tx_checkpoint[32];
+  uint8_t post_tx_checkpoint[32];
+
   /* kv state */
   gw_state_t kv_state;
   gw_pair_t kv_pairs[GW_MAX_KV_PAIRS];
@@ -102,9 +106,8 @@ typedef struct gw_context_t {
 
 #include "common.h"
 
-int _internal_load_raw(gw_context_t *ctx,
-             const uint8_t raw_key[GW_VALUE_BYTES],
-             uint8_t value[GW_VALUE_BYTES]) {
+int _internal_load_raw(gw_context_t *ctx, const uint8_t raw_key[GW_VALUE_BYTES],
+                       uint8_t value[GW_VALUE_BYTES]) {
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
   }
@@ -112,9 +115,8 @@ int _internal_load_raw(gw_context_t *ctx,
   return gw_state_fetch(&ctx->kv_state, raw_key, value);
 }
 
-int _internal_store_raw(gw_context_t *ctx,
-              const uint8_t raw_key[GW_KEY_BYTES],
-              const uint8_t value[GW_VALUE_BYTES]) {
+int _internal_store_raw(gw_context_t *ctx, const uint8_t raw_key[GW_KEY_BYTES],
+                        const uint8_t value[GW_VALUE_BYTES]) {
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
   }
@@ -232,7 +234,7 @@ int sys_get_account_script(gw_context_t *ctx, uint32_t account_id,
     return ret;
   }
 
-  if(_is_zero_hash(script_hash)) {
+  if (_is_zero_hash(script_hash)) {
     ckb_debug("account script_hash is zero, which means account isn't exist");
     return GW_ERROR_NOT_FOUND;
   }
@@ -248,7 +250,8 @@ int sys_get_account_script(gw_context_t *ctx, uint32_t account_id,
   }
 
   if (entry == NULL) {
-    ckb_debug("account script_hash exist, but we can't found, we miss the neccesary context");
+    ckb_debug("account script_hash exist, but we can't found, we miss the "
+              "neccesary context");
     return GW_FATAL_ACCOUNT_NOT_FOUND;
   }
 
@@ -376,7 +379,8 @@ int sys_get_script_hash_by_prefix(gw_context_t *ctx, uint8_t *prefix,
     }
   }
 
-  /* we don't know wether the script isn't exists or the validation context is missing */
+  /* we don't know wether the script isn't exists or the validation context is
+   * missing */
   return GW_FATAL_INVALID_CONTEXT;
 }
 
@@ -824,6 +828,57 @@ int _load_verification_context(
   return 0;
 }
 
+/*
+ * Load transaction checkpoints
+ */
+int _load_tx_checkpoint(mol_seg_t *raw_l2block_seg, uint32_t tx_index,
+                        uint8_t prev_tx_checkpoint[32],
+                        uint8_t post_tx_checkpoint[32]) {
+  mol_seg_t submit_withdrawals_seg =
+      MolReader_RawL2Block_get_submit_withdrawals(raw_l2block_seg);
+  mol_seg_t withdrawals_count_seg =
+      MolReader_SubmitWithdrawals_get_withdrawal_count(&submit_withdrawals_seg);
+  uint32_t withdrawals_count = *((uint32_t *)withdrawals_count_seg.ptr);
+
+  mol_seg_t checkpoint_list_seg =
+      MolReader_RawL2Block_get_state_checkpoint_list(raw_l2block_seg);
+
+  // load prev tx checkpoint
+  if (0 == tx_index) {
+    mol_seg_t submit_txs_seg =
+        MolReader_RawL2Block_get_submit_transactions(raw_l2block_seg);
+    mol_seg_t prev_state_checkpoint_seg =
+        MolReader_SubmitTransactions_get_prev_state_checkpoint(&submit_txs_seg);
+    if (32 != prev_state_checkpoint_seg.size) {
+      ckb_debug("invalid prev state checkpoint");
+      return GW_FATAL_INVALID_DATA;
+    }
+    memcpy(prev_tx_checkpoint, prev_state_checkpoint_seg.ptr, 32);
+  } else {
+    uint32_t prev_tx_checkpoint_index = withdrawals_count + tx_index - 1;
+
+    mol_seg_res_t checkpoint_res =
+        MolReader_Byte32Vec_get(&checkpoint_list_seg, prev_tx_checkpoint_index);
+    if (MOL_OK != checkpoint_res.errno || 32 != checkpoint_res.seg.size) {
+      ckb_debug("invalid prev tx checkpoint");
+      return GW_FATAL_INVALID_DATA;
+    }
+    memcpy(prev_tx_checkpoint, checkpoint_res.seg.ptr, 32);
+  }
+
+  // load post tx checkpoint
+  uint32_t post_tx_checkpoint_index = withdrawals_count + tx_index;
+
+  mol_seg_res_t checkpoint_res =
+      MolReader_Byte32Vec_get(&checkpoint_list_seg, post_tx_checkpoint_index);
+  if (MOL_OK != checkpoint_res.errno || 32 != checkpoint_res.seg.size) {
+    ckb_debug("invalid post tx checkpoint");
+    return GW_FATAL_INVALID_DATA;
+  }
+  memcpy(post_tx_checkpoint, checkpoint_res.seg.ptr, 32);
+  return 0;
+}
+
 /* Load verify transaction witness
  */
 int _load_verify_transaction_witness(
@@ -837,7 +892,9 @@ int _load_verify_transaction_witness(
     uint64_t *script_entries_size, gw_account_merkle_state_t *prev_account,
     gw_account_merkle_state_t *post_account, uint8_t return_data_hash[32],
     gw_state_t *block_hashes_state,
-    gw_pair_t block_hashes_pairs[GW_MAX_GET_BLOCK_HASH_DEPTH]) {
+    gw_pair_t block_hashes_pairs[GW_MAX_GET_BLOCK_HASH_DEPTH],
+    uint8_t prev_tx_checkpoint[32], uint8_t post_tx_checkpoint[32],
+    uint32_t *prev_tx_account_count) {
   /* load witness from challenge cell */
   int ret;
   uint8_t buf[GW_MAX_WITNESS_SIZE];
@@ -1037,6 +1094,17 @@ int _load_verify_transaction_witness(
          kv_state_proof_bytes_seg.size);
   *kv_state_proof_size = kv_state_proof_bytes_seg.size;
 
+  /* load tx checkpoint */
+  ret = _load_tx_checkpoint(&raw_l2block_seg, tx_index, prev_tx_checkpoint,
+                            post_tx_checkpoint);
+  if (ret != 0) {
+    return ret;
+  }
+
+  mol_seg_t account_count_seg =
+      MolReader_VerifyTransactionContext_get_account_count(&verify_tx_ctx_seg);
+  *prev_tx_account_count = *((uint32_t *)account_count_seg.ptr);
+
   /* load prev account state */
   mol_seg_t prev_account_seg =
       MolReader_RawL2Block_get_prev_account(&raw_l2block_seg);
@@ -1232,6 +1300,40 @@ int _check_owner_lock_hash() {
   return CKB_INDEX_OUT_OF_BOUND;
 }
 
+int _gw_calculate_state_checkpoint(uint8_t buffer[32], const gw_state_t *state,
+                                   const uint8_t *proof, uint32_t proof_length,
+                                   uint32_t account_count) {
+  uint8_t root[32];
+  int ret = gw_smt_calculate_root(root, state, proof, proof_length);
+  if (0 != ret) {
+    ckb_debug("failed to calculate kv state root");
+    return ret;
+  }
+
+  blake2b_state blake2b_ctx;
+  blake2b_init(&blake2b_ctx, 32);
+  blake2b_update(&blake2b_ctx, root, 32);
+  blake2b_update(&blake2b_ctx, &account_count, sizeof(uint32_t));
+  blake2b_final(&blake2b_ctx, buffer, 32);
+
+  return 0;
+}
+
+int _gw_verify_checkpoint(const uint8_t checkpoint[32], const gw_state_t *state,
+                          const uint8_t *proof, uint32_t proof_length,
+                          uint32_t account_count) {
+  uint8_t proof_checkpoint[32];
+  int ret = _gw_calculate_state_checkpoint(proof_checkpoint, state, proof,
+                                           proof_length, account_count);
+  if (0 != ret) {
+    return ret;
+  }
+  if (0 != memcmp(proof_checkpoint, checkpoint, 32)) {
+    return GW_FATAL_INVALID_PROOF;
+  }
+  return 0;
+}
+
 int gw_context_init(gw_context_t *ctx) {
   /* check owner lock */
   int ret = _check_owner_lock_hash();
@@ -1298,26 +1400,26 @@ int gw_context_init(gw_context_t *ctx) {
       &ctx->block_info, &ctx->kv_state, ctx->kv_pairs, ctx->kv_state_proof,
       &ctx->kv_state_proof_size, ctx->scripts, &ctx->script_entries_size,
       &ctx->prev_account, &ctx->post_account, ctx->return_data_hash,
-      &ctx->block_hashes_state, ctx->block_hashes_pairs);
+      &ctx->block_hashes_state, ctx->block_hashes_pairs,
+      ctx->prev_tx_checkpoint, ctx->post_tx_checkpoint, &ctx->account_count);
   if (ret != 0) {
     ckb_debug("failed to load verify transaction witness");
     return ret;
   }
-  /* set current account count */
-  ctx->account_count = ctx->prev_account.count;
 
   /* verify kv_state merkle proof */
   gw_state_normalize(&ctx->kv_state);
-  ret = gw_smt_verify(ctx->prev_account.merkle_root, &ctx->kv_state,
-                      ctx->kv_state_proof, ctx->kv_state_proof_size);
+  ret = _gw_verify_checkpoint(ctx->prev_tx_checkpoint, &ctx->kv_state,
+                              ctx->kv_state_proof, ctx->kv_state_proof_size,
+                              ctx->account_count);
   if (ret != 0) {
-    ckb_debug("failed to merkle verify prev account merkle root");
+    ckb_debug("failed to merkle verify prev tx checkpoint");
     return ret;
   }
 
   /* init original sender nonce */
   ret = _load_sender_nonce(ctx, &ctx->original_sender_nonce);
-  if(ret != 0) {
+  if (ret != 0) {
     ckb_debug("failed to init original sender nonce");
     return ret;
   }
@@ -1333,7 +1435,7 @@ int gw_finalize(gw_context_t *ctx) {
 
   /* update sender nonce */
   int ret = _increase_sender_nonce(ctx);
-  if(ret != 0) {
+  if (ret != 0) {
     ckb_debug("failed to update original sender nonce");
     return ret;
   }
@@ -1350,10 +1452,11 @@ int gw_finalize(gw_context_t *ctx) {
   }
 
   gw_state_normalize(&ctx->kv_state);
-  ret = gw_smt_verify(ctx->post_account.merkle_root, &ctx->kv_state,
-                          ctx->kv_state_proof, ctx->kv_state_proof_size);
+  ret = _gw_verify_checkpoint(ctx->post_tx_checkpoint, &ctx->kv_state,
+                              ctx->kv_state_proof, ctx->kv_state_proof_size,
+                              ctx->account_count);
   if (ret != 0) {
-    ckb_debug("failed to merkle verify post account merkle root");
+    ckb_debug("failed to merkle verify post tx checkpoint");
     return ret;
   }
   return 0;
