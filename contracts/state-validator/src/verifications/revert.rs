@@ -110,7 +110,7 @@ fn check_rewards(
         debug!("reverted stake cells isn't according to reverted block stake set");
         return Err(Error::InvalidStakeCell);
     }
-    if stake_cells.len() > reverted_blocks.len() {
+    if stake_cells.len() != reverted_block_stake_set.len() {
         debug!("reverted stake cells are more than reverted blocks");
         return Err(Error::InvalidStakeCell);
     }
