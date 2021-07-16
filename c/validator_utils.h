@@ -1299,6 +1299,40 @@ int _check_owner_lock_hash() {
   return CKB_INDEX_OUT_OF_BOUND;
 }
 
+int _gw_calculate_state_checkpoint(uint8_t buffer[32], const gw_state_t *state,
+                                   const uint8_t *proof, uint32_t proof_length,
+                                   uint32_t account_count) {
+  uint8_t root[32];
+  int ret = gw_smt_calculate_root(root, state, proof, proof_length);
+  if (0 != ret) {
+    ckb_debug("failed to calculate kv state root");
+    return ret;
+  }
+
+  blake2b_state blake2b_ctx;
+  blake2b_init(&blake2b_ctx, 32);
+  blake2b_update(&blake2b_ctx, root, 32);
+  blake2b_update(&blake2b_ctx, &account_count, sizeof(uint32_t));
+  blake2b_final(&blake2b_ctx, buffer, 32);
+
+  return 0;
+}
+
+int _gw_verify_checkpoint(const uint8_t checkpoint[32], const gw_state_t *state,
+                          const uint8_t *proof, uint32_t proof_length,
+                          uint32_t account_count) {
+  uint8_t proof_checkpoint[32];
+  int ret = _gw_calculate_state_checkpoint(proof_checkpoint, state, proof,
+                                           proof_length, account_count);
+  if (0 != ret) {
+    return ret;
+  }
+  if (0 != memcmp(proof_checkpoint, checkpoint, 32)) {
+    return GW_FATAL_INVALID_PROOF;
+  }
+  return 0;
+}
+
 int gw_context_init(gw_context_t *ctx) {
   /* check owner lock */
   int ret = _check_owner_lock_hash();
@@ -1374,10 +1408,11 @@ int gw_context_init(gw_context_t *ctx) {
 
   /* verify kv_state merkle proof */
   gw_state_normalize(&ctx->kv_state);
-  ret = gw_smt_verify(ctx->prev_account.merkle_root, &ctx->kv_state,
-                      ctx->kv_state_proof, ctx->kv_state_proof_size);
+  ret = _gw_verify_checkpoint(ctx->prev_tx_checkpoint, &ctx->kv_state,
+                              ctx->kv_state_proof, ctx->kv_state_proof_size,
+                              ctx->account_count);
   if (ret != 0) {
-    ckb_debug("failed to merkle verify prev account merkle root");
+    ckb_debug("failed to merkle verify prev tx checkpoint");
     return ret;
   }
 
@@ -1416,10 +1451,11 @@ int gw_finalize(gw_context_t *ctx) {
   }
 
   gw_state_normalize(&ctx->kv_state);
-  ret = gw_smt_verify(ctx->post_account.merkle_root, &ctx->kv_state,
-                          ctx->kv_state_proof, ctx->kv_state_proof_size);
+  int ret = _gw_verify_checkpoint(ctx->post_tx_checkpoint, &ctx->kv_state,
+                                  ctx->kv_state_proof, ctx->kv_state_proof_size,
+                                  ctx->account_count);
   if (ret != 0) {
-    ckb_debug("failed to merkle verify post account merkle root");
+    ckb_debug("failed to merkle verify post tx checkpoint");
     return ret;
   }
   return 0;
