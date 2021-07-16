@@ -1452,9 +1452,9 @@ int gw_finalize(gw_context_t *ctx) {
   }
 
   gw_state_normalize(&ctx->kv_state);
-  int ret = _gw_verify_checkpoint(ctx->post_tx_checkpoint, &ctx->kv_state,
-                                  ctx->kv_state_proof, ctx->kv_state_proof_size,
-                                  ctx->account_count);
+  ret = _gw_verify_checkpoint(ctx->post_tx_checkpoint, &ctx->kv_state,
+                              ctx->kv_state_proof, ctx->kv_state_proof_size,
+                              ctx->account_count);
   if (ret != 0) {
     ckb_debug("failed to merkle verify post tx checkpoint");
     return ret;
