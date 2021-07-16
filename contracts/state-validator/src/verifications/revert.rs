@@ -121,20 +121,25 @@ fn check_rewards(
     let expected_reward_capacity =
         total_stake_capacity.saturating_mul(reward_burn_rate.into()) / 100;
     let expected_burn_capacity = total_stake_capacity.saturating_sub(expected_reward_capacity);
-    // collect rewards receiver cells capacity
-    let received_capacity: u128 = {
-        let rewards_receiver_lock_hash = challenge_cell.args.rewards_receiver_lock().hash();
+
+    let rewards_receiver_lock_hash = challenge_cell.args.rewards_receiver_lock().hash();
+    if search_lock_hashes(&rewards_receiver_lock_hash, Source::Input).is_empty() {
+        // collect rewards receiver cells capacity
         let input_capacity =
             get_receiver_cells_capacity(config, &rewards_receiver_lock_hash, Source::Input)?;
-        let output_capacity =
+        if 0 != input_capacity {
+            return Err(Error::InvalidChallengeReward);
+        }
+        debug!("no reward receiver lock in inputs");
+
+        let received_capacity: u128 =
             get_receiver_cells_capacity(config, &rewards_receiver_lock_hash, Source::Output)?;
-        output_capacity.saturating_sub(input_capacity)
-    };
-    // make sure rewards are sent to the challenger
-    if received_capacity
-        < expected_reward_capacity.saturating_add(challenge_cell.value.capacity.into())
-    {
-        return Err(Error::InvalidChallengeReward);
+        // make sure rewards are sent to the challenger
+        if received_capacity
+            < expected_reward_capacity.saturating_add(challenge_cell.value.capacity.into())
+        {
+            return Err(Error::InvalidChallengeReward);
+        }
     }
     // check burned assets
     let burned_capacity: u128 = {
