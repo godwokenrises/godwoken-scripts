@@ -15,7 +15,7 @@ members = [
 
 [profile.release]
 codegen-units = 1
-lto = true
+lto = false
 opt-level = 's'
 overflow-checks = true
 panic = 'abort'
