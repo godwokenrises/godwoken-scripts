@@ -3,10 +3,10 @@
 
 #include "blake2b.h"
 #include "blockchain.h"
+#include "ckb_smt.h"
 #include "godwoken.h"
 #include "gw_def.h"
 #include "gw_errors.h"
-#include "gw_smt.h"
 #include "stddef.h"
 
 /* common functions,

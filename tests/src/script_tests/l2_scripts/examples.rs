@@ -11,9 +11,7 @@ use gw_generator::{
     backend_manage::Backend,
     dummy_state::DummyState,
     error::TransactionError,
-    syscalls::error_codes::{
-        GW_ERROR_ACCOUNT_NOT_FOUND, GW_ERROR_NOT_FOUND, GW_ERROR_RECOVER, GW_FATAL_UNKNOWN_ARGS,
-    },
+    syscalls::error_codes::{GW_ERROR_ACCOUNT_NOT_FOUND, GW_ERROR_RECOVER, GW_FATAL_UNKNOWN_ARGS},
     traits::StateExt,
     Generator, RollupContext,
 };

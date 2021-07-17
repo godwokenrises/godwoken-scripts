@@ -1723,7 +1723,7 @@ dependencies = [
 [[package]]
 name = "gw-block-producer"
 version = "0.2.0-rc1"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=c7f0781243e4c02c9f49b565ed83174c40fc59c1#c7f0781243e4c02c9f49b565ed83174c40fc59c1"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=85aa5607edda6386a7aa762f4cfd53c998fa97af#85aa5607edda6386a7aa762f4cfd53c998fa97af"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -1765,7 +1765,7 @@ dependencies = [
 [[package]]
 name = "gw-chain"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=c7f0781243e4c02c9f49b565ed83174c40fc59c1#c7f0781243e4c02c9f49b565ed83174c40fc59c1"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=85aa5607edda6386a7aa762f4cfd53c998fa97af#85aa5607edda6386a7aa762f4cfd53c998fa97af"
 dependencies = [
  "anyhow",
  "ckb-fixed-hash 0.38.0",
@@ -1788,7 +1788,7 @@ dependencies = [
 [[package]]
 name = "gw-common"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=c7f0781243e4c02c9f49b565ed83174c40fc59c1#c7f0781243e4c02c9f49b565ed83174c40fc59c1"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=85aa5607edda6386a7aa762f4cfd53c998fa97af#85aa5607edda6386a7aa762f4cfd53c998fa97af"
 dependencies = [
  "cfg-if 0.1.10",
  "gw-hash",
@@ -1799,7 +1799,7 @@ dependencies = [
 [[package]]
 name = "gw-config"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=c7f0781243e4c02c9f49b565ed83174c40fc59c1#c7f0781243e4c02c9f49b565ed83174c40fc59c1"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=85aa5607edda6386a7aa762f4cfd53c998fa97af#85aa5607edda6386a7aa762f4cfd53c998fa97af"
 dependencies = [
  "ckb-fixed-hash 0.38.0",
  "gw-jsonrpc-types",
@@ -1809,7 +1809,7 @@ dependencies = [
 [[package]]
 name = "gw-db"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=c7f0781243e4c02c9f49b565ed83174c40fc59c1#c7f0781243e4c02c9f49b565ed83174c40fc59c1"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=85aa5607edda6386a7aa762f4cfd53c998fa97af#85aa5607edda6386a7aa762f4cfd53c998fa97af"
 dependencies = [
  "ckb-rocksdb",
  "libc",
@@ -1821,7 +1821,7 @@ dependencies = [
 [[package]]
 name = "gw-generator"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=c7f0781243e4c02c9f49b565ed83174c40fc59c1#c7f0781243e4c02c9f49b565ed83174c40fc59c1"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=85aa5607edda6386a7aa762f4cfd53c998fa97af#85aa5607edda6386a7aa762f4cfd53c998fa97af"
 dependencies = [
  "anyhow",
  "blake2b-rs 0.2.0",
@@ -1843,7 +1843,7 @@ dependencies = [
 [[package]]
 name = "gw-hash"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=c7f0781243e4c02c9f49b565ed83174c40fc59c1#c7f0781243e4c02c9f49b565ed83174c40fc59c1"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=85aa5607edda6386a7aa762f4cfd53c998fa97af#85aa5607edda6386a7aa762f4cfd53c998fa97af"
 dependencies = [
  "blake2b-ref",
 ]
@@ -1851,7 +1851,7 @@ dependencies = [
 [[package]]
 name = "gw-jsonrpc-types"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=c7f0781243e4c02c9f49b565ed83174c40fc59c1#c7f0781243e4c02c9f49b565ed83174c40fc59c1"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=85aa5607edda6386a7aa762f4cfd53c998fa97af#85aa5607edda6386a7aa762f4cfd53c998fa97af"
 dependencies = [
  "anyhow",
  "ckb-fixed-hash 0.38.0",
@@ -1865,7 +1865,7 @@ dependencies = [
 [[package]]
 name = "gw-mem-pool"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=c7f0781243e4c02c9f49b565ed83174c40fc59c1#c7f0781243e4c02c9f49b565ed83174c40fc59c1"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=85aa5607edda6386a7aa762f4cfd53c998fa97af#85aa5607edda6386a7aa762f4cfd53c998fa97af"
 dependencies = [
  "anyhow",
  "gw-common",
@@ -1879,7 +1879,7 @@ dependencies = [
 [[package]]
 name = "gw-rpc-server"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=c7f0781243e4c02c9f49b565ed83174c40fc59c1#c7f0781243e4c02c9f49b565ed83174c40fc59c1"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=85aa5607edda6386a7aa762f4cfd53c998fa97af#85aa5607edda6386a7aa762f4cfd53c998fa97af"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -1919,7 +1919,7 @@ dependencies = [
 [[package]]
 name = "gw-store"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=c7f0781243e4c02c9f49b565ed83174c40fc59c1#c7f0781243e4c02c9f49b565ed83174c40fc59c1"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=85aa5607edda6386a7aa762f4cfd53c998fa97af#85aa5607edda6386a7aa762f4cfd53c998fa97af"
 dependencies = [
  "anyhow",
  "gw-common",
@@ -1972,7 +1972,7 @@ dependencies = [
 [[package]]
 name = "gw-traits"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=c7f0781243e4c02c9f49b565ed83174c40fc59c1#c7f0781243e4c02c9f49b565ed83174c40fc59c1"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=85aa5607edda6386a7aa762f4cfd53c998fa97af#85aa5607edda6386a7aa762f4cfd53c998fa97af"
 dependencies = [
  "gw-common",
  "gw-db",
@@ -1982,7 +1982,7 @@ dependencies = [
 [[package]]
 name = "gw-types"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=c7f0781243e4c02c9f49b565ed83174c40fc59c1#c7f0781243e4c02c9f49b565ed83174c40fc59c1"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=85aa5607edda6386a7aa762f4cfd53c998fa97af#85aa5607edda6386a7aa762f4cfd53c998fa97af"
 dependencies = [
  "cfg-if 0.1.10",
  "ckb-fixed-hash 0.38.0",
@@ -1994,7 +1994,7 @@ dependencies = [
 [[package]]
 name = "gw-web3-indexer"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=c7f0781243e4c02c9f49b565ed83174c40fc59c1#c7f0781243e4c02c9f49b565ed83174c40fc59c1"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=85aa5607edda6386a7aa762f4cfd53c998fa97af#85aa5607edda6386a7aa762f4cfd53c998fa97af"
 dependencies = [
  "anyhow",
  "ckb-hash 0.38.0",
@@ -3587,9 +3587,9 @@ dependencies = [
 
 [[package]]
 name = "sparse-merkle-tree"
-version = "0.4.0-rc1"
+version = "0.5.0-rc2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec860bc00b39e71398547445bda898397ee341c97796cb65fd8a0f3bff22cc10"
+checksum = "4edfa0fa43ab341aa5985e6c745c04836f465480c52a8e35d16d26be31f7dbea"
 dependencies = [
  "cfg-if 0.1.10",
 ]
