@@ -1,9 +1,9 @@
 #ifndef GW_SMT_H_
 #define GW_SMT_H_
 
+#include "blake2b.h"
 #include "gw_def.h"
 #include "gw_errors.h"
-#include "blake2b.h"
 
 #define _GW_SMT_STACK_SIZE 32
 
@@ -181,82 +181,82 @@ int gw_smt_calculate_root(uint8_t buffer[32], const gw_state_t *state,
 
   while (proof_index < proof_length) {
     switch (proof[proof_index++]) {
-    case 0x4C:
-      if (stack_top >= _GW_SMT_STACK_SIZE) {
-        return GW_FATAL_INVALID_STACK;
-      }
-      if (leave_index >= state->len) {
+      case 0x4C:
+        if (stack_top >= _GW_SMT_STACK_SIZE) {
+          return GW_FATAL_INVALID_STACK;
+        }
+        if (leave_index >= state->len) {
+          return GW_FATAL_INVALID_PROOF;
+        }
+        memcpy(stack_keys[stack_top], state->pairs[leave_index].key,
+               GW_KEY_BYTES);
+        if (_gw_zero_value(state->pairs[leave_index].value)) {
+          memset(stack_values[stack_top], 0, 32);
+        } else {
+          blake2b_init(&blake2b_ctx, 32);
+          blake2b_update(&blake2b_ctx, state->pairs[leave_index].key,
+                         GW_KEY_BYTES);
+          blake2b_update(&blake2b_ctx, state->pairs[leave_index].value,
+                         GW_KEY_BYTES);
+          blake2b_final(&blake2b_ctx, stack_values[stack_top], 32);
+        }
+        stack_top++;
+        leave_index++;
+        break;
+      case 0x50: {
+        if (stack_top == 0) {
+          return GW_FATAL_INVALID_STACK;
+        }
+        if (proof_index + 33 > proof_length) {
+          return GW_FATAL_INVALID_PROOF;
+        }
+        uint8_t height = proof[proof_index++];
+        const uint8_t *current_proof = &proof[proof_index];
+        proof_index += 32;
+        uint8_t *key = stack_keys[stack_top - 1];
+        uint8_t *value = stack_values[stack_top - 1];
+        if (_gw_get_bit(key, height)) {
+          _gw_merge(current_proof, value, value);
+        } else {
+          _gw_merge(value, current_proof, value);
+        }
+        _gw_parent_path(key, height);
+      } break;
+      case 0x48: {
+        if (stack_top < 2) {
+          return GW_FATAL_INVALID_STACK;
+        }
+        if (proof_index >= proof_length) {
+          return GW_FATAL_INVALID_PROOF;
+        }
+        uint8_t height = proof[proof_index++];
+        uint8_t *key_a = stack_keys[stack_top - 2];
+        uint8_t *value_a = stack_values[stack_top - 2];
+        uint8_t *key_b = stack_keys[stack_top - 1];
+        uint8_t *value_b = stack_values[stack_top - 1];
+        stack_top -= 2;
+        int a_set = _gw_get_bit(key_a, height);
+        int b_set = _gw_get_bit(key_b, height);
+        _gw_copy_bits(key_a, height);
+        _gw_copy_bits(key_b, height);
+        uint8_t sibling_key_a[32];
+        memcpy(sibling_key_a, key_a, 32);
+        if (!a_set) {
+          _gw_set_bit(sibling_key_a, height);
+        }
+        if (memcmp(sibling_key_a, key_b, 32) != 0 || (a_set == b_set)) {
+          return GW_FATAL_INVALID_SIBLING;
+        }
+        if (a_set) {
+          _gw_merge(value_b, value_a, value_a);
+        } else {
+          _gw_merge(value_a, value_b, value_a);
+        }
+        /* Top-of-stack key is already updated to parent_key_a */
+        stack_top++;
+      } break;
+      default:
         return GW_FATAL_INVALID_PROOF;
-      }
-      memcpy(stack_keys[stack_top], state->pairs[leave_index].key,
-             GW_KEY_BYTES);
-      if (_gw_zero_value(state->pairs[leave_index].value)) {
-        memset(stack_values[stack_top], 0, 32);
-      } else {
-        blake2b_init(&blake2b_ctx, 32);
-        blake2b_update(&blake2b_ctx, state->pairs[leave_index].key,
-                       GW_KEY_BYTES);
-        blake2b_update(&blake2b_ctx, state->pairs[leave_index].value,
-                       GW_KEY_BYTES);
-        blake2b_final(&blake2b_ctx, stack_values[stack_top], 32);
-      }
-      stack_top++;
-      leave_index++;
-      break;
-    case 0x50: {
-      if (stack_top == 0) {
-        return GW_FATAL_INVALID_STACK;
-      }
-      if (proof_index + 33 > proof_length) {
-        return GW_FATAL_INVALID_PROOF;
-      }
-      uint8_t height = proof[proof_index++];
-      const uint8_t *current_proof = &proof[proof_index];
-      proof_index += 32;
-      uint8_t *key = stack_keys[stack_top - 1];
-      uint8_t *value = stack_values[stack_top - 1];
-      if (_gw_get_bit(key, height)) {
-        _gw_merge(current_proof, value, value);
-      } else {
-        _gw_merge(value, current_proof, value);
-      }
-      _gw_parent_path(key, height);
-    } break;
-    case 0x48: {
-      if (stack_top < 2) {
-        return GW_FATAL_INVALID_STACK;
-      }
-      if (proof_index >= proof_length) {
-        return GW_FATAL_INVALID_PROOF;
-      }
-      uint8_t height = proof[proof_index++];
-      uint8_t *key_a = stack_keys[stack_top - 2];
-      uint8_t *value_a = stack_values[stack_top - 2];
-      uint8_t *key_b = stack_keys[stack_top - 1];
-      uint8_t *value_b = stack_values[stack_top - 1];
-      stack_top -= 2;
-      int a_set = _gw_get_bit(key_a, height);
-      int b_set = _gw_get_bit(key_b, height);
-      _gw_copy_bits(key_a, height);
-      _gw_copy_bits(key_b, height);
-      uint8_t sibling_key_a[32];
-      memcpy(sibling_key_a, key_a, 32);
-      if (!a_set) {
-        _gw_set_bit(sibling_key_a, height);
-      }
-      if (memcmp(sibling_key_a, key_b, 32) != 0 || (a_set == b_set)) {
-        return GW_FATAL_INVALID_SIBLING;
-      }
-      if (a_set) {
-        _gw_merge(value_b, value_a, value_a);
-      } else {
-        _gw_merge(value_a, value_b, value_a);
-      }
-      /* Top-of-stack key is already updated to parent_key_a */
-      stack_top++;
-    } break;
-    default:
-      return GW_FATAL_INVALID_PROOF;
     }
   }
   /* All leaves must be used */

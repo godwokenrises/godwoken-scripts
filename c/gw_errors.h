@@ -3,11 +3,11 @@
 
 /* Godwoken Errors
    The exit code of CKB-VM is -128 ~ 127
-   The 1 ~ 127 is used by Godwoken runtime(validator_utils.h & generator_utils.h).
-   (To avoid conflict with backend we actually using 50 ~ 127)
-   The Backend VM layer such as Polyjuice uses -1 ~ -128
+   The 1 ~ 127 is used by Godwoken runtime(validator_utils.h &
+   generator_utils.h). (To avoid conflict with backend we actually using 50 ~
+   127) The Backend VM layer such as Polyjuice uses -1 ~ -128
 
-   In Godwoken runtime, we seperate errors into Fatal & Errors, 
+   In Godwoken runtime, we seperate errors into Fatal & Errors,
    Fatals represents errors that shouldn't be recovered by user programs,
     typically caused by lack of validation context.
    Errors represents the syscall errors caused by the user input.

@@ -18,4 +18,3 @@ int uint128_overflow_add(uint128_t *result, uint128_t a, uint128_t b) {
   *result = a + b;
   return 0;
 }
-

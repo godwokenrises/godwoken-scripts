@@ -268,8 +268,9 @@ int sys_get_account_script(gw_context_t *ctx, uint32_t account_id,
   }
 
   if (entry == NULL) {
-    ckb_debug("account script_hash exist, but we can't found, we miss the "
-              "neccesary context");
+    ckb_debug(
+        "account script_hash exist, but we can't found, we miss the "
+        "neccesary context");
     return GW_FATAL_SCRIPT_NOT_FOUND;
   }
 
@@ -399,7 +400,8 @@ int sys_get_script_hash_by_prefix(gw_context_t *ctx, uint8_t *prefix,
     return GW_FATAL_INVALID_DATA;
   }
 
-  return _load_script_hash_by_short_script_hash(ctx, prefix, prefix_len, script_hash);
+  return _load_script_hash_by_short_script_hash(ctx, prefix, prefix_len,
+                                                script_hash);
 }
 
 int sys_recover_account(gw_context_t *ctx, uint8_t message[32],
@@ -492,8 +494,9 @@ int sys_recover_account(gw_context_t *ctx, uint8_t message[32],
     return 0;
   }
   /* Can't found account signature lock from inputs */
-  ckb_debug("recover account: can't found account signature lock "
-            "from inputs");
+  ckb_debug(
+      "recover account: can't found account signature lock "
+      "from inputs");
   return GW_FATAL_SIGNATURE_CELL_NOT_FOUND;
 }
 
@@ -787,7 +790,6 @@ int _load_verification_context(
     uint8_t challenged_block_hash[32], uint8_t block_merkle_root[32],
     uint32_t *tx_index, uint8_t rollup_config[GW_MAX_ROLLUP_CONFIG_SIZE],
     uint64_t *rollup_config_size) {
-
   /* load global state from rollup cell */
   uint8_t global_state_buf[sizeof(MolDefault_GlobalState)] = {0};
   uint64_t buf_len = sizeof(MolDefault_GlobalState);
@@ -1217,7 +1219,6 @@ int _load_verify_transaction_witness(
 int _gw_check_account_script_is_allowed(uint8_t rollup_script_hash[32],
                                         mol_seg_t *script_seg,
                                         mol_seg_t *rollup_config_seg) {
-
   if (MolReader_Script_verify(script_seg, false) != MOL_OK) {
     ckb_debug("disallow script because of the format is invalid");
     return GW_FATAL_INVALID_DATA;
@@ -1283,8 +1284,9 @@ int _gw_check_account_script_is_allowed(uint8_t rollup_script_hash[32],
         return GW_ERROR_INVALID_CONTRACT_SCRIPT;
       }
       if (memcmp(rollup_script_hash, raw_args_seg.ptr, 32) != 0) {
-        ckb_debug("disallow contract script because args is not start with "
-                  "rollup_script_hash");
+        ckb_debug(
+            "disallow contract script because args is not start with "
+            "rollup_script_hash");
         return GW_ERROR_INVALID_CONTRACT_SCRIPT;
       }
       /* found a valid code_hash */
@@ -1418,8 +1420,9 @@ int gw_context_init(gw_context_t *ctx) {
                                 &rollup_cell_index);
   if (ret == CKB_INDEX_OUT_OF_BOUND) {
     /* exit execution with 0 if we are not in a challenge */
-    ckb_debug("can't found rollup cell from inputs which means we are not in a "
-              "challenge, unlock cell without execution script");
+    ckb_debug(
+        "can't found rollup cell from inputs which means we are not in a "
+        "challenge, unlock cell without execution script");
     ckb_exit(0);
   } else if (ret != 0) {
     ckb_debug("failed to load rollup cell index");
