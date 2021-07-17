@@ -3,7 +3,7 @@ CC := $(TARGET)-gcc
 LD := $(TARGET)-gcc
 OBJCOPY := $(TARGET)-objcopy
 SECP256K1_INCLUDES := -I deps/ckb-production-scripts/c/ -I deps/ckb-production-scripts/build/ -I deps/ckb-production-scripts/deps/secp256k1/src/ -I deps/ckb-production-scripts/deps/secp256k1/
-CINCLUDES := -I deps/ckb-c-stdlib -I deps/ckb-c-stdlib/libc -I deps/molecule -I . -I build
+CINCLUDES := -I deps/ckb-c-stdlib -I deps/ckb-c-stdlib/libc -I deps/molecule -I deps/sparse-merkle-tree/c -I . -I build
 CFLAGS := $(CINCLUDES) $(SECP256K1_INCLUDES) -DCKB_C_STDLIB_PRINTF -fPIC -O3 -nostdinc -nostdlib -nostartfiles -fvisibility=hidden -Wall -Werror -Wno-nonnull -Wno-nonnull-compare -Wno-unused-function -g
 LDFLAGS := -Wl,-static -fdata-sections -ffunction-sections -Wl,--gc-sections
 MOLC := moleculec
