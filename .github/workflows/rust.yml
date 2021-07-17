@@ -24,10 +24,12 @@ jobs:
       env:
         CAPSULE_VERSION: v0.4.6
       run: curl -OL https://github.com/nervosnetwork/capsule/releases/download/${CAPSULE_VERSION}/capsule_${CAPSULE_VERSION}_x86_64-linux.tar.gz && tar xf capsule_${CAPSULE_VERSION}_x86_64-linux.tar.gz && echo `pwd`/capsule_${CAPSULE_VERSION}_x86_64-linux >> $GITHUB_PATH
-    - name: Check format
+    - name: Check Tests format
       run: cargo fmt -- --check
-    - name: Check contracts format
+    - name: Check Rust format
       run: cd contracts && cargo fmt -- --check
+    - name: Check C format
+      run: cd c && make fmt
     - name: Init submodules
       run: git submodule init && git submodule update -r
     - name: Compile C contracts

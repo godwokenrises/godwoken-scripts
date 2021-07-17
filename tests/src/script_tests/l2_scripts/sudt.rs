@@ -1,9 +1,9 @@
 use super::{check_transfer_logs, new_block_info, run_contract, run_contract_get_result};
-use crate::script_tests::error_codes::{
-    GW_SUDT_ERROR_AMOUNT_OVERFLOW, GW_SUDT_ERROR_INSUFFICIENT_BALANCE,
-};
 use gw_common::state::{to_short_address, State};
 use gw_generator::dummy_state::DummyState;
+use gw_generator::syscalls::error_codes::{
+    GW_SUDT_ERROR_AMOUNT_OVERFLOW, GW_SUDT_ERROR_INSUFFICIENT_BALANCE,
+};
 use gw_generator::{error::TransactionError, traits::StateExt};
 use gw_traits::CodeStore;
 use gw_types::packed::BlockInfo;

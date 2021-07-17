@@ -3,11 +3,11 @@
 
 /* Godwoken Errors
    The exit code of CKB-VM is -128 ~ 127
-   The 1 ~ 127 is used by Godwoken runtime(validator_utils.h & generator_utils.h).
-   (To avoid conflict with backend we actually using 50 ~ 127)
-   The Backend VM layer such as Polyjuice uses -1 ~ -128
+   The 1 ~ 127 is used by Godwoken runtime(validator_utils.h &
+   generator_utils.h). (To avoid conflict with backend we actually using 50 ~
+   127) The Backend VM layer such as Polyjuice uses -1 ~ -128
 
-   In Godwoken runtime, we seperate errors into Fatal & Errors, 
+   In Godwoken runtime, we seperate errors into Fatal & Errors,
    Fatals represents errors that shouldn't be recovered by user programs,
     typically caused by lack of validation context.
    Errors represents the syscall errors caused by the user input.
@@ -25,7 +25,7 @@
 #define GW_FATAL_DATA_CELL_NOT_FOUND 60
 #define GW_FATAL_STATE_KEY_NOT_FOUND 61
 #define GW_FATAL_SIGNATURE_CELL_NOT_FOUND 62
-#define GW_FATAL_ACCOUNT_NOT_FOUND 63
+#define GW_FATAL_SCRIPT_NOT_FOUND 63
 
 /* Merkle Fatals 7x */
 #define GW_FATAL_INVALID_PROOF 70
@@ -38,6 +38,7 @@
 #define GW_ERROR_INVALID_CONTRACT_SCRIPT 82
 #define GW_ERROR_NOT_FOUND 83
 #define GW_ERROR_RECOVER 84
+#define GW_ERROR_ACCOUNT_NOT_EXISTS 85
 
 /* sUDT errors */
 #define GW_SUDT_ERROR_INSUFFICIENT_BALANCE 92

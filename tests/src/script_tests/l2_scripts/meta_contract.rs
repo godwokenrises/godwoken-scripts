@@ -4,8 +4,8 @@ use core::panic;
 use gw_common::state::State;
 use gw_common::H256;
 use gw_generator::{
-    dummy_state::DummyState, error::TransactionError, syscalls::ERROR_DUPLICATED_SCRIPT_HASH,
-    traits::StateExt,
+    dummy_state::DummyState, error::TransactionError,
+    syscalls::error_codes::GW_ERROR_DUPLICATED_SCRIPT_HASH, traits::StateExt,
 };
 use gw_types::{
     core::ScriptHashType,
@@ -146,5 +146,5 @@ fn test_duplicated_script_hash() {
         TransactionError::InvalidExitCode(code) => code,
         err => panic!("unexpected {:?}", err),
     };
-    assert_eq!(err_code, ERROR_DUPLICATED_SCRIPT_HASH as i8);
+    assert_eq!(err_code, GW_ERROR_DUPLICATED_SCRIPT_HASH);
 }

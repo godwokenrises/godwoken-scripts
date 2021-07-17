@@ -183,6 +183,17 @@ int sys_get_account_id_by_script_hash(gw_context_t *ctx,
     return ret;
   }
   *account_id = *((uint32_t *)value);
+
+  /* if account_id is greater than 0, it is exist */
+  if (*account_id > 0) {
+    return 0;
+  }
+
+  ret = _ensure_account_exists(ctx, *account_id);
+  if (ret != 0) {
+    return ret;
+  }
+
   return 0;
 }
 
@@ -192,6 +203,12 @@ int sys_get_script_hash_by_account_id(gw_context_t *ctx, uint32_t account_id,
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
   }
+
+  int ret = _ensure_account_exists(ctx, account_id);
+  if (ret != 0) {
+    return ret;
+  }
+
   uint8_t raw_key[32] = {0};
   gw_build_account_field_key(account_id, GW_ACCOUNT_SCRIPT_HASH, raw_key);
   return gw_state_fetch(&ctx->kv_state, raw_key, script_hash);
@@ -203,6 +220,7 @@ int sys_get_account_nonce(gw_context_t *ctx, uint32_t account_id,
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
   }
+
   int ret = _ensure_account_exists(ctx, account_id);
   if (ret != 0) {
     return ret;
@@ -236,7 +254,7 @@ int sys_get_account_script(gw_context_t *ctx, uint32_t account_id,
 
   if (_is_zero_hash(script_hash)) {
     ckb_debug("account script_hash is zero, which means account isn't exist");
-    return GW_ERROR_NOT_FOUND;
+    return GW_ERROR_ACCOUNT_NOT_EXISTS;
   }
 
   /* iterate all scripts to find account's script */
@@ -250,9 +268,10 @@ int sys_get_account_script(gw_context_t *ctx, uint32_t account_id,
   }
 
   if (entry == NULL) {
-    ckb_debug("account script_hash exist, but we can't found, we miss the "
-              "neccesary context");
-    return GW_FATAL_ACCOUNT_NOT_FOUND;
+    ckb_debug(
+        "account script_hash exist, but we can't found, we miss the "
+        "neccesary context");
+    return GW_FATAL_SCRIPT_NOT_FOUND;
   }
 
   /* return account script */
@@ -313,7 +332,18 @@ int sys_load_data(gw_context_t *ctx, uint8_t data_hash[32], uint64_t *len,
     return GW_FATAL_INVALID_CONTEXT;
   }
 
-  int ret;
+  /* Check data_hash_key */
+  int data_exists = 0;
+  int ret = _check_data_hash_exist(ctx, data_hash, &data_exists);
+  if (ret != 0) {
+    return ret;
+  }
+
+  if (!data_exists) {
+    /* return not found if data isn't exist in the state tree */
+    return GW_ERROR_NOT_FOUND;
+  }
+
   size_t index = 0;
   uint64_t hash_len = 32;
   uint8_t hash[32] = {0};
@@ -370,18 +400,8 @@ int sys_get_script_hash_by_prefix(gw_context_t *ctx, uint8_t *prefix,
     return GW_FATAL_INVALID_DATA;
   }
 
-  size_t i;
-  for (i = 0; i < ctx->script_entries_size; i++) {
-    gw_script_entry_t entry = ctx->scripts[i];
-    if (memcmp(entry.hash, prefix, prefix_len) == 0) {
-      memcpy(script_hash, entry.hash, 32);
-      return 0;
-    }
-  }
-
-  /* we don't know wether the script isn't exists or the validation context is
-   * missing */
-  return GW_FATAL_INVALID_CONTEXT;
+  return _load_script_hash_by_short_script_hash(ctx, prefix, prefix_len,
+                                                script_hash);
 }
 
 int sys_recover_account(gw_context_t *ctx, uint8_t message[32],
@@ -474,8 +494,9 @@ int sys_recover_account(gw_context_t *ctx, uint8_t message[32],
     return 0;
   }
   /* Can't found account signature lock from inputs */
-  ckb_debug("recover account: can't found account signature lock "
-            "from inputs");
+  ckb_debug(
+      "recover account: can't found account signature lock "
+      "from inputs");
   return GW_FATAL_SIGNATURE_CELL_NOT_FOUND;
 }
 
@@ -508,6 +529,23 @@ int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
     return ret;
   }
 
+  /* calculate script_hash */
+  uint8_t script_hash[32] = {0};
+  blake2b_state blake2b_ctx;
+  blake2b_init(&blake2b_ctx, 32);
+  blake2b_update(&blake2b_ctx, script, script_len);
+  blake2b_final(&blake2b_ctx, script_hash, 32);
+
+  /* check existance */
+  int account_exist = 0;
+  ret = _check_account_exists_by_script_hash(ctx, script_hash, &account_exist);
+  if (ret != 0) {
+    return ret;
+  }
+  if (account_exist) {
+    return GW_ERROR_DUPLICATED_SCRIPT_HASH;
+  }
+
   /* init account nonce */
   uint8_t nonce_key[32] = {0};
   uint8_t nonce_value[32] = {0};
@@ -518,12 +556,7 @@ int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
   }
 
   /* init account script hash */
-  uint8_t script_hash[32] = {0};
   uint8_t script_hash_key[32] = {0};
-  blake2b_state blake2b_ctx;
-  blake2b_init(&blake2b_ctx, 32);
-  blake2b_update(&blake2b_ctx, script, script_len);
-  blake2b_final(&blake2b_ctx, script_hash, 32);
   gw_build_account_field_key(id, GW_ACCOUNT_SCRIPT_HASH, script_hash_key);
   ret = gw_state_insert(&ctx->kv_state, script_hash_key, script_hash);
   if (ret != 0) {
@@ -537,6 +570,20 @@ int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
   memcpy(script_hash_to_id_value, (uint8_t *)(&id), 4);
   ret = gw_state_insert(&ctx->kv_state, script_hash_to_id_key,
                         script_hash_to_id_value);
+  if (ret != 0) {
+    return ret;
+  }
+
+  /* init short script hash -> script_hash */
+  uint8_t short_script_hash_to_script_key[32] = {0};
+  ret = gw_build_short_script_hash_to_script_hash_key(
+      script_hash, GW_DEFAULT_SHORT_SCRIPT_HASH_LEN,
+      short_script_hash_to_script_key);
+  if (ret != 0) {
+    return ret;
+  }
+  ret = gw_state_insert(&ctx->kv_state, short_script_hash_to_script_key,
+                        script_hash);
   if (ret != 0) {
     return ret;
   }
@@ -743,7 +790,6 @@ int _load_verification_context(
     uint8_t challenged_block_hash[32], uint8_t block_merkle_root[32],
     uint32_t *tx_index, uint8_t rollup_config[GW_MAX_ROLLUP_CONFIG_SIZE],
     uint64_t *rollup_config_size) {
-
   /* load global state from rollup cell */
   uint8_t global_state_buf[sizeof(MolDefault_GlobalState)] = {0};
   uint64_t buf_len = sizeof(MolDefault_GlobalState);
@@ -1173,7 +1219,6 @@ int _load_verify_transaction_witness(
 int _gw_check_account_script_is_allowed(uint8_t rollup_script_hash[32],
                                         mol_seg_t *script_seg,
                                         mol_seg_t *rollup_config_seg) {
-
   if (MolReader_Script_verify(script_seg, false) != MOL_OK) {
     ckb_debug("disallow script because of the format is invalid");
     return GW_FATAL_INVALID_DATA;
@@ -1239,8 +1284,9 @@ int _gw_check_account_script_is_allowed(uint8_t rollup_script_hash[32],
         return GW_ERROR_INVALID_CONTRACT_SCRIPT;
       }
       if (memcmp(rollup_script_hash, raw_args_seg.ptr, 32) != 0) {
-        ckb_debug("disallow contract script because args is not start with "
-                  "rollup_script_hash");
+        ckb_debug(
+            "disallow contract script because args is not start with "
+            "rollup_script_hash");
         return GW_ERROR_INVALID_CONTRACT_SCRIPT;
       }
       /* found a valid code_hash */
@@ -1374,8 +1420,9 @@ int gw_context_init(gw_context_t *ctx) {
                                 &rollup_cell_index);
   if (ret == CKB_INDEX_OUT_OF_BOUND) {
     /* exit execution with 0 if we are not in a challenge */
-    ckb_debug("can't found rollup cell from inputs which means we are not in a "
-              "challenge, unlock cell without execution script");
+    ckb_debug(
+        "can't found rollup cell from inputs which means we are not in a "
+        "challenge, unlock cell without execution script");
     ckb_exit(0);
   } else if (ret != 0) {
     ckb_debug("failed to load rollup cell index");
