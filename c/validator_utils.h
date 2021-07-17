@@ -183,6 +183,17 @@ int sys_get_account_id_by_script_hash(gw_context_t *ctx,
     return ret;
   }
   *account_id = *((uint32_t *)value);
+
+  /* if account_id is greater than 0, it is exist */
+  if (*account_id > 0) {
+    return 0;
+  }
+
+  ret = _ensure_account_exists(ctx, *account_id);
+  if (ret != 0) {
+    return ret;
+  }
+
   return 0;
 }
 
