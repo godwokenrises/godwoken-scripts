@@ -1,5 +1,6 @@
 #include "blake2b.h"
 #include "secp256k1_helper.h"
+#include "ckb_printf.h"
 
 /* constants */
 #define SIGNATURE_SIZE 65
