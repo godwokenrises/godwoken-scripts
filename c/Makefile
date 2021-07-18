@@ -4,7 +4,9 @@ LD := $(TARGET)-gcc
 OBJCOPY := $(TARGET)-objcopy
 SECP256K1_INCLUDES := -I deps/ckb-production-scripts/c/ -I deps/ckb-production-scripts/build/ -I deps/ckb-production-scripts/deps/secp256k1/src/ -I deps/ckb-production-scripts/deps/secp256k1/
 CINCLUDES := -I deps/ckb-c-stdlib -I deps/ckb-c-stdlib/libc -I deps/molecule -I deps/sparse-merkle-tree/c -I . -I build
-CFLAGS := $(CINCLUDES) $(SECP256K1_INCLUDES) -DCKB_C_STDLIB_PRINTF -fPIC -O3 -nostdinc -nostdlib -nostartfiles -fvisibility=hidden -Wall -Werror -Wno-nonnull -Wno-nonnull-compare -Wno-unused-function -g
+CFLAGS := $(CINCLUDES) $(SECP256K1_INCLUDES) -fPIC -O3 -nostdinc -nostdlib -nostartfiles -fvisibility=hidden -Wall -Werror -Wno-nonnull -Wno-nonnull-compare -Wno-unused-function -g
+GENERATOR_FLAGS := -DGW_GENERATOR -DCKB_C_STDLIB_PRINTF 
+VALIDATOR_FLAGS := -DGW_VALIDATOR
 LDFLAGS := -Wl,-static -fdata-sections -ffunction-sections -Wl,--gc-sections
 MOLC := moleculec
 MOLC_VERSION := 0.6.1
@@ -50,52 +52,52 @@ $(SECP256K1_HELPER):
 	cd deps/ckb-production-scripts && git submodule init && git submodule update -r && make all-via-docker
 
 build/meta-contract-generator: contracts/meta_contract.c gw_def.h generator_utils.h
-	$(CC) $(CFLAGS) -DGW_GENERATOR $(LDFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) $(GENERATOR_FLAGS) $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
 
 build/meta-contract-validator: contracts/meta_contract.c gw_def.h validator_utils.h
-	$(CC) $(CFLAGS) -DGW_VALIDATOR $(LDFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) $(VALIDATOR_FLAGS) $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
 
 build/sudt-generator: contracts/sudt.c sudt_utils.h gw_def.h generator_utils.h
-	$(CC) $(CFLAGS) -DGW_GENERATOR $(LDFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) $(GENERATOR_FLAGS) $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
 
 build/sudt-validator: contracts/sudt.c sudt_utils.h gw_def.h validator_utils.h
-	$(CC) $(CFLAGS) -DGW_VALIDATOR $(LDFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) $(VALIDATOR_FLAGS) $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
 
 build/examples/sum-generator: examples/sum.c gw_def.h generator_utils.h
-	$(CC) $(CFLAGS) -DGW_GENERATOR $(LDFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) $(GENERATOR_FLAGS) $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
 
 build/examples/sum-validator: examples/sum.c gw_def.h validator_utils.h
-	$(CC) $(CFLAGS) -DGW_VALIDATOR $(LDFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) $(VALIDATOR_FLAGS) $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
 
 build/examples/account-operation-generator: examples/account_operation.c gw_def.h generator_utils.h
-	$(CC) $(CFLAGS) -DGW_GENERATOR $(LDFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) $(GENERATOR_FLAGS) $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
 
 build/examples/account-operation-validator: examples/account_operation.c gw_def.h validator_utils.h
-	$(CC) $(CFLAGS) -DGW_VALIDATOR $(LDFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) $(VALIDATOR_FLAGS) $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
 
 build/examples/recover-account-generator: examples/recover_account.c gw_def.h generator_utils.h
-	$(CC) $(CFLAGS) -DGW_GENERATOR $(LDFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) $(GENERATOR_FLAGS) $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
 
 build/examples/recover-account-validator: examples/recover_account.c gw_def.h validator_utils.h
-	$(CC) $(CFLAGS) -DGW_VALIDATOR $(LDFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) $(VALIDATOR_FLAGS) $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
 

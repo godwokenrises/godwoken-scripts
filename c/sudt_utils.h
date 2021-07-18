@@ -92,7 +92,7 @@ int _sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
   int ret;
   ret = gw_verify_sudt_account(ctx, sudt_id);
   if (ret != 0) {
-    ckb_debug("transfer: invalid sudt_id");
+    printf("transfer: invalid sudt_id");
     return ret;
   }
 
@@ -101,16 +101,16 @@ int _sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
   ret =
       _sudt_get_balance(ctx, sudt_id, from_addr, short_addr_len, &from_balance);
   if (ret != 0) {
-    ckb_debug("transfer: can't get sender's balance");
+    printf("transfer: can't get sender's balance");
     return ret;
   }
   if (from_balance < amount) {
-    ckb_debug("transfer: insufficient balance");
+    printf("transfer: insufficient balance");
     return GW_SUDT_ERROR_INSUFFICIENT_BALANCE;
   }
 
   if (memcmp(from_addr, to_addr, short_addr_len) == 0) {
-    ckb_debug("transfer: [warning] transfer to self");
+    printf("transfer: [warning] transfer to self");
   }
 
   uint128_t new_from_balance = from_balance - amount;
@@ -119,7 +119,7 @@ int _sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
   ret = _sudt_set_balance(ctx, sudt_id, from_addr, short_addr_len,
                           new_from_balance);
   if (ret != 0) {
-    ckb_debug("transfer: update sender's balance failed");
+    printf("transfer: update sender's balance failed");
     return ret;
   }
 
@@ -127,14 +127,14 @@ int _sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
   uint128_t to_balance = 0;
   ret = _sudt_get_balance(ctx, sudt_id, to_addr, short_addr_len, &to_balance);
   if (ret != 0) {
-    ckb_debug("transfer: can't get receiver's balance");
+    printf("transfer: can't get receiver's balance");
     return ret;
   }
 
   uint128_t new_to_balance = 0;
   int overflow = uint128_overflow_add(&new_to_balance, to_balance, amount);
   if (overflow) {
-    ckb_debug("transfer: balance overflow");
+    printf("transfer: balance overflow");
     return GW_SUDT_ERROR_AMOUNT_OVERFLOW;
   }
 
@@ -142,7 +142,7 @@ int _sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
   ret =
       _sudt_set_balance(ctx, sudt_id, to_addr, short_addr_len, new_to_balance);
   if (ret != 0) {
-    ckb_debug("transfer: update receiver's balance failed");
+    printf("transfer: update receiver's balance failed");
     return ret;
   }
 
@@ -150,7 +150,7 @@ int _sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
   ret = _sudt_emit_log(ctx, sudt_id, short_addr_len, from_addr, to_addr, amount,
                        service_flag);
   if (ret != 0) {
-    ckb_debug("transfer: emit log failed");
+    printf("transfer: emit log failed");
   }
   return ret;
 }
@@ -170,7 +170,7 @@ int sudt_pay_fee(gw_context_t *ctx, const uint32_t sudt_id,
                  const uint64_t short_addr_len, const uint8_t *from_addr,
                  const uint128_t amount) {
   if (short_addr_len > 32) {
-    ckb_debug("invalid short address len");
+    printf("invalid short address len");
     return GW_SUDT_ERROR_SHORT_ADDR_LEN;
   }
   uint32_t to_id = ctx->block_info.block_producer_id;
@@ -178,18 +178,18 @@ int sudt_pay_fee(gw_context_t *ctx, const uint32_t sudt_id,
   uint8_t to_script_hash[32] = {0};
   int ret = ctx->sys_get_script_hash_by_account_id(ctx, to_id, to_script_hash);
   if (ret != 0) {
-    ckb_debug("can't find to id");
+    printf("can't find to id");
     return ret;
   }
   ret = _sudt_transfer(ctx, sudt_id, short_addr_len, from_addr, to_script_hash,
                        amount, GW_LOG_SUDT_PAY_FEE);
   if (ret != 0) {
-    ckb_debug("pay fee transfer failed");
+    printf("pay fee transfer failed");
     return ret;
   }
   ret = ctx->sys_pay_fee(ctx, from_addr, short_addr_len, sudt_id, amount);
   if (ret != 0) {
-    ckb_debug("sys pay fee failed");
+    printf("sys pay fee failed");
   }
   return ret;
 }

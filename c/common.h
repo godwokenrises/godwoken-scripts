@@ -205,7 +205,7 @@ int _load_sender_nonce(gw_context_t *ctx, uint32_t *sender_nonce) {
                              nonce_key);
   int ret = ctx->_internal_load_raw(ctx, nonce_key, nonce_value);
   if (ret != 0) {
-    ckb_debug("failed to fetch sender nonce value");
+    printf("failed to fetch sender nonce value");
     return ret;
   }
   memcpy(sender_nonce, nonce_value, sizeof(uint32_t));
@@ -223,10 +223,10 @@ int _increase_sender_nonce(gw_context_t *ctx) {
     return ret;
   }
   if (new_nonce < ctx->original_sender_nonce) {
-    ckb_debug("sender's new_nonce is less than original_nonce");
+    printf("sender's new_nonce is less than original_nonce");
     return GW_FATAL_INVALID_CONTEXT;
   } else if (new_nonce == ctx->original_sender_nonce) {
-    ckb_debug("new_nonce is equals to original_nonce, increase 1");
+    printf("new_nonce is equals to original_nonce, increase 1");
     new_nonce += 1;
     uint8_t nonce_key[32] = {0};
     uint8_t nonce_value[32] = {0};
@@ -237,7 +237,7 @@ int _increase_sender_nonce(gw_context_t *ctx) {
 
     ret = ctx->_internal_store_raw(ctx, nonce_key, nonce_value);
     if (ret != 0) {
-      ckb_debug("failed to update sender nonce value");
+      printf("failed to update sender nonce value");
       return ret;
     }
   }
