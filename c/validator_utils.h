@@ -1032,7 +1032,7 @@ int _load_verify_transaction_witness(
   /* insert tx_index -> tx_witness_hash */
   ret = smt_state_insert(&txs_state, tx_key, tx_witness_hash);
   if (ret != 0) {
-    printf("failed to insert smt date %d", ret);
+    printf("failed to insert smt tx witness hash %d", ret);
     return GW_FATAL_SMT_STORE;
   }
 
@@ -1147,7 +1147,7 @@ int _load_verify_transaction_witness(
     mol_seg_t value_seg = MolReader_KVPair_get_v(&kv_res.seg);
     ret = smt_state_insert(kv_state, key_seg.ptr, value_seg.ptr);
     if (ret != 0) {
-      printf("failed to insert smt, ret: %d", ret);
+      printf("failed to insert smt kv pair, ret: %d", ret);
       return GW_FATAL_SMT_STORE;
     }
   }

@@ -88,7 +88,7 @@ int _internal_store_raw(gw_context_t *ctx, const uint8_t raw_key[GW_KEY_BYTES],
 
   int ret = syscall(GW_SYS_STORE, raw_key, value, 0, 0, 0, 0);
   if (ret != 0) {
-    printf("failed internal_load_raw");
+    printf("failed internal_store_raw");
     /* Even we load via syscall, the data structure in the bottom is a SMT */
     return GW_FATAL_SMT_STORE;
   }
