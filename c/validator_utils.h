@@ -1371,7 +1371,7 @@ int _check_owner_lock_hash() {
     }
     current++;
   }
-  return CKB_INDEX_OUT_OF_BOUND;
+  return GW_ERROR_NOT_FOUND;
 }
 
 int _gw_calculate_state_checkpoint(uint8_t buffer[32], const smt_state_t *state,
@@ -1415,6 +1415,7 @@ int gw_context_init(gw_context_t *ctx) {
   /* check owner lock */
   int ret = _check_owner_lock_hash();
   if (ret != 0) {
+    printf("gw_context_init: not found owner lock, ret: %d", ret);
     return ret;
   }
 
