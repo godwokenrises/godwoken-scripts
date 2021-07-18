@@ -115,7 +115,7 @@ int _internal_load_raw(gw_context_t *ctx, const uint8_t raw_key[GW_VALUE_BYTES],
 
   int ret = smt_state_fetch(&ctx->kv_state, raw_key, value);
   if (ret != 0) {
-    printf("failed internal_load_raw");
+    ckb_printf("failed internal_load_raw");
     return GW_FATAL_SMT_FETCH;
   }
   return 0;
@@ -129,7 +129,7 @@ int _internal_store_raw(gw_context_t *ctx, const uint8_t raw_key[GW_KEY_BYTES],
 
   int ret = smt_state_insert(&ctx->kv_state, raw_key, value);
   if (ret != 0) {
-    printf("failed internal_store_raw");
+    ckb_printf("failed internal_store_raw");
     return GW_FATAL_SMT_STORE;
   }
   return 0;
@@ -171,7 +171,7 @@ int sys_set_program_return_data(gw_context_t *ctx, uint8_t *data,
     return GW_FATAL_INVALID_CONTEXT;
   }
   if (len > GW_MAX_DATA_SIZE) {
-    printf("Exceeded max return data size");
+    ckb_printf("Exceeded max return data size");
     return GW_FATAL_BUFFER_OVERFLOW;
   }
   memcpy(ctx->receipt.return_data, data, len);
@@ -242,7 +242,7 @@ int sys_get_account_nonce(gw_context_t *ctx, uint32_t account_id,
   uint8_t value[32] = {0};
   ret = smt_state_fetch(&ctx->kv_state, raw_key, value);
   if (ret != 0) {
-    printf("sys_get_account_nonce, failed to load smt, ret: %d", ret);
+    ckb_printf("sys_get_account_nonce, failed to load smt, ret: %d", ret);
     return GW_FATAL_SMT_FETCH;
   }
   memcpy(nonce, value, sizeof(uint32_t));
@@ -265,7 +265,7 @@ int sys_get_account_script(gw_context_t *ctx, uint32_t account_id,
   }
 
   if (_is_zero_hash(script_hash)) {
-    printf("account script_hash is zero, which means account isn't exist");
+    ckb_printf("account script_hash is zero, which means account isn't exist");
     return GW_ERROR_ACCOUNT_NOT_EXISTS;
   }
 
@@ -280,7 +280,7 @@ int sys_get_account_script(gw_context_t *ctx, uint32_t account_id,
   }
 
   if (entry == NULL) {
-    printf(
+    ckb_printf(
         "account script_hash exist, but we can't found, we miss the "
         "neccesary context");
     return GW_FATAL_SCRIPT_NOT_FOUND;
@@ -290,7 +290,7 @@ int sys_get_account_script(gw_context_t *ctx, uint32_t account_id,
   size_t new_len;
   size_t data_len = entry->script_len;
   if (offset >= data_len) {
-    printf("account script offset is bigger than actual script len");
+    ckb_printf("account script offset is bigger than actual script len");
     new_len = 0;
   } else if ((offset + *len) > data_len) {
     new_len = data_len - offset;
@@ -310,7 +310,7 @@ int sys_store_data(gw_context_t *ctx, uint64_t data_len, uint8_t *data) {
   }
 
   if (data_len > GW_MAX_DATA_SIZE) {
-    printf("Exceeded max store data size");
+    ckb_printf("Exceeded max store data size");
     return GW_FATAL_INVALID_DATA;
   }
   /* In validator, we do not need to actually store data.
@@ -371,23 +371,23 @@ int sys_load_data(gw_context_t *ctx, uint8_t data_hash[32], uint64_t *len,
         ret = ckb_load_cell_data(data, &data_len, offset, index,
                                  CKB_SOURCE_CELL_DEP);
         if (ret != CKB_SUCCESS) {
-          printf("load cell data failed");
+          ckb_printf("load cell data failed");
           return GW_FATAL_DATA_CELL_NOT_FOUND;
         }
         *len = (uint32_t)data_len;
         return 0;
       }
     } else if (ret == CKB_ITEM_MISSING) {
-      printf("not found cell data by data hash");
+      ckb_printf("not found cell data by data hash");
       return GW_FATAL_DATA_CELL_NOT_FOUND;
     } else {
-      printf("load cell data hash failed");
+      ckb_printf("load cell data hash failed");
       return GW_FATAL_DATA_CELL_NOT_FOUND;
     }
     index += 1;
   }
   /* dead code */
-  printf("can't find data cell");
+  ckb_printf("can't find data cell");
   return GW_FATAL_INVALID_CONTEXT;
 }
 
@@ -400,7 +400,7 @@ int sys_get_block_hash(gw_context_t *ctx, uint64_t number,
   _gw_block_smt_key(key, number);
   int ret = smt_state_fetch(&ctx->block_hashes_state, key, block_hash);
   if (ret != 0) {
-    printf("sys_get_block_hash: failed to load smt, ret: %d", ret);
+    ckb_printf("sys_get_block_hash: failed to load smt, ret: %d", ret);
     return GW_FATAL_SMT_FETCH;
   }
   return 0;
@@ -436,7 +436,7 @@ int sys_recover_account(gw_context_t *ctx, uint8_t message[32],
     ret = ckb_checked_load_cell_by_field(lock_script, &len, 0, i,
                                          CKB_SOURCE_INPUT, CKB_CELL_FIELD_LOCK);
     if (ret != 0) {
-      printf("sys_recover_account: failed to load input's lock");
+      ckb_printf("sys_recover_account: failed to load input's lock");
       return GW_FATAL_INVALID_CONTEXT;
     }
     /* convert to molecule */
@@ -460,11 +460,11 @@ int sys_recover_account(gw_context_t *ctx, uint8_t message[32],
     len = 32;
     ret = ckb_load_cell_data(checked_message, &len, 32, i, CKB_SOURCE_INPUT);
     if (ret != 0) {
-      printf("recover account: failed to load cell data");
+      ckb_printf("recover account: failed to load cell data");
       continue;
     }
     if (len != 64) {
-      printf("recover account: invalid data format");
+      ckb_printf("recover account: invalid data format");
       continue;
     }
     /* check message */
@@ -476,20 +476,20 @@ int sys_recover_account(gw_context_t *ctx, uint8_t message[32],
     len = GW_MAX_WITNESS_SIZE;
     ret = ckb_checked_load_witness(witness, &len, 0, i, CKB_SOURCE_INPUT);
     if (ret != 0) {
-      printf("recover account: failed to load witness");
+      ckb_printf("recover account: failed to load witness");
       continue;
     }
     mol_seg_t witness_args_seg;
     witness_args_seg.ptr = witness;
     witness_args_seg.size = len;
     if (MolReader_WitnessArgs_verify(&witness_args_seg, false) != MOL_OK) {
-      printf("recover account: invalid witness args");
+      ckb_printf("recover account: invalid witness args");
       continue;
     }
     mol_seg_t witness_lock_seg =
         MolReader_WitnessArgs_get_lock(&witness_args_seg);
     if (MolReader_BytesOpt_is_none(&witness_lock_seg)) {
-      printf("recover account: witness args has no lock field");
+      ckb_printf("recover account: witness args has no lock field");
       continue;
     }
     mol_seg_t signature_seg = MolReader_Bytes_raw_bytes(&witness_lock_seg);
@@ -504,7 +504,7 @@ int sys_recover_account(gw_context_t *ctx, uint8_t message[32],
 
     /* found script, recover account script */
     if (*script_len < script_seg.size) {
-      printf("recover account: buffer overflow");
+      ckb_printf("recover account: buffer overflow");
       return GW_FATAL_BUFFER_OVERFLOW;
     }
     memcpy(script, script_seg.ptr, script_seg.size);
@@ -512,7 +512,7 @@ int sys_recover_account(gw_context_t *ctx, uint8_t message[32],
     return 0;
   }
   /* Can't found account signature lock from inputs */
-  printf(
+  ckb_printf(
       "recover account: can't found account signature lock "
       "from inputs");
   return GW_FATAL_SIGNATURE_CELL_NOT_FOUND;
@@ -526,7 +526,7 @@ int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
 
   /* return failure if scripts slots is full */
   if (ctx->script_entries_size >= GW_MAX_SCRIPT_ENTRIES_SIZE) {
-    printf("script slots is full");
+    ckb_printf("script slots is full");
     return GW_FATAL_BUFFER_OVERFLOW;
   }
 
@@ -543,7 +543,7 @@ int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
   ret = _gw_check_account_script_is_allowed(
       ctx->rollup_script_hash, &account_script_seg, &rollup_config_seg);
   if (ret != 0) {
-    printf("disallowed account script");
+    ckb_printf("disallowed account script");
     return ret;
   }
 
@@ -661,7 +661,7 @@ int _find_cell_by_type_hash(uint8_t type_hash[32], uint64_t source,
     int ret = ckb_checked_load_cell_by_field(buf, &buf_len, 0, *index, source,
                                              CKB_CELL_FIELD_TYPE_HASH);
     if (ret == CKB_INDEX_OUT_OF_BOUND) {
-      printf(
+      ckb_printf(
           "_finde_cell_by_type_hash: return not found cell index: %ld, source: "
           "%ld",
           *index, source);
@@ -684,7 +684,7 @@ int _find_cell_by_data_hash(uint8_t data_hash[32], uint64_t source,
     int ret = ckb_checked_load_cell_by_field(buf, &buf_len, 0, *index, source,
                                              CKB_CELL_FIELD_DATA_HASH);
     if (ret == CKB_INDEX_OUT_OF_BOUND) {
-      printf("_find_cell_by_data_hash: failed to load cell data hash");
+      ckb_printf("_find_cell_by_data_hash: failed to load cell data hash");
       return GW_FATAL_INVALID_CONTEXT;
     }
     if (ret == CKB_SUCCESS && memcmp(data_hash, buf, 32) == 0) {
@@ -700,7 +700,7 @@ int _load_rollup_script_hash(uint8_t rollup_script_hash[32]) {
   uint64_t len = GW_MAX_SCRIPT_SIZE;
   int ret = ckb_checked_load_script(script_buf, &len, 0);
   if (ret != 0) {
-    printf("_load_rollup_script_hash: failed to load script");
+    ckb_printf("_load_rollup_script_hash: failed to load script");
     return GW_FATAL_INVALID_CONTEXT;
   }
   mol_seg_t script_seg;
@@ -712,7 +712,7 @@ int _load_rollup_script_hash(uint8_t rollup_script_hash[32]) {
   mol_seg_t args_seg = MolReader_Script_get_args(&script_seg);
   mol_seg_t raw_bytes_seg = MolReader_Bytes_raw_bytes(&args_seg);
   if (raw_bytes_seg.size < 32) {
-    printf("current script is less than 32 bytes");
+    ckb_printf("current script is less than 32 bytes");
     return GW_FATAL_INVALID_DATA;
   }
   memcpy(rollup_script_hash, raw_bytes_seg.ptr, 32);
@@ -728,7 +728,7 @@ int _load_rollup_config(uint8_t config_cell_data_hash[32],
   int ret = _find_cell_by_data_hash(config_cell_data_hash, CKB_SOURCE_CELL_DEP,
                                     &config_cell_index);
   if (ret != 0) {
-    printf("failed to find rollup config");
+    ckb_printf("failed to find rollup config");
     return ret;
   }
   /* read data from rollup config cell */
@@ -736,7 +736,8 @@ int _load_rollup_config(uint8_t config_cell_data_hash[32],
   ret = ckb_checked_load_cell_data(rollup_config_buf, rollup_config_size, 0,
                                    config_cell_index, CKB_SOURCE_CELL_DEP);
   if (ret != 0) {
-    printf("_load_rollup_config: failed to load data from rollup config cell");
+    ckb_printf(
+        "_load_rollup_config: failed to load data from rollup config cell");
     return GW_FATAL_INVALID_CONTEXT;
   }
 
@@ -745,7 +746,7 @@ int _load_rollup_config(uint8_t config_cell_data_hash[32],
   config_seg.ptr = rollup_config_buf;
   config_seg.size = *rollup_config_size;
   if (MolReader_RollupConfig_verify(&config_seg, false) != MOL_OK) {
-    printf("rollup config cell data is not RollupConfig format");
+    ckb_printf("rollup config cell data is not RollupConfig format");
     return GW_FATAL_INVALID_DATA;
   }
 
@@ -765,7 +766,7 @@ int _load_challenge_lock_args(
     int ret = ckb_checked_load_cell_by_field(
         challenge_script_buf, &len, 0, *index, source, CKB_CELL_FIELD_LOCK);
     if (ret != CKB_SUCCESS) {
-      printf("_load_challenge_lock_args failed to load cell lock");
+      ckb_printf("_load_challenge_lock_args failed to load cell lock");
       return GW_FATAL_INVALID_CONTEXT;
     }
     mol_seg_t script_seg;
@@ -785,11 +786,11 @@ int _load_challenge_lock_args(
 
       /* challenge lock script must start with a 32 bytes rollup script hash */
       if (raw_args_seg.size < 32) {
-        printf("challenge lock script's args is less than 32 bytes");
+        ckb_printf("challenge lock script's args is less than 32 bytes");
         return GW_FATAL_INVALID_DATA;
       }
       if (memcmp(rollup_script_hash, raw_args_seg.ptr, 32) != 0) {
-        printf("challenge lock script's rollup_script_hash mismatch");
+        ckb_printf("challenge lock script's rollup_script_hash mismatch");
         return GW_FATAL_INVALID_DATA;
       }
 
@@ -797,7 +798,7 @@ int _load_challenge_lock_args(
       lock_args->ptr = raw_args_seg.ptr + 32;
       lock_args->size = raw_args_seg.size - 32;
       if (MolReader_ChallengeLockArgs_verify(lock_args, false) != MOL_OK) {
-        printf("invalid ChallengeLockArgs");
+        ckb_printf("invalid ChallengeLockArgs");
         return GW_FATAL_INVALID_DATA;
       }
       return 0;
@@ -819,14 +820,14 @@ int _load_verification_context(
   int ret = ckb_checked_load_cell_data(global_state_buf, &buf_len, 0,
                                        rollup_cell_index, rollup_cell_source);
   if (ret != 0) {
-    printf("_load_verification_context: failed to load cell data");
+    ckb_printf("_load_verification_context: failed to load cell data");
     return GW_FATAL_INVALID_CONTEXT;
   }
   mol_seg_t global_state_seg;
   global_state_seg.ptr = global_state_buf;
   global_state_seg.size = buf_len;
   if (MolReader_GlobalState_verify(&global_state_seg, false) != MOL_OK) {
-    printf("rollup cell data is not GlobalState format");
+    ckb_printf("rollup cell data is not GlobalState format");
     return GW_FATAL_INVALID_DATA;
   }
 
@@ -836,7 +837,7 @@ int _load_verification_context(
   mol_seg_t block_merkle_root_seg =
       MolReader_BlockMerkleState_get_merkle_root(&block_merkle_state_seg);
   if (block_merkle_root_seg.size != 32) {
-    printf("invalid block merkle root");
+    ckb_printf("invalid block merkle root");
     return GW_FATAL_INVALID_DATA;
   }
   memcpy(block_merkle_root, block_merkle_root_seg.ptr,
@@ -848,7 +849,7 @@ int _load_verification_context(
   ret = _load_rollup_config(rollup_config_hash_seg.ptr, rollup_config,
                             rollup_config_size);
   if (ret != 0) {
-    printf("failed to load rollup_config_hash");
+    ckb_printf("failed to load rollup_config_hash");
     return ret;
   }
   mol_seg_t rollup_config_seg;
@@ -867,7 +868,7 @@ int _load_verification_context(
                                   challenge_script_buf, CKB_SOURCE_INPUT,
                                   challenge_cell_index, &lock_args_seg);
   if (ret != 0) {
-    printf("failed to load challenge lock args");
+    ckb_printf("failed to load challenge lock args");
     return ret;
   }
 
@@ -878,7 +879,7 @@ int _load_verification_context(
   mol_seg_t block_hash_seg =
       MolReader_ChallengeTarget_get_block_hash(&target_seg);
   if (block_hash_seg.size != 32) {
-    printf("invalid challenged block hash");
+    ckb_printf("invalid challenged block hash");
     return GW_FATAL_INVALID_DATA;
   }
   memcpy(challenged_block_hash, block_hash_seg.ptr, block_hash_seg.size);
@@ -888,7 +889,7 @@ int _load_verification_context(
       MolReader_ChallengeTarget_get_target_type(&target_seg);
   uint8_t target_type = *(uint8_t *)target_type_seg.ptr;
   if (target_type != TARGET_TYPE_TRANSACTION) {
-    printf("challenge target type is invalid");
+    ckb_printf("challenge target type is invalid");
     return GW_FATAL_INVALID_DATA;
   }
   /* get challenged transaction index */
@@ -920,7 +921,7 @@ int _load_tx_checkpoint(mol_seg_t *raw_l2block_seg, uint32_t tx_index,
     mol_seg_t prev_state_checkpoint_seg =
         MolReader_SubmitTransactions_get_prev_state_checkpoint(&submit_txs_seg);
     if (32 != prev_state_checkpoint_seg.size) {
-      printf("invalid prev state checkpoint");
+      ckb_printf("invalid prev state checkpoint");
       return GW_FATAL_INVALID_DATA;
     }
     memcpy(prev_tx_checkpoint, prev_state_checkpoint_seg.ptr, 32);
@@ -930,7 +931,7 @@ int _load_tx_checkpoint(mol_seg_t *raw_l2block_seg, uint32_t tx_index,
     mol_seg_res_t checkpoint_res =
         MolReader_Byte32Vec_get(&checkpoint_list_seg, prev_tx_checkpoint_index);
     if (MOL_OK != checkpoint_res.errno || 32 != checkpoint_res.seg.size) {
-      printf("invalid prev tx checkpoint");
+      ckb_printf("invalid prev tx checkpoint");
       return GW_FATAL_INVALID_DATA;
     }
     memcpy(prev_tx_checkpoint, checkpoint_res.seg.ptr, 32);
@@ -942,7 +943,7 @@ int _load_tx_checkpoint(mol_seg_t *raw_l2block_seg, uint32_t tx_index,
   mol_seg_res_t checkpoint_res =
       MolReader_Byte32Vec_get(&checkpoint_list_seg, post_tx_checkpoint_index);
   if (MOL_OK != checkpoint_res.errno || 32 != checkpoint_res.seg.size) {
-    printf("invalid post tx checkpoint");
+    ckb_printf("invalid post tx checkpoint");
     return GW_FATAL_INVALID_DATA;
   }
   memcpy(post_tx_checkpoint, checkpoint_res.seg.ptr, 32);
@@ -972,27 +973,27 @@ int _load_verify_transaction_witness(
   ret = ckb_checked_load_witness(buf, &buf_len, 0, challenge_cell_index,
                                  CKB_SOURCE_INPUT);
   if (ret != CKB_SUCCESS) {
-    printf("load_verify_transaction_witness: load witness failed");
+    ckb_printf("load_verify_transaction_witness: load witness failed");
     return GW_FATAL_INVALID_CONTEXT;
   }
   mol_seg_t witness_seg;
   witness_seg.ptr = buf;
   witness_seg.size = buf_len;
   if (MolReader_WitnessArgs_verify(&witness_seg, false) != MOL_OK) {
-    printf("witness is not WitnessArgs format");
+    ckb_printf("witness is not WitnessArgs format");
     return GW_FATAL_INVALID_DATA;
   }
 
   /* read VerifyTransactionWitness from witness_args.lock */
   mol_seg_t content_seg = MolReader_WitnessArgs_get_lock(&witness_seg);
   if (MolReader_BytesOpt_is_none(&content_seg)) {
-    printf("WitnessArgs has no input field");
+    ckb_printf("WitnessArgs has no input field");
     return GW_FATAL_INVALID_DATA;
   }
   mol_seg_t verify_tx_witness_seg = MolReader_Bytes_raw_bytes(&content_seg);
   if (MolReader_VerifyTransactionWitness_verify(&verify_tx_witness_seg,
                                                 false) != MOL_OK) {
-    printf("input field is not VerifyTransactionWitness");
+    ckb_printf("input field is not VerifyTransactionWitness");
     return GW_FATAL_INVALID_DATA;
   }
 
@@ -1008,7 +1009,7 @@ int _load_verify_transaction_witness(
   blake2b_update(&blake2b_ctx, raw_l2block_seg.ptr, raw_l2block_seg.size);
   blake2b_final(&blake2b_ctx, block_hash, 32);
   if (memcmp(block_hash, challenged_block_hash, 32) != 0) {
-    printf("block hash mismatched with challenged block hash");
+    ckb_printf("block hash mismatched with challenged block hash");
     return GW_FATAL_INVALID_DATA;
   }
 
@@ -1032,7 +1033,7 @@ int _load_verify_transaction_witness(
   /* insert tx_index -> tx_witness_hash */
   ret = smt_state_insert(&txs_state, tx_key, tx_witness_hash);
   if (ret != 0) {
-    printf("failed to insert smt tx witness hash %d", ret);
+    ckb_printf("failed to insert smt tx witness hash %d", ret);
     return GW_FATAL_SMT_STORE;
   }
 
@@ -1047,14 +1048,14 @@ int _load_verify_transaction_witness(
   ret = smt_verify(tx_witness_root_seg.ptr, &txs_state, raw_tx_proof_seg.ptr,
                    raw_tx_proof_seg.size);
   if (ret != 0) {
-    printf("failed to merkle verify tx witness root");
+    ckb_printf("failed to merkle verify tx witness root");
     return GW_FATAL_SMT_VERIFY;
   }
 
   /* load transaction context */
   ret = gw_parse_transaction_context(transaction_context, &raw_l2tx_seg);
   if (ret != 0) {
-    printf("parse l2 transaction failed");
+    ckb_printf("parse l2 transaction failed");
     return ret;
   }
 
@@ -1093,14 +1094,14 @@ int _load_verify_transaction_witness(
     mol_seg_res_t block_hash_entry_res =
         MolReader_BlockHashEntryVec_get(&block_hashes_seg, i);
     if (block_hash_entry_res.errno != MOL_OK) {
-      printf("invalid block hash entry");
+      ckb_printf("invalid block hash entry");
       return GW_FATAL_INVALID_DATA;
     }
     mol_seg_t num_seg =
         MolReader_BlockHashEntry_get_number(&block_hash_entry_res.seg);
     uint64_t block_number = *(uint64_t *)num_seg.ptr;
     if (block_number < min_block_number || block_number > max_block_number) {
-      printf("invalid number in block hashes");
+      ckb_printf("invalid number in block hashes");
       return GW_FATAL_INVALID_DATA;
     }
     mol_seg_t hash_seg =
@@ -1109,7 +1110,7 @@ int _load_verify_transaction_witness(
     _gw_block_smt_key(key, block_number);
     ret = smt_state_insert(block_hashes_state, key, hash_seg.ptr);
     if (ret != 0) {
-      printf("failed to insert into smt, ret: %d", ret);
+      ckb_printf("failed to insert into smt, ret: %d", ret);
       return GW_FATAL_SMT_STORE;
     }
   }
@@ -1122,7 +1123,7 @@ int _load_verify_transaction_witness(
     ret = smt_verify(block_merkle_root, block_hashes_state,
                      block_hashes_proof_seg.ptr, block_hashes_proof_seg.size);
     if (ret != 0) {
-      printf("failed to verify block merkle root and block hashes");
+      ckb_printf("failed to verify block merkle root and block hashes");
       return GW_FATAL_SMT_VERIFY;
     }
   }
@@ -1132,7 +1133,7 @@ int _load_verify_transaction_witness(
       MolReader_VerifyTransactionContext_get_kv_state(&verify_tx_ctx_seg);
   uint32_t kv_pairs_len = MolReader_KVPairVec_length(&kv_state_seg);
   if (kv_pairs_len > GW_MAX_KV_PAIRS) {
-    printf("too many key/value pair");
+    ckb_printf("too many key/value pair");
     return GW_FATAL_INVALID_DATA;
   }
   /* initialize kv state */
@@ -1140,14 +1141,14 @@ int _load_verify_transaction_witness(
   for (uint32_t i = 0; i < kv_pairs_len; i++) {
     mol_seg_res_t kv_res = MolReader_KVPairVec_get(&kv_state_seg, i);
     if (kv_res.errno != MOL_OK) {
-      printf("invalid kv pairs");
+      ckb_printf("invalid kv pairs");
       return GW_FATAL_INVALID_DATA;
     }
     mol_seg_t key_seg = MolReader_KVPair_get_k(&kv_res.seg);
     mol_seg_t value_seg = MolReader_KVPair_get_v(&kv_res.seg);
     ret = smt_state_insert(kv_state, key_seg.ptr, value_seg.ptr);
     if (ret != 0) {
-      printf("failed to insert smt kv pair, ret: %d", ret);
+      ckb_printf("failed to insert smt kv pair, ret: %d", ret);
       return GW_FATAL_SMT_STORE;
     }
   }
@@ -1159,7 +1160,7 @@ int _load_verify_transaction_witness(
   mol_seg_t kv_state_proof_bytes_seg =
       MolReader_Bytes_raw_bytes(&kv_state_proof_seg);
   if (kv_state_proof_bytes_seg.size > GW_MAX_KV_PROOF_SIZE) {
-    printf("kv state proof is too long");
+    ckb_printf("kv state proof is too long");
     return GW_FATAL_BUFFER_OVERFLOW;
   }
   memcpy(kv_state_proof, kv_state_proof_bytes_seg.ptr,
@@ -1201,7 +1202,7 @@ int _load_verify_transaction_witness(
       MolReader_VerifyTransactionContext_get_scripts(&verify_tx_ctx_seg);
   uint32_t entries_size = MolReader_ScriptVec_length(&scripts_seg);
   if (entries_size > GW_MAX_SCRIPT_ENTRIES_SIZE) {
-    printf("script size is exceeded maximum");
+    ckb_printf("script size is exceeded maximum");
     return GW_FATAL_BUFFER_OVERFLOW;
   }
   *script_entries_size = 0;
@@ -1209,11 +1210,11 @@ int _load_verify_transaction_witness(
     gw_script_entry_t entry = {0};
     mol_seg_res_t script_res = MolReader_ScriptVec_get(&scripts_seg, i);
     if (script_res.errno != MOL_OK) {
-      printf("invalid script entry format");
+      ckb_printf("invalid script entry format");
       return GW_FATAL_INVALID_DATA;
     }
     if (script_res.seg.size > GW_MAX_SCRIPT_SIZE) {
-      printf("invalid script entry format");
+      ckb_printf("invalid script entry format");
       return GW_FATAL_INVALID_DATA;
     }
 
@@ -1246,19 +1247,19 @@ int _gw_check_account_script_is_allowed(uint8_t rollup_script_hash[32],
                                         mol_seg_t *script_seg,
                                         mol_seg_t *rollup_config_seg) {
   if (MolReader_Script_verify(script_seg, false) != MOL_OK) {
-    printf("disallow script because of the format is invalid");
+    ckb_printf("disallow script because of the format is invalid");
     return GW_FATAL_INVALID_DATA;
   }
 
   if (script_seg->size > GW_MAX_SCRIPT_SIZE) {
-    printf("disallow script because of size is too large");
+    ckb_printf("disallow script because of size is too large");
     return GW_FATAL_INVALID_DATA;
   }
 
   /* check hash type */
   mol_seg_t hash_type_seg = MolReader_Script_get_hash_type(script_seg);
   if (*(uint8_t *)hash_type_seg.ptr != SCRIPT_HASH_TYPE_TYPE) {
-    printf("disallow script because of script hash type is not 'type'");
+    ckb_printf("disallow script because of script hash type is not 'type'");
     return GW_ERROR_UNKNOWN_SCRIPT_CODE_HASH;
   }
   mol_seg_t code_hash_seg = MolReader_Script_get_code_hash(script_seg);
@@ -1275,7 +1276,7 @@ int _gw_check_account_script_is_allowed(uint8_t rollup_script_hash[32],
         MolReader_Byte32Vec_get(&eoa_list_seg, i);
     if (allowed_code_hash_res.errno != MOL_OK ||
         allowed_code_hash_res.seg.size != code_hash_seg.size) {
-      printf("disallow script because eoa code_hash is invalid");
+      ckb_printf("disallow script because eoa code_hash is invalid");
       return GW_FATAL_INVALID_DATA;
     }
     if (memcmp(allowed_code_hash_res.seg.ptr, code_hash_seg.ptr,
@@ -1295,7 +1296,7 @@ int _gw_check_account_script_is_allowed(uint8_t rollup_script_hash[32],
         MolReader_Byte32Vec_get(&contract_list_seg, i);
     if (allowed_code_hash_res.errno != MOL_OK ||
         allowed_code_hash_res.seg.size != code_hash_seg.size) {
-      printf("disallow script because contract code_hash is invalid");
+      ckb_printf("disallow script because contract code_hash is invalid");
       return GW_FATAL_INVALID_DATA;
     }
     if (memcmp(allowed_code_hash_res.seg.ptr, code_hash_seg.ptr,
@@ -1305,11 +1306,12 @@ int _gw_check_account_script_is_allowed(uint8_t rollup_script_hash[32],
       mol_seg_t args_seg = MolReader_Script_get_args(script_seg);
       mol_seg_t raw_args_seg = MolReader_Bytes_raw_bytes(&args_seg);
       if (raw_args_seg.size < 32) {
-        printf("disallow contract script because args is less than 32 bytes");
+        ckb_printf(
+            "disallow contract script because args is less than 32 bytes");
         return GW_ERROR_INVALID_CONTRACT_SCRIPT;
       }
       if (memcmp(rollup_script_hash, raw_args_seg.ptr, 32) != 0) {
-        printf(
+        ckb_printf(
             "disallow contract script because args is not start with "
             "rollup_script_hash");
         return GW_ERROR_INVALID_CONTRACT_SCRIPT;
@@ -1320,7 +1322,7 @@ int _gw_check_account_script_is_allowed(uint8_t rollup_script_hash[32],
   }
 
   /* script is not allowed */
-  printf("disallow script because code_hash is unknown");
+  ckb_printf("disallow script because code_hash is unknown");
   return GW_ERROR_UNKNOWN_SCRIPT_CODE_HASH;
 }
 
@@ -1343,11 +1345,12 @@ int _check_owner_lock_hash() {
   int ret =
       ckb_load_cell_data(owner_lock_hash, &len, 0, 0, CKB_SOURCE_GROUP_INPUT);
   if (ret != 0) {
-    printf("check owner lock hash failed, can't load cell data, ret: %d", ret);
+    ckb_printf("check owner lock hash failed, can't load cell data, ret: %d",
+               ret);
     return GW_FATAL_INVALID_CONTEXT;
   }
   if (len != 32) {
-    printf("check owner lock hash failed, invalid data len: %ld", len);
+    ckb_printf("check owner lock hash failed, invalid data len: %ld", len);
     return GW_FATAL_INVALID_DATA;
   }
   /* look for owner cell */
@@ -1360,7 +1363,7 @@ int _check_owner_lock_hash() {
                                  CKB_CELL_FIELD_LOCK_HASH);
 
     if (ret != 0) {
-      printf(
+      ckb_printf(
           "check owner lock hash failed: failed to load cell lock_hash ret: %d",
           ret);
       return GW_FATAL_INVALID_CONTEXT;
@@ -1380,7 +1383,7 @@ int _gw_calculate_state_checkpoint(uint8_t buffer[32], const smt_state_t *state,
   uint8_t root[32];
   int ret = smt_calculate_root(root, state, proof, proof_length);
   if (0 != ret) {
-    printf(
+    ckb_printf(
         "_gw_calculate_state_check_point: failed to calculate kv state "
         "root ret: %d",
         ret);
@@ -1415,7 +1418,7 @@ int gw_context_init(gw_context_t *ctx) {
   /* check owner lock */
   int ret = _check_owner_lock_hash();
   if (ret != 0) {
-    printf("gw_context_init: not found owner lock, ret: %d", ret);
+    ckb_printf("gw_context_init: not found owner lock, ret: %d", ret);
     return ret;
   }
 
@@ -1442,7 +1445,7 @@ int gw_context_init(gw_context_t *ctx) {
   uint8_t rollup_script_hash[32] = {0};
   ret = _load_rollup_script_hash(rollup_script_hash);
   if (ret != 0) {
-    printf("failed to load rollup script hash");
+    ckb_printf("failed to load rollup script hash");
     return ret;
   }
   /* set ctx->rollup_script_hash */
@@ -1452,13 +1455,14 @@ int gw_context_init(gw_context_t *ctx) {
                                 &rollup_cell_index);
   if (ret == GW_ERROR_NOT_FOUND) {
     /* exit execution with 0 if we are not in a challenge */
-    printf(
+    ckb_printf(
         "gw_context_init: can't found rollup cell from inputs which "
         "means we are not in a "
         "challenge, unlock cell without execution script");
     ckb_exit(0);
   } else if (ret != 0) {
-    printf("gw_context_init: failed to load rollup cell index, ret: %d", ret);
+    ckb_printf("gw_context_init: failed to load rollup cell index, ret: %d",
+               ret);
     return GW_FATAL_INVALID_CONTEXT;
   }
   uint64_t challenge_cell_index = 0;
@@ -1469,7 +1473,7 @@ int gw_context_init(gw_context_t *ctx) {
       &challenge_cell_index, challenged_block_hash, block_merkle_root,
       &ctx->tx_index, ctx->rollup_config, &ctx->rollup_config_size);
   if (ret != 0) {
-    printf("failed to load verification context");
+    ckb_printf("failed to load verification context");
     return ret;
   }
 
@@ -1483,7 +1487,7 @@ int gw_context_init(gw_context_t *ctx) {
       &ctx->block_hashes_state, ctx->block_hashes_pairs,
       ctx->prev_tx_checkpoint, ctx->post_tx_checkpoint, &ctx->account_count);
   if (ret != 0) {
-    printf("failed to load verify transaction witness");
+    ckb_printf("failed to load verify transaction witness");
     return ret;
   }
 
@@ -1493,14 +1497,14 @@ int gw_context_init(gw_context_t *ctx) {
                               ctx->kv_state_proof, ctx->kv_state_proof_size,
                               ctx->account_count);
   if (ret != 0) {
-    printf("failed to merkle verify prev tx checkpoint");
+    ckb_printf("failed to merkle verify prev tx checkpoint");
     return ret;
   }
 
   /* init original sender nonce */
   ret = _load_sender_nonce(ctx, &ctx->original_sender_nonce);
   if (ret != 0) {
-    printf("failed to init original sender nonce");
+    ckb_printf("failed to init original sender nonce");
     return ret;
   }
 
@@ -1509,14 +1513,14 @@ int gw_context_init(gw_context_t *ctx) {
 
 int gw_finalize(gw_context_t *ctx) {
   if (ctx->post_account.count != ctx->account_count) {
-    printf("account count not match");
+    ckb_printf("account count not match");
     return GW_FATAL_INVALID_DATA;
   }
 
   /* update sender nonce */
   int ret = _increase_sender_nonce(ctx);
   if (ret != 0) {
-    printf("failed to update original sender nonce");
+    ckb_printf("failed to update original sender nonce");
     return ret;
   }
 
@@ -1527,7 +1531,7 @@ int gw_finalize(gw_context_t *ctx) {
                  ctx->receipt.return_data_len);
   blake2b_final(&blake2b_ctx, return_data_hash, 32);
   if (memcmp(return_data_hash, ctx->return_data_hash, 32) != 0) {
-    printf("return data hash not match");
+    ckb_printf("return data hash not match");
     return GW_FATAL_MISMATCH_RETURN_DATA;
   }
 
@@ -1536,7 +1540,7 @@ int gw_finalize(gw_context_t *ctx) {
                               ctx->kv_state_proof, ctx->kv_state_proof_size,
                               ctx->account_count);
   if (ret != 0) {
-    printf("failed to merkle verify post tx checkpoint");
+    ckb_printf("failed to merkle verify post tx checkpoint");
     return ret;
   }
   return 0;
@@ -1553,7 +1557,7 @@ int gw_verify_sudt_account(gw_context_t *ctx, uint32_t sudt_id) {
   script_seg.ptr = script_buffer;
   script_seg.size = script_len;
   if (MolReader_Script_verify(&script_seg, false) != MOL_OK) {
-    printf("load account script: invalid script");
+    ckb_printf("load account script: invalid script");
     return GW_FATAL_INVALID_SUDT_SCRIPT;
   }
   mol_seg_t code_hash_seg = MolReader_Script_get_code_hash(&script_seg);

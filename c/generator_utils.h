@@ -73,7 +73,7 @@ int _internal_load_raw(gw_context_t *ctx, const uint8_t raw_key[GW_VALUE_BYTES],
 
   int ret = syscall(GW_SYS_LOAD, raw_key, value, 0, 0, 0, 0);
   if (ret != 0) {
-    printf("failed internal_load_raw");
+    ckb_printf("failed internal_load_raw");
     /* Even we load via syscall, the data structure in the bottom is a SMT */
     return GW_FATAL_SMT_FETCH;
   }
@@ -88,7 +88,7 @@ int _internal_store_raw(gw_context_t *ctx, const uint8_t raw_key[GW_KEY_BYTES],
 
   int ret = syscall(GW_SYS_STORE, raw_key, value, 0, 0, 0, 0);
   if (ret != 0) {
-    printf("failed internal_store_raw");
+    ckb_printf("failed internal_store_raw");
     /* Even we load via syscall, the data structure in the bottom is a SMT */
     return GW_FATAL_SMT_STORE;
   }
@@ -152,7 +152,7 @@ int sys_set_program_return_data(gw_context_t *ctx, uint8_t *data,
     return GW_FATAL_INVALID_CONTEXT;
   }
   if (len > GW_MAX_DATA_SIZE) {
-    printf("Exceeded max return data size");
+    ckb_printf("Exceeded max return data size");
     return GW_FATAL_BUFFER_OVERFLOW;
   }
   return syscall(GW_SYS_SET_RETURN_DATA, data, len, 0, 0, 0, 0);
@@ -220,7 +220,7 @@ int sys_get_account_script(gw_context_t *ctx, uint32_t account_id,
   }
 
   if (_is_zero_hash(script_hash)) {
-    printf("account script_hash is zero, which means account isn't exist");
+    ckb_printf("account script_hash is zero, which means account isn't exist");
     return GW_ERROR_NOT_FOUND;
   }
 
@@ -236,7 +236,7 @@ int sys_store_data(gw_context_t *ctx, uint64_t data_len, uint8_t *data) {
     return GW_FATAL_INVALID_CONTEXT;
   }
   if (data_len > GW_MAX_DATA_SIZE) {
-    printf("Exceeded max store data size");
+    ckb_printf("Exceeded max store data size");
     return GW_FATAL_INVALID_DATA;
   }
   return syscall(GW_SYS_STORE_DATA, data_len, data, 0, 0, 0, 0);
@@ -256,7 +256,7 @@ int sys_load_data(gw_context_t *ctx, uint8_t data_hash[32], uint64_t *len,
   }
 
   if (!data_exists) {
-    printf("data hash not exist");
+    ckb_printf("data hash not exist");
     /* return not found if data isn't exist in the state tree */
     return GW_ERROR_NOT_FOUND;
   }
@@ -379,14 +379,14 @@ int _sys_load_rollup_config(uint8_t *addr, uint64_t *len) {
   *len = inner_len;
 
   if (*len > GW_MAX_ROLLUP_CONFIG_SIZE) {
-    printf("length too long");
+    ckb_printf("length too long");
     return GW_FATAL_INVALID_DATA;
   }
   mol_seg_t config_seg;
   config_seg.ptr = addr;
   config_seg.size = *len;
   if (MolReader_RollupConfig_verify(&config_seg, false) != MOL_OK) {
-    printf("rollup config cell data is not RollupConfig format");
+    ckb_printf("rollup config cell data is not RollupConfig format");
     return GW_FATAL_INVALID_DATA;
   }
 
@@ -457,7 +457,7 @@ int gw_context_init(gw_context_t *ctx) {
   /* init original sender nonce */
   ret = _load_sender_nonce(ctx, &ctx->original_sender_nonce);
   if (ret != 0) {
-    printf("failed to init original sender nonce");
+    ckb_printf("failed to init original sender nonce");
     return ret;
   }
 
@@ -468,7 +468,7 @@ int gw_finalize(gw_context_t *ctx) {
   /* update sender nonce */
   int ret = _increase_sender_nonce(ctx);
   if (ret != 0) {
-    printf("failed to update original sender nonce");
+    ckb_printf("failed to update original sender nonce");
     return ret;
   }
 
@@ -489,7 +489,7 @@ int gw_verify_sudt_account(gw_context_t *ctx, uint32_t sudt_id) {
   script_seg.ptr = script_buffer;
   script_seg.size = script_len;
   if (MolReader_Script_verify(&script_seg, false) != MOL_OK) {
-    printf("load account script: invalid script");
+    ckb_printf("load account script: invalid script");
     return GW_FATAL_INVALID_SUDT_SCRIPT;
   }
   mol_seg_t code_hash_seg = MolReader_Script_get_code_hash(&script_seg);
