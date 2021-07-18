@@ -28,7 +28,7 @@ int main() {
   uint8_t *signature = args + 32 + 1;
   uint8_t *code_hash = args + 32 + 1 + signature_len;
   if (args_len != (32 + 1 + signature_len + 32)) {
-    ckb_printf("invalid args_len");
+    printf("invalid args_len");
     return -1;
   }
   uint8_t script[1024] = {0};

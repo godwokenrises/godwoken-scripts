@@ -31,7 +31,6 @@ fn main() {
         .include("c/deps/ckb-c-stdlib")
         .include("c/deps/ckb-c-stdlib/libc")
         .include("c/deps/molecule")
-        .include("c")
         .include("c/build")
         .flag("-Wall")
         .flag("-Werror")

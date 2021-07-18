@@ -1,6 +1,5 @@
 #include "blake2b.h"
 #include "secp256k1_helper.h"
-#include "ckb_printf.h"
 
 /* constants */
 #define SIGNATURE_SIZE 65
@@ -21,7 +20,7 @@ int recover_secp256k1_uncompressed_key(uint8_t message[32],
   uint8_t secp_data[CKB_SECP256K1_DATA_SIZE];
   int ret = ckb_secp256k1_custom_verify_only_initialize(&context, secp_data);
   if (ret != 0) {
-    ckb_printf("Error occured when initializing secp256k1");
+    printf("Error occured when initializing secp256k1");
     return ret;
   }
 
@@ -29,7 +28,7 @@ int recover_secp256k1_uncompressed_key(uint8_t message[32],
   if (secp256k1_ecdsa_recoverable_signature_parse_compact(
           &context, &recoverable_signature, signature,
           signature[RECID_INDEX]) == 0) {
-    ckb_printf("Error occured when parsing recoverable signature");
+    printf("Error occured when parsing recoverable signature");
     return ERROR_SECP_PARSE_SIGNATURE;
   }
 
@@ -37,7 +36,7 @@ int recover_secp256k1_uncompressed_key(uint8_t message[32],
   secp256k1_pubkey pubkey;
   if (secp256k1_ecdsa_recover(&context, &pubkey, &recoverable_signature,
                               message) != 1) {
-    ckb_printf("Error occured when recovering pubkey");
+    printf("Error occured when recovering pubkey");
     return ERROR_SECP_RECOVER_PUBKEY;
   }
 
@@ -46,7 +45,7 @@ int recover_secp256k1_uncompressed_key(uint8_t message[32],
   if (secp256k1_ec_pubkey_serialize(&context, output_uncompressed_pubkey,
                                     &pubkey_size, &pubkey,
                                     SECP256K1_EC_UNCOMPRESSED) != 1) {
-    ckb_printf("Error occued when serializing pubkey");
+    printf("Error occued when serializing pubkey");
     return ERROR_SECP_SERIALIZE_PUBKEY;
   }
 
