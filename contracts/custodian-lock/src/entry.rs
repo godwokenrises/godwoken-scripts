@@ -10,7 +10,7 @@ use validator_utils::{
         utils::search_lock_hash,
     },
     ckb_std::high_level::load_cell_lock,
-    gw_types::packed::RollupActionUnionReader,
+    gw_types::packed::{DepositLockArgs, DepositLockArgsReader, RollupActionUnionReader},
 };
 
 // Import CKB syscalls and structures
@@ -88,9 +88,23 @@ pub fn main() -> Result<(), Error> {
         search_lock_hash(&unlock_args.deposit_lock_hash().unpack(), Source::Output)
             .ok_or(Error::InvalidOutput)?;
     let deposit_lock = load_cell_lock(deposit_cell_index, Source::Output)?;
+    let deposit_lock_args = {
+        let args: Bytes = deposit_lock.args().unpack();
+        if args.len() < rollup_type_hash.len() {
+            return Err(Error::InvalidArgs);
+        }
+        if args[..32] != rollup_type_hash {
+            return Err(Error::InvalidArgs);
+        }
+
+        match DepositLockArgsReader::verify(&args.slice(32..), false) {
+            Ok(_) => DepositLockArgs::new_unchecked(args.slice(32..)),
+            Err(_) => return Err(Error::InvalidOutput),
+        }
+    };
     if deposit_lock.code_hash().as_slice() != config.deposit_script_type_hash().as_slice()
         || deposit_lock.hash_type() != ScriptHashType::Type.into()
-        || deposit_lock.args().as_slice() != lock_args.deposit_lock_args().as_slice()
+        || deposit_lock_args.as_slice() != lock_args.deposit_lock_args().as_slice()
     {
         return Err(Error::InvalidOutput);
     }
