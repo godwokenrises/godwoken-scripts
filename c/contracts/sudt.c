@@ -93,13 +93,13 @@ int main() {
     /* pay fee */
     ret = sudt_pay_fee(&ctx, sudt_id, short_addr_len, from_addr, fee);
     if (ret != 0) {
-      ckb_debug("pay fee failed");
+      printf("pay fee failed");
       return ret;
     }
     /* transfer */
     ret = sudt_transfer(&ctx, sudt_id, short_addr_len, from_addr, to_addr, amount);
     if (ret != 0) {
-      ckb_debug("transfer token failed");
+      printf("transfer token failed");
       return ret;
     }
   } else {

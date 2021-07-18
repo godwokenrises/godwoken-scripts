@@ -26,7 +26,7 @@ int handle_sys_load(gw_context_t *ctx,
                     const uint8_t *args, const uint32_t args_len,
                     uint32_t *rv_len, uint8_t *rv) {
   if (args_len < 4 + 32) {
-    ckb_debug("invalid args length for sys_load");
+    printf("invalid args length for sys_load");
     return -1;
   }
   uint32_t account_id = *((uint32_t *)args);
@@ -43,7 +43,7 @@ int handle_sys_store(gw_context_t *ctx,
                      const uint8_t *args, const uint32_t args_len,
                      uint32_t *rv_len, uint8_t *rv) {
   if (args_len < 4 + 32 + 32) {
-    ckb_debug("invalid args length for sys_store");
+    printf("invalid args length for sys_store");
     return -1;
   }
   uint32_t account_id = *((uint32_t *)args);
@@ -62,7 +62,7 @@ int handle_sys_load_nonce(gw_context_t *ctx,
                           const uint8_t *args, const uint32_t args_len,
                           uint32_t *rv_len, uint8_t *rv) {
   if (args_len < 4) {
-    ckb_debug("invalid args length for sys_get_account_nonce");
+    printf("invalid args length for sys_get_account_nonce");
     return -1;
   }
   uint32_t account_id = *((uint32_t *)args);
@@ -79,20 +79,20 @@ int handle_sys_log(gw_context_t *ctx,
                    const uint8_t *args, const uint32_t args_len,
                    uint32_t *rv_len, uint8_t *rv) {
   if (args_len < 4 + 1 + 4) {
-    ckb_debug("invalid args length for sys_log (header)");
+    printf("invalid args length for sys_log (header)");
     return -1;
   }
   uint32_t account_id = *((uint32_t *)args);
   uint8_t service_flag = args[4];
   uint32_t data_len = *((uint32_t *)(args + 5));
   if (args_len < data_len + 9) {
-    ckb_debug("invalid args length for sys_log (data part)");
+    printf("invalid args length for sys_log (data part)");
     return -1;
   }
   const uint8_t *data = args + 9;
   int ret = ctx->sys_log(ctx, account_id, service_flag, data_len, data);
   if (ret != 0) {
-    ckb_debug("call sys_log failed");
+    printf("call sys_log failed");
     return ret;
   }
   *rv_len = 0;
@@ -124,19 +124,19 @@ int main() {
     handler = handle_sys_log;
     break;
   default:
-    ckb_debug("invalid flag");
+    printf("invalid flag");
     return -1;
   }
   uint8_t rv[64 * 1024];
   uint32_t rv_len = 0;
   ret = handler(&ctx, args, args_len, &rv_len, rv);
   if (ret != 0) {
-    ckb_debug("call handler failed");
+    printf("call handler failed");
     return ret;
   }
   ret = ctx.sys_set_program_return_data(&ctx, rv, rv_len);
   if (ret != 0) {
-    ckb_debug("set return data failed");
+    printf("set return data failed");
     return ret;
   }
   return gw_finalize(&ctx);
