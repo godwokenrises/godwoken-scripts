@@ -1252,7 +1252,7 @@ int _gw_check_account_script_is_allowed(uint8_t rollup_script_hash[32],
 
   if (script_seg->size > GW_MAX_SCRIPT_SIZE) {
     printf("[check account script] script size is too large");
-    return GW_FATAL_INVALID_DATA;
+    return GW_ERROR_INVALID_ACCOUNT_SCRIPT;
   }
 
   /* check hash type */
