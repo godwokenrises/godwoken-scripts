@@ -310,6 +310,10 @@ int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
     return GW_FATAL_INVALID_CONTEXT;
   }
 
+  if (script_len > GW_MAX_SCRIPT_SIZE) {
+    return GW_ERROR_INVALID_ACCOUNT_SCRIPT;
+  }
+
   /* calculate script_hash */
   uint8_t script_hash[32] = {0};
   blake2b_state blake2b_ctx;

@@ -526,7 +526,7 @@ int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
 
   /* return failure if scripts slots is full */
   if (ctx->script_entries_size >= GW_MAX_SCRIPT_ENTRIES_SIZE) {
-    printf("script slots is full");
+    printf("[sys_create] script slots is full");
     return GW_FATAL_BUFFER_OVERFLOW;
   }
 
@@ -543,7 +543,7 @@ int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
   ret = _gw_check_account_script_is_allowed(
       ctx->rollup_script_hash, &account_script_seg, &rollup_config_seg);
   if (ret != 0) {
-    printf("disallowed account script");
+    printf("[sys_create] reject invalid account script");
     return ret;
   }
 
@@ -1246,81 +1246,85 @@ int _gw_check_account_script_is_allowed(uint8_t rollup_script_hash[32],
                                         mol_seg_t *script_seg,
                                         mol_seg_t *rollup_config_seg) {
   if (MolReader_Script_verify(script_seg, false) != MOL_OK) {
-    printf("disallow script because of the format is invalid");
-    return GW_FATAL_INVALID_DATA;
+    printf("[check account script] script invalid format");
+    return GW_ERROR_INVALID_ACCOUNT_SCRIPT;
   }
 
   if (script_seg->size > GW_MAX_SCRIPT_SIZE) {
-    printf("disallow script because of size is too large");
-    return GW_FATAL_INVALID_DATA;
+    printf("[check account script] script size is too large");
+    return GW_ERROR_INVALID_ACCOUNT_SCRIPT;
   }
 
   /* check hash type */
   mol_seg_t hash_type_seg = MolReader_Script_get_hash_type(script_seg);
   if (*(uint8_t *)hash_type_seg.ptr != SCRIPT_HASH_TYPE_TYPE) {
-    printf("disallow script because of script hash type is not 'type'");
+    printf("[check account script]  hash type is not 'type'");
     return GW_ERROR_UNKNOWN_SCRIPT_CODE_HASH;
   }
-  mol_seg_t code_hash_seg = MolReader_Script_get_code_hash(script_seg);
-  if (code_hash_seg.size != 32) {
+
+  /* check script.args */
+  mol_seg_t args_seg = MolReader_Script_get_args(script_seg);
+  mol_seg_t raw_args_seg = MolReader_Bytes_raw_bytes(&args_seg);
+  if (raw_args_seg.size < 32) {
+    printf("[check account script] script args is less than 32 bytes");
+    return GW_ERROR_INVALID_ACCOUNT_SCRIPT;
+  }
+  if (memcmp(rollup_script_hash, raw_args_seg.ptr, 32) != 0) {
+    printf("[check account script] args is not start with rollup_script_hash");
+    return GW_ERROR_INVALID_ACCOUNT_SCRIPT;
+  }
+
+  /* check code_hash */
+  mol_seg_t script_code_hash_seg = MolReader_Script_get_code_hash(script_seg);
+  if (script_code_hash_seg.size != 32) {
     return GW_FATAL_INVALID_DATA;
   }
 
   /* check allowed EOA list */
-  mol_seg_t eoa_list_seg =
+  mol_seg_t allowed_eoa_list_seg =
       MolReader_RollupConfig_get_allowed_eoa_type_hashes(rollup_config_seg);
-  uint32_t len = MolReader_Byte32Vec_length(&eoa_list_seg);
+  uint32_t len = MolReader_Byte32Vec_length(&allowed_eoa_list_seg);
   for (uint32_t i = 0; i < len; i++) {
-    mol_seg_res_t allowed_code_hash_res =
-        MolReader_Byte32Vec_get(&eoa_list_seg, i);
-    if (allowed_code_hash_res.errno != MOL_OK ||
-        allowed_code_hash_res.seg.size != code_hash_seg.size) {
-      printf("disallow script because eoa code_hash is invalid");
+    mol_seg_res_t code_hash_res =
+        MolReader_Byte32Vec_get(&allowed_eoa_list_seg, i);
+
+    if (code_hash_res.errno != MOL_OK ||
+        code_hash_res.seg.size != script_code_hash_seg.size) {
+      printf("[check account script] failed to get EOA code_hash");
       return GW_FATAL_INVALID_DATA;
     }
-    if (memcmp(allowed_code_hash_res.seg.ptr, code_hash_seg.ptr,
-               code_hash_seg.size) == 0) {
+
+    if (memcmp(code_hash_res.seg.ptr, script_code_hash_seg.ptr,
+               script_code_hash_seg.size) == 0) {
       /* found a valid code_hash */
+      printf("[check account script] script is EOA");
       return 0;
     }
   }
 
   /* check allowed contract list */
-  mol_seg_t contract_list_seg =
+  mol_seg_t allowed_contract_list_seg =
       MolReader_RollupConfig_get_allowed_contract_type_hashes(
           rollup_config_seg);
-  len = MolReader_Byte32Vec_length(&contract_list_seg);
+  len = MolReader_Byte32Vec_length(&allowed_contract_list_seg);
   for (uint32_t i = 0; i < len; i++) {
-    mol_seg_res_t allowed_code_hash_res =
-        MolReader_Byte32Vec_get(&contract_list_seg, i);
-    if (allowed_code_hash_res.errno != MOL_OK ||
-        allowed_code_hash_res.seg.size != code_hash_seg.size) {
-      printf("disallow script because contract code_hash is invalid");
+    mol_seg_res_t code_hash_res =
+        MolReader_Byte32Vec_get(&allowed_contract_list_seg, i);
+    if (code_hash_res.errno != MOL_OK ||
+        code_hash_res.seg.size != script_code_hash_seg.size) {
+      printf("[check account script] failed to get contract code_hash");
       return GW_FATAL_INVALID_DATA;
     }
-    if (memcmp(allowed_code_hash_res.seg.ptr, code_hash_seg.ptr,
-               code_hash_seg.size) == 0) {
-      // check that contract'script must start with a 32 bytes
-      // rollup_script_hash
-      mol_seg_t args_seg = MolReader_Script_get_args(script_seg);
-      mol_seg_t raw_args_seg = MolReader_Bytes_raw_bytes(&args_seg);
-      if (raw_args_seg.size < 32) {
-        printf("disallow contract script because args is less than 32 bytes");
-        return GW_ERROR_INVALID_CONTRACT_SCRIPT;
-      }
-      if (memcmp(rollup_script_hash, raw_args_seg.ptr, 32) != 0) {
-        printf(
-            "disallow contract script because args is not start with "
-            "rollup_script_hash");
-        return GW_ERROR_INVALID_CONTRACT_SCRIPT;
-      }
+    if (memcmp(code_hash_res.seg.ptr, script_code_hash_seg.ptr,
+               script_code_hash_seg.size) == 0) {
       /* found a valid code_hash */
+      printf("[check account script] script is contract");
       return 0;
     }
   }
 
   /* script is not allowed */
-  printf("disallow script because code_hash is unknown");
+  printf("[check account script] unknown code_hash");
   return GW_ERROR_UNKNOWN_SCRIPT_CODE_HASH;
 }
 
