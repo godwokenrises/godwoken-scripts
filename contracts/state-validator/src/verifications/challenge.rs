@@ -6,12 +6,12 @@ use gw_types::{
     packed::{GlobalState, RollupConfig},
     prelude::*,
 };
-use validator_utils::gw_types;
 use validator_utils::{
-    cells::lock_cells::find_challenge_cell,
+    cells::lock_cells::{collect_burn_cells, find_challenge_cell},
     ckb_std::{ckb_constants::Source, debug},
     error::Error,
 };
+use validator_utils::{cells::types::ChallengeCell, gw_types};
 use validator_utils::{
     gw_common,
     gw_types::packed::{RawL2Block, RollupEnterChallengeReader},
@@ -118,6 +118,12 @@ pub fn verify_cancel_challenge(
         debug!("cancel challenge, invalid challenge cell");
         return Err(Error::InvalidChallengeCell);
     }
+
+    // Check cancel burn
+    let challenge_cell = find_challenge_cell(&rollup_type_hash, config, Source::Input)?
+        .ok_or(Error::InvalidChallengeCell)?;
+    check_cancel_burn(config, &challenge_cell)?;
+
     // check rollup lock cells
     check_rollup_lock_cells(&rollup_type_hash, config)?;
     // check post global state
@@ -133,5 +139,28 @@ pub fn verify_cancel_challenge(
         debug!("cancel challenge, mismatch post global state");
         return Err(Error::InvalidPostGlobalState);
     }
+    Ok(())
+}
+
+fn check_cancel_burn(config: &RollupConfig, challenge_cell: &ChallengeCell) -> Result<(), Error> {
+    let reward_burn_rate: u8 = config.reward_burn_rate().into();
+    let challenge_capacity = challenge_cell.value.capacity as u128;
+    let expected_burn_capacity = challenge_capacity.saturating_mul(reward_burn_rate.into()) / 100;
+
+    let burned_capacity: u128 = {
+        let input_burned_capacity: u128 = collect_burn_cells(config, Source::Input)?
+            .into_iter()
+            .map(|c| c.value.capacity as u128)
+            .sum();
+        let output_burned_capacity: u128 = collect_burn_cells(config, Source::Output)?
+            .into_iter()
+            .map(|c| c.value.capacity as u128)
+            .sum();
+        output_burned_capacity.saturating_sub(input_burned_capacity)
+    };
+    if burned_capacity < expected_burn_capacity {
+        return Err(Error::InvalidChallengeReward);
+    }
+
     Ok(())
 }
