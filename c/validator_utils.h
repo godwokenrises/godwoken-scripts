@@ -309,6 +309,9 @@ int sys_store_data(gw_context_t *ctx, uint64_t data_len, uint8_t *data) {
     return GW_FATAL_INVALID_CONTEXT;
   }
 
+  if (0 == data_len) {
+    return 0;
+  }
   if (data_len > GW_MAX_DATA_SIZE) {
     printf("Exceeded max store data size");
     return GW_FATAL_INVALID_DATA;
@@ -342,6 +345,10 @@ int sys_load_data(gw_context_t *ctx, uint8_t data_hash[32], uint64_t *len,
                   uint64_t offset, uint8_t *data) {
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
+  }
+
+  if (0 == *len) {
+    return 0;
   }
 
   /* Check data_hash_key */
