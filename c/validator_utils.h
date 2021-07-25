@@ -309,6 +309,9 @@ int sys_store_data(gw_context_t *ctx, uint64_t data_len, uint8_t *data) {
     return GW_FATAL_INVALID_CONTEXT;
   }
 
+  if (0 == data_len) {
+    return 0;
+  }
   if (data_len > GW_MAX_DATA_SIZE) {
     printf("Exceeded max store data size");
     return GW_FATAL_INVALID_DATA;
