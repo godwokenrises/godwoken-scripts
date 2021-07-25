@@ -347,6 +347,10 @@ int sys_load_data(gw_context_t *ctx, uint8_t data_hash[32], uint64_t *len,
     return GW_FATAL_INVALID_CONTEXT;
   }
 
+  if (0 == *len) {
+    return 0;
+  }
+
   /* Check data_hash_key */
   int data_exists = 0;
   int ret = _check_data_hash_exist(ctx, data_hash, &data_exists);
