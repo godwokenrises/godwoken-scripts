@@ -47,8 +47,8 @@ fn test_meta_contract() {
     // create contract
     let contract_script = Script::new_builder()
         .code_hash(dummy_eoa_type_hash.pack())
-        .args(vec![42].pack())
         .hash_type(ScriptHashType::Type.into())
+        .args([42u8; 33].pack())
         .build();
     let args = MetaContractArgs::new_builder()
         .set(

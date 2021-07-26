@@ -148,7 +148,6 @@ pub fn apply_block_result(
         context: L1ActionContext::SubmitBlock {
             l2block,
             deposit_requests,
-            reverted_block_hashes: Vec::default(),
         },
         transaction,
         l2block_committed_info,
