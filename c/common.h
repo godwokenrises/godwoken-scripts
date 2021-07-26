@@ -132,14 +132,7 @@ int gw_parse_block_info(gw_block_info_t *block_info, mol_seg_t *src) {
 }
 
 /* check zero hash */
-int _is_zero_hash(uint8_t hash[32]) {
-  for (int i = 0; i < 32; i++) {
-    if (hash[i] != 0) {
-      return false;
-    }
-  }
-  return true;
-}
+int _is_zero_hash(const uint8_t hash[32]) { return _smt_zero_value(hash); }
 
 /* ensure account id is exist */
 int _ensure_account_exists(gw_context_t *ctx, uint32_t account_id) {
