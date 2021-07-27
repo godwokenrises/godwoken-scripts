@@ -89,9 +89,11 @@ pub fn main() -> Result<(), Error> {
 
     match target_type {
         ChallengeTargetType::TxExecution => {
+            debug!("[challenge-lock] target: tx execution");
             crate::verifications::tx_execution::verify_tx_execution(&rollup_config, &lock_args)?;
         }
         ChallengeTargetType::TxSignature => {
+            debug!("[challenge-lock] target: tx signature");
             crate::verifications::tx_signature::verify_tx_signature(
                 &rollup_script_hash,
                 &rollup_config,
@@ -99,6 +101,7 @@ pub fn main() -> Result<(), Error> {
             )?;
         }
         ChallengeTargetType::Withdrawal => {
+            debug!("[challenge-lock] target: withdrawal");
             crate::verifications::withdrawal::verify_withdrawal(&rollup_script_hash, &lock_args)?;
         }
     }
