@@ -60,6 +60,7 @@ impl State for KVState {
                 Error::MerkleProof
             });
         }
+        debug!("calculate_root: kv: {} proof: {}", self.kv.len(), self.proof.len());
         let proof = CompiledMerkleProof(self.proof.clone().into());
         let root = proof.compute_root::<Blake2bHasher>(self.kv.clone().into_iter().collect())?;
         Ok(root)

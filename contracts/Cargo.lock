@@ -10,6 +10,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "benchmark-smt"
+version = "0.1.0"
+dependencies = [
+ "gw-types",
+ "hex",
+ "validator-utils",
+]
+
+[[package]]
 name = "blake2b-ref"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -159,6 +168,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "hex"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
 name = "keccak"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -201,10 +216,9 @@ dependencies = [
 [[package]]
 name = "sparse-merkle-tree"
 version = "0.5.2-rc1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73c8673a5932f28e2a4d229784c9382c423b5d1cf62321f66036eaf9921540ef"
 dependencies = [
  "cfg-if",
+ "ckb-std",
 ]
 
 [[package]]

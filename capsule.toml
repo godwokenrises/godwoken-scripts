@@ -39,3 +39,7 @@ template_type = "Rust"
 [[contracts]]
 name = "tron-account-lock"
 template_type = "Rust"
+
+[[contracts]]
+name = "benchmark-smt"
+template_type = "Rust"

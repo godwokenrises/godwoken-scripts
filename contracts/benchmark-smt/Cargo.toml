@@ -1,0 +1,13 @@
+[package]
+name = "benchmark-smt"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+validator-utils = { path = "../validator-utils" }
+
+[build-dependencies]
+gw-types = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "2c882c5e28995427a0d35246d0c7c75d41000898", default-features = false }
+hex = "0.4"
