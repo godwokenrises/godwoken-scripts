@@ -38,10 +38,10 @@ fn main() {
         .define("__SHARED_LIBRARY__", None);
 
     if target_arch == "riscv64" {
-        build.flag("-nostartfiles").compile("ckb-smt.a");
+        build.flag("-nostartfiles").compile("ckb-smt");
     } else {
         // skip build for non riscv64
         build.define("CKB_STDLIB_NO_SYSCALL_IMPL", None);
-        build.compile("ckb-smt.a");
+        build.compile("ckb-smt");
     }
 }
