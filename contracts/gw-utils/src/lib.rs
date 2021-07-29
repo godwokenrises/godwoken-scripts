@@ -11,6 +11,5 @@ pub use gw_types;
 
 pub mod cells;
 pub mod error;
-pub mod kv_state;
 pub mod signature;
 pub mod type_id;
