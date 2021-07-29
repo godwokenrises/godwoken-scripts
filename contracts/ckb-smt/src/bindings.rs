@@ -7,7 +7,7 @@ pub const SMTErrorCode_ERROR_INVALID_SIBLING: SMTErrorCode = 83;
 pub const SMTErrorCode_ERROR_INVALID_PROOF: SMTErrorCode = 84;
 pub type SMTErrorCode = cty::c_uint;
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct smt_pair_t {
     pub key: [u8; 32usize],
     pub value: [u8; 32usize],
@@ -117,11 +117,8 @@ extern "C" {
     ) -> cty::c_int;
 }
 extern "C" {
-    pub fn smt_state_fetch(
-        state: *mut smt_state_t,
-        key: *const u8,
-        value: *mut u8,
-    ) -> cty::c_int;
+    pub fn smt_state_fetch(state: *const smt_state_t, key: *const u8, value: *mut u8)
+        -> cty::c_int;
 }
 extern "C" {
     pub fn smt_state_normalize(state: *mut smt_state_t);
