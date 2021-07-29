@@ -11,6 +11,7 @@ members = [
   "tron-account-lock",
   "validator-utils",
   "secp256k1-utils",
+  "ckb-smt",
 ]
 
 [profile.release]

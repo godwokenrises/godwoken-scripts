@@ -66,6 +66,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ckb-smt"
+version = "0.1.0"
+dependencies = [
+ "cty",
+]
+
+[[package]]
 name = "ckb-standalone-types"
 version = "0.0.1-pre.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -85,6 +92,12 @@ dependencies = [
  "cc",
  "ckb-standalone-types",
 ]
+
+[[package]]
+name = "cty"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7313c0d620d0cb4dbd9d019e461a4beb501071ff46ec0ab933efb4daa76d73e3"
 
 [[package]]
 name = "custodian-lock"
@@ -240,6 +253,7 @@ checksum = "879f6906492a7cd215bfa4cf595b600146ccfac0c79bcbd1f3000162af5e8b06"
 name = "validator-utils"
 version = "0.1.0"
 dependencies = [
+ "ckb-smt",
  "ckb-std",
  "gw-common",
  "gw-types",
