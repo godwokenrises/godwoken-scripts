@@ -126,8 +126,8 @@ install-tools:
 	fi
 
 # gen rust binding of smt
-bindgen: rust-binding/wrapper.h
-	bindgen rust-binding/wrapper.h \
+bindgen: rust-binding/smt_wrapper.h
+	bindgen rust-binding/smt_wrapper.h \
 	 -o ../contracts/ckb-smt/src/bindings.rs \
 	 --allowlist-type SMTErrorCode \
 	 --allowlist-type ^smt_.+ \
