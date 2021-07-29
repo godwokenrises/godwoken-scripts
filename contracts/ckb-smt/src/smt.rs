@@ -59,7 +59,7 @@ impl<'a> Tree<'a> {
         match unsafe {
             smt_verify(
                 root.as_ptr(),
-                &mut self.state,
+                &self.state,
                 proof.as_ptr(),
                 proof.len() as u32,
             )

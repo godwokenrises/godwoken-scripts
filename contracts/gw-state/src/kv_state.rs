@@ -1,11 +1,9 @@
 use crate::ckb_smt::smt::{Pair, Tree};
-use core::{borrow::Borrow, cell::RefCell};
+use core::cell::RefCell;
 use gw_utils::ckb_std::debug;
 use gw_utils::error::Error;
-use gw_utils::gw_common::{
-    error::Error as SMTError, smt::Blake2bHasher, smt::CompiledMerkleProof, state::State, H256,
-};
-use gw_utils::gw_types::{bytes::Bytes, packed::KVPairVecReader, prelude::*};
+use gw_utils::gw_common::{error::Error as SMTError, state::State, H256};
+use gw_utils::gw_types::{packed::KVPairVecReader, prelude::*};
 
 pub struct KVState<'a> {
     tree: RefCell<Tree<'a>>,
@@ -80,7 +78,7 @@ impl<'a> State for KVState<'a> {
         }
         let mut tree = self.tree.borrow_mut();
         tree.normalize();
-        let root = tree.calculate_root(&self.proof).map_err(|err| {
+        let root = tree.calculate_root(self.proof).map_err(|err| {
             debug!("[kv state] calculate root error: {}", err);
             SMTError::MerkleProof
         })?;
