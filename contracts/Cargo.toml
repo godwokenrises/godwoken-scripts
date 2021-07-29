@@ -12,6 +12,7 @@ members = [
   "secp256k1-utils",
   "ckb-smt",
   "gw-utils",
+  "benchmark-smt",
 ]
 
 [profile.release]

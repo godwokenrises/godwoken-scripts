@@ -10,6 +10,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "benchmark-smt"
+version = "0.1.0"
+dependencies = [
+ "gw-state",
+ "gw-utils",
+]
+
+[[package]]
 name = "blake2b-ref"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
