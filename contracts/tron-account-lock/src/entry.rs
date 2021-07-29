@@ -13,7 +13,7 @@ use crate::{
     },
     tron_signature::{extract_lock_args, Secp256k1Tron, TronAddress},
 };
-use validator_utils::{
+use gw_utils::{
     cells::utils::search_lock_hash, ckb_std::high_level::load_witness_args, error::Error,
     gw_common::H256,
 };

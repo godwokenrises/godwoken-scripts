@@ -1,5 +1,5 @@
 [package]
-name = "validator-utils"
+name = "gw-utils"
 version = "0.1.0"
 authors = ["Nervos Network"]
 edition = "2018"

@@ -4,17 +4,20 @@ use core::result::Result;
 // Import heap related library from `alloc`
 // https://doc.rust-lang.org/alloc/index.html
 use alloc::{collections::BTreeMap, vec, vec::Vec};
-use validator_utils::gw_types::packed::{L2BlockReader, WithdrawalRequestReader};
+use gw_state::ckb_smt::smt::Pair;
+use gw_state::constants::GW_MAX_KV_PAIRS;
+use gw_utils::gw_types::packed::{L2BlockReader, WithdrawalRequestReader};
 
 // Import CKB syscalls and structures
 // https://nervosnetwork.github.io/ckb-std/riscv64imac-unknown-none-elf/doc/ckb_std/index.html
 use crate::ckb_std::{ckb_constants::Source, debug};
-use validator_utils::gw_types;
-use validator_utils::{gw_common, kv_state::KVState};
+use gw_state::kv_state::KVState;
+use gw_utils::gw_common;
+use gw_utils::gw_types;
 
 use super::check_status;
 use crate::types::BlockContext;
-use validator_utils::{
+use gw_utils::{
     cells::{
         lock_cells::{
             collect_custodian_locks, collect_deposit_locks, collect_withdrawal_locks,
@@ -349,13 +352,15 @@ fn check_layer2_withdrawal(
     Ok(())
 }
 
-fn load_block_context_and_state(
+fn load_block_context_and_state<'a>(
     rollup_type_hash: H256,
     config: &RollupConfig,
+    tree_buffer: &'a mut [Pair],
+    kv_state_proof: &'a Bytes,
     l2block: &L2BlockReader,
     prev_global_state: &GlobalState,
     post_global_state: &GlobalState,
-) -> Result<(BlockContext, KVState), Error> {
+) -> Result<(BlockContext, KVState<'a>), Error> {
     let raw_block = l2block.raw();
 
     // Check pre block merkle proof
@@ -417,12 +422,13 @@ fn load_block_context_and_state(
     let finalized_number = number.saturating_sub(config.finality_blocks().unpack());
 
     // Check pre account merkle proof
-    let kv_state = KVState::new(
+    let kv_state = KVState::build(
+        tree_buffer,
         l2block.kv_state(),
-        l2block.kv_state_proof().unpack(),
+        kv_state_proof,
         account_count,
         Some(prev_account_root),
-    );
+    )?;
     if !kv_state.is_empty() && kv_state.calculate_root()? != prev_account_root {
         debug!("Block context wrong, kv state doesn't match the prev_account_root");
         return Err(Error::MerkleProof);
@@ -633,9 +639,14 @@ pub fn verify(
     // Check withdrawals root
     check_block_withdrawals(block)?;
 
+    let mut tree_buffer = [Pair::default(); GW_MAX_KV_PAIRS];
+    let kv_state_proof: Bytes = block.kv_state_proof().unpack();
+
     let (context, mut kv_state) = load_block_context_and_state(
         rollup_type_hash,
         config,
+        &mut tree_buffer,
+        &kv_state_proof,
         block,
         prev_global_state,
         post_global_state,

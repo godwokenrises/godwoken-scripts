@@ -15,7 +15,7 @@ mod types;
 mod verifications;
 
 use ckb_std::default_alloc;
-pub use validator_utils::ckb_std;
+pub use gw_utils::ckb_std;
 
 ckb_std::entry!(program_entry);
 default_alloc!();

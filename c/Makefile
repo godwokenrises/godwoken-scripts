@@ -124,3 +124,12 @@ install-tools:
 			|| [ "$$(${MOLC} --version | awk '{ print $$2 }' | tr -d ' ')" != "${MOLC_VERSION}" ]; then \
 		cargo install --force --version "${MOLC_VERSION}" "${MOLC}"; \
 	fi
+
+# gen rust binding of smt
+bindgen: rust-binding/smt_wrapper.h
+	bindgen rust-binding/smt_wrapper.h \
+	 -o ../contracts/ckb-smt/src/bindings.rs \
+	 --allowlist-type SMTErrorCode \
+	 --allowlist-type ^smt_.+ \
+	 --allowlist-function ^smt_.+ \
+	 -- ${CINCLUDES}

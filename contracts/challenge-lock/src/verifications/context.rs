@@ -7,18 +7,19 @@ use gw_common::{
     state::State,
     H256,
 };
+use gw_state::kv_state::KVState;
 use gw_types::{
     core::ScriptHashType,
     packed::{ChallengeTarget, L2Transaction, RawL2Block, RollupConfig, ScriptVec},
     prelude::*,
 };
-use validator_utils::gw_common;
-use validator_utils::gw_types;
-use validator_utils::{ckb_std::debug, error::Error, kv_state::KVState};
+use gw_utils::gw_common;
+use gw_utils::gw_types;
+use gw_utils::{ckb_std::debug, error::Error};
 
 pub struct TxContextInput<'a> {
     pub tx: L2Transaction,
-    pub kv_state: KVState,
+    pub kv_state: KVState<'a>,
     pub scripts: ScriptVec,
     pub raw_block: RawL2Block,
     pub rollup_config: &'a RollupConfig,

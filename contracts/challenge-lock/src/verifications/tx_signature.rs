@@ -1,5 +1,6 @@
 use crate::verifications::context::{verify_tx_context, TxContext, TxContextInput};
 use core::result::Result;
+use gw_state::{ckb_smt::smt::Pair, constants::GW_MAX_KV_PAIRS, kv_state::KVState};
 use gw_types::{
     packed::{
         ChallengeLockArgs, RollupConfig, VerifyTransactionSignatureWitness,
@@ -7,17 +8,16 @@ use gw_types::{
     },
     prelude::*,
 };
-use validator_utils::signature::check_l2_account_signature_cell;
-use validator_utils::{
+use gw_utils::{
     ckb_std::{
         ckb_constants::Source,
         ckb_types::{bytes::Bytes, prelude::Unpack as CKBUnpack},
         high_level::load_witness_args,
     },
     error::Error,
-    kv_state::KVState,
+    signature::check_l2_account_signature_cell,
 };
-use validator_utils::{
+use gw_utils::{
     gw_common::{blake2b::new_blake2b, H256},
     gw_types::{self, packed::RawL2Transaction},
 };
@@ -28,7 +28,7 @@ fn calc_tx_message(
     sender_script_hash: &H256,
     receiver_script_hash: &H256,
 ) -> H256 {
-    validator_utils::ckb_std::debug!(
+    gw_utils::ckb_std::debug!(
         "rollup: {:?} sender: {:?} receiver: {:?}",
         rollup_type_script_hash,
         sender_script_hash,
@@ -62,12 +62,15 @@ pub fn verify_tx_signature(
     let ctx = unlock_args.context();
     let tx = unlock_args.l2tx();
     let account_count: u32 = ctx.account_count().unpack();
-    let kv_state = KVState::new(
+    let mut tree_buffer = [Pair::default(); GW_MAX_KV_PAIRS];
+    let kv_state_proof: Bytes = unlock_args.kv_state_proof().unpack();
+    let kv_state = KVState::build(
+        &mut tree_buffer,
         ctx.kv_state().as_reader(),
-        unlock_args.kv_state_proof().unpack(),
+        &kv_state_proof,
         account_count,
         None,
-    );
+    )?;
     let scripts = ctx.scripts();
     let target = lock_args.target();
     let raw_block = unlock_args.raw_l2block();

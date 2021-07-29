@@ -3,9 +3,9 @@ use gw_types::{
     core::Status,
     packed::{GlobalState, RollupConfig},
 };
-use validator_utils::gw_common;
-use validator_utils::gw_types;
-use validator_utils::{
+use gw_utils::gw_common;
+use gw_utils::gw_types;
+use gw_utils::{
     cells::lock_cells::{
         collect_custodian_locks, collect_deposit_locks, collect_stake_cells,
         collect_withdrawal_locks,

@@ -6,13 +6,13 @@ use gw_types::{
     packed::{GlobalState, RollupConfig},
     prelude::*,
 };
-use validator_utils::{
+use gw_utils::{
     cells::lock_cells::{collect_burn_cells, find_challenge_cell},
     ckb_std::{ckb_constants::Source, debug},
     error::Error,
 };
-use validator_utils::{cells::types::ChallengeCell, gw_types};
-use validator_utils::{
+use gw_utils::{cells::types::ChallengeCell, gw_types};
+use gw_utils::{
     gw_common,
     gw_types::packed::{RawL2Block, RollupEnterChallengeReader},
 };

@@ -62,7 +62,16 @@ checksum = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
 name = "challenge-lock"
 version = "0.1.0"
 dependencies = [
- "validator-utils",
+ "gw-state",
+ "gw-utils",
+]
+
+[[package]]
+name = "ckb-smt"
+version = "0.1.0"
+dependencies = [
+ "cc",
+ "cty",
 ]
 
 [[package]]
@@ -87,10 +96,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "cty"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7313c0d620d0cb4dbd9d019e461a4beb501071ff46ec0ab933efb4daa76d73e3"
+
+[[package]]
 name = "custodian-lock"
 version = "0.1.0"
 dependencies = [
- "validator-utils",
+ "gw-utils",
 ]
 
 [[package]]
@@ -98,7 +113,7 @@ name = "deposit-lock"
 version = "0.1.0"
 dependencies = [
  "blake2b-rs",
- "validator-utils",
+ "gw-utils",
 ]
 
 [[package]]
@@ -114,9 +129,9 @@ dependencies = [
 name = "eth-account-lock"
 version = "0.1.0"
 dependencies = [
+ "gw-utils",
  "secp256k1-utils",
  "sha3",
- "validator-utils",
 ]
 
 [[package]]
@@ -148,6 +163,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "gw-state"
+version = "0.1.0"
+dependencies = [
+ "ckb-smt",
+ "gw-utils",
+]
+
+[[package]]
 name = "gw-types"
 version = "0.1.0"
 source = "git+https://github.com/nervosnetwork/godwoken.git?rev=2c882c5e28995427a0d35246d0c7c75d41000898#2c882c5e28995427a0d35246d0c7c75d41000898"
@@ -156,6 +179,15 @@ dependencies = [
  "gw-hash",
  "molecule",
  "sparse-merkle-tree",
+]
+
+[[package]]
+name = "gw-utils"
+version = "0.1.0"
+dependencies = [
+ "ckb-std",
+ "gw-common",
+ "gw-types",
 ]
 
 [[package]]
@@ -211,23 +243,24 @@ dependencies = [
 name = "stake-lock"
 version = "0.1.0"
 dependencies = [
- "validator-utils",
+ "gw-utils",
 ]
 
 [[package]]
 name = "state-validator"
 version = "0.1.0"
 dependencies = [
- "validator-utils",
+ "gw-state",
+ "gw-utils",
 ]
 
 [[package]]
 name = "tron-account-lock"
 version = "0.1.0"
 dependencies = [
+ "gw-utils",
  "secp256k1-utils",
  "sha3",
- "validator-utils",
 ]
 
 [[package]]
@@ -235,15 +268,6 @@ name = "typenum"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "879f6906492a7cd215bfa4cf595b600146ccfac0c79bcbd1f3000162af5e8b06"
-
-[[package]]
-name = "validator-utils"
-version = "0.1.0"
-dependencies = [
- "ckb-std",
- "gw-common",
- "gw-types",
-]
 
 [[package]]
 name = "version_check"
@@ -255,5 +279,5 @@ checksum = "5fecdca9a5291cc2b8dcf7dc02453fee791a280f3743cb0905f8822ae463b3fe"
 name = "withdrawal-lock"
 version = "0.1.0"
 dependencies = [
- "validator-utils",
+ "gw-utils",
 ]

@@ -14,7 +14,7 @@
 mod entry;
 mod tron_signature;
 
-pub use validator_utils::ckb_std;
+pub use gw_utils::ckb_std;
 
 use ckb_std::default_alloc;
 

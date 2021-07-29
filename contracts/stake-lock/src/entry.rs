@@ -15,11 +15,11 @@ use crate::ckb_std::{
     high_level::load_script,
 };
 
-use validator_utils::cells::{
+use gw_utils::cells::{
     rollup::{search_rollup_cell, search_rollup_state},
     utils::search_lock_hash,
 };
-use validator_utils::gw_types;
+use gw_utils::gw_types;
 
 use gw_types::{
     packed::{StakeLockArgs, StakeLockArgsReader},

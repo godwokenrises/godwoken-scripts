@@ -21,13 +21,13 @@ use crate::ckb_std::{
     since::Since,
 };
 
-use validator_utils::cells::{rollup::search_rollup_cell, utils::search_lock_hash};
+use gw_utils::cells::{rollup::search_rollup_cell, utils::search_lock_hash};
 
 use gw_types::{
     packed::{DepositLockArgs, DepositLockArgsReader},
     prelude::*,
 };
-use validator_utils::gw_types;
+use gw_utils::gw_types;
 
 use crate::error::Error;
 
