@@ -425,7 +425,7 @@ fn load_block_context_and_state<'a>(
     let kv_state = KVState::build(
         tree_buffer,
         l2block.kv_state(),
-        &kv_state_proof,
+        kv_state_proof,
         account_count,
         Some(prev_account_root),
     )?;
