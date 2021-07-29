@@ -14,7 +14,7 @@
 mod entry;
 
 use ckb_std::default_alloc;
-pub use validator_utils::{ckb_std, error};
+pub use gw_utils::{ckb_std, error};
 
 ckb_std::entry!(program_entry);
 default_alloc!();

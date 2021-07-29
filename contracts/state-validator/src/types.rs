@@ -2,7 +2,7 @@
 //! supports read / write to global state
 
 use gw_common::sparse_merkle_tree::H256;
-use validator_utils::gw_common;
+use gw_utils::gw_common;
 
 #[derive(Clone)]
 pub struct DepositRequest {

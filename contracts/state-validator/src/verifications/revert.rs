@@ -8,8 +8,8 @@ use gw_types::{
     packed::{BlockMerkleState, Byte32, GlobalState, RawL2Block, RollupConfig},
     prelude::*,
 };
-use validator_utils::gw_types;
-use validator_utils::{
+use gw_utils::gw_types;
+use gw_utils::{
     cells::{
         lock_cells::{
             collect_burn_cells, collect_stake_cells, fetch_capacity_and_sudt_value,
@@ -25,14 +25,14 @@ use validator_utils::{
         since::{LockValue, Since},
     },
 };
-use validator_utils::{
+use gw_utils::{
     gw_common,
     gw_types::packed::{RawL2BlockReader, RollupRevertReader},
 };
 
 use super::{check_rollup_lock_cells_except_stake, check_status};
 use alloc::{collections::BTreeSet, vec::Vec};
-use validator_utils::error::Error;
+use gw_utils::error::Error;
 
 /// Check challenge cell is maturity(on the layer1)
 fn check_challenge_maturity(

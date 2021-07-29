@@ -1,7 +1,7 @@
 // Import from `core` instead of from `std` since we are in no-std mode
 use core::result::Result;
 
-use validator_utils::{
+use gw_utils::{
     cells::{
         rollup::{
             load_rollup_config, parse_rollup_action, search_rollup_cell, search_rollup_state,
@@ -27,7 +27,7 @@ use gw_types::{
     },
     prelude::*,
 };
-use validator_utils::gw_types;
+use gw_utils::gw_types;
 
 use crate::error::Error;
 

@@ -1,13 +1,14 @@
 use crate::verifications::context::{verify_tx_context, TxContext, TxContextInput};
 use core::result::Result;
+use gw_state::{ckb_smt::smt::Pair, constants::GW_MAX_KV_PAIRS, kv_state::KVState};
 use gw_types::{
     packed::{
         ChallengeLockArgs, RollupConfig, VerifyTransactionWitness, VerifyTransactionWitnessReader,
     },
     prelude::*,
 };
-use validator_utils::gw_types;
-use validator_utils::{
+use gw_utils::gw_types;
+use gw_utils::{
     cells::utils::search_lock_hash,
     ckb_std::{
         ckb_constants::Source,
@@ -16,7 +17,6 @@ use validator_utils::{
         high_level::load_witness_args,
     },
     error::Error,
-    kv_state::KVState,
 };
 
 /// Verify tx execution
@@ -35,12 +35,15 @@ pub fn verify_tx_execution(
     };
     let ctx = unlock_args.context();
     let tx = unlock_args.l2tx();
-    let kv_state = KVState::new(
+    let mut tree_buffer = [Pair::default(); GW_MAX_KV_PAIRS];
+    let kv_state_proof: Bytes = unlock_args.kv_state_proof().unpack();
+    let kv_state = KVState::build(
+        &mut tree_buffer,
         ctx.kv_state().as_reader(),
-        unlock_args.kv_state_proof().unpack(),
+        &kv_state_proof,
         ctx.account_count().unpack(),
         None,
-    );
+    )?;
     let scripts = ctx.scripts();
     let raw_block = unlock_args.raw_l2block();
     let target = lock_args.target();

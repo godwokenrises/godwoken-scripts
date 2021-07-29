@@ -3,7 +3,7 @@ use core::result::Result;
 
 // Import heap related library from `alloc`
 // https://doc.rust-lang.org/alloc/index.html
-use validator_utils::{
+use gw_utils::{
     cells::rollup::{load_rollup_config, parse_rollup_action, MAX_ROLLUP_WITNESS_SIZE},
     ckb_std::{
         ckb_types::prelude::Unpack as CKBUnpack,
@@ -25,9 +25,9 @@ use gw_types::{
     packed::{GlobalState, GlobalStateReader},
     prelude::*,
 };
-use validator_utils::gw_types;
+use gw_utils::gw_types;
 
-use validator_utils::error::Error;
+use gw_utils::error::Error;
 
 pub fn parse_global_state(source: Source) -> Result<GlobalState, Error> {
     let data = load_cell_data(0, source)?;

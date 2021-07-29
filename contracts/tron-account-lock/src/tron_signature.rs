@@ -1,8 +1,8 @@
 //! Secp256k1 Eth implementation
 
+use gw_utils::{ckb_std::debug, error::Error, gw_common::H256, gw_types::bytes::Bytes};
 use secp256k1_utils::recover_uncompressed_key;
 use sha3::{Digest, Keccak256};
-use validator_utils::{ckb_std::debug, error::Error, gw_common::H256, gw_types::bytes::Bytes};
 
 pub type TronAddress = [u8; 20];
 

@@ -13,7 +13,7 @@ use crate::{
     },
     eth_signature::{extract_eth_lock_args, EthAddress, Secp256k1Eth},
 };
-use validator_utils::{
+use gw_utils::{
     cells::utils::search_lock_hash, ckb_std::high_level::load_witness_args, error::Error,
     gw_common::H256,
 };

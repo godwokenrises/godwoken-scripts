@@ -13,9 +13,9 @@ use gw_types::{
     },
     prelude::*,
 };
-use validator_utils::gw_common;
-use validator_utils::gw_types;
-use validator_utils::{
+use gw_utils::gw_common;
+use gw_utils::gw_types;
+use gw_utils::{
     ckb_std::{
         ckb_constants::Source,
         ckb_types::{bytes::Bytes, prelude::Unpack as CKBUnpack},

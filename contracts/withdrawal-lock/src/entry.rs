@@ -1,7 +1,7 @@
 // Import from `core` instead of from `std` since we are in no-std mode
 use core::result::Result;
 
-use validator_utils::{
+use gw_utils::{
     cells::rollup::MAX_ROLLUP_WITNESS_SIZE,
     gw_types::{
         self,
@@ -12,7 +12,7 @@ use validator_utils::{
         },
     },
 };
-use validator_utils::{
+use gw_utils::{
     cells::{
         rollup::{
             load_rollup_config, parse_rollup_action, search_rollup_cell, search_rollup_state,

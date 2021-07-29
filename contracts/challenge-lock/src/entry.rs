@@ -1,10 +1,10 @@
 // Import from `core` instead of from `std` since we are in no-std mode
 use core::{convert::TryInto, result::Result};
 
-use validator_utils::cells::rollup::MAX_ROLLUP_WITNESS_SIZE;
-use validator_utils::gw_types;
-use validator_utils::gw_types::packed::RollupActionUnionReader;
-use validator_utils::{
+use gw_utils::cells::rollup::MAX_ROLLUP_WITNESS_SIZE;
+use gw_utils::gw_types;
+use gw_utils::gw_types::packed::RollupActionUnionReader;
+use gw_utils::{
     cells::rollup::{
         load_rollup_config, parse_rollup_action, search_rollup_cell, search_rollup_state,
     },
