@@ -34,6 +34,13 @@ typedef struct {
   uint32_t script_len;
 } gw_script_entry_t;
 
+/* The struct is design for lazy sys_load_data*/
+typedef struct {
+  uint8_t hash[32];
+  uint8_t data[GW_MAX_LOAD_DATA_SIZE];
+  uint32_t data_len;
+} gw_load_data_entry_t;
+
 /* Call receipt */
 typedef struct {
   uint8_t return_data[GW_MAX_DATA_SIZE];
@@ -99,6 +106,10 @@ typedef struct gw_context_t {
   /* All the scripts account has read and write */
   gw_script_entry_t scripts[GW_MAX_SCRIPT_ENTRIES_SIZE];
   size_t script_entries_size;
+
+  /* All the data load */
+  gw_load_data_entry_t load_data[GW_MAX_LOAD_DATA_ENTRIES_SIZE];
+  size_t load_data_entries_size;
 
   /* return data hash */
   uint8_t return_data_hash[32];
@@ -361,6 +372,33 @@ int sys_load_data(gw_context_t *ctx, uint8_t data_hash[32], uint64_t *len,
   if (!data_exists) {
     /* return not found if data isn't exist in the state tree */
     return GW_ERROR_NOT_FOUND;
+  }
+
+  /* Try load datas first */
+  gw_load_data_entry_t *entry = NULL;
+  for (uint32_t i = 0; i < ctx->load_data_entries_size; i++) {
+    gw_load_data_entry_t *current = &ctx->load_data[i];
+    if (memcmp(current->hash, data_hash, 32) == 0) {
+      entry = current;
+      break;
+    }
+  }
+  if (NULL != entry) {
+      size_t new_len;
+      size_t data_len = entry->data_len;
+      if (offset >= data_len) {
+          printf("load data offset is bigger than actual data len");
+          new_len = 0;
+      } else if ((offset + *len) > data_len) {
+          new_len = data_len - offset;
+      } else {
+          new_len = *len;
+      }
+      if (new_len > 0) {
+          memcpy(data, entry->data + offset, new_len);
+      }
+      *len = new_len;
+      return 0;
   }
 
   size_t index = 0;
@@ -966,7 +1004,8 @@ int _load_verify_transaction_witness(
     smt_state_t *kv_state, smt_pair_t kv_pairs[GW_MAX_KV_PAIRS],
     uint8_t kv_state_proof[GW_MAX_KV_PROOF_SIZE], uint64_t *kv_state_proof_size,
     gw_script_entry_t scripts[GW_MAX_SCRIPT_ENTRIES_SIZE],
-    uint64_t *script_entries_size, gw_account_merkle_state_t *prev_account,
+    uint64_t *script_entries_size, gw_load_data_entry_t load_data[GW_MAX_LOAD_DATA_ENTRIES_SIZE],
+    uint64_t *load_data_entries_size, gw_account_merkle_state_t *prev_account,
     gw_account_merkle_state_t *post_account, uint8_t return_data_hash[32],
     smt_state_t *block_hashes_state,
     smt_pair_t block_hashes_pairs[GW_MAX_GET_BLOCK_HASH_DEPTH],
@@ -1239,6 +1278,42 @@ int _load_verify_transaction_witness(
     *script_entries_size += 1;
   }
 
+  /* load data */
+  mol_seg_t load_data_seg =
+      MolReader_VerifyTransactionContext_get_load_data(&verify_tx_ctx_seg);
+  entries_size = MolReader_BytesVec_length(&load_data_seg);
+  if (entries_size > GW_MAX_LOAD_DATA_ENTRIES_SIZE) {
+    printf("load data size is exceeded maximum");
+    return GW_FATAL_BUFFER_OVERFLOW;
+  }
+  *load_data_entries_size = 0;
+  for (uint32_t i = 0; i < entries_size; i++) {
+    gw_load_data_entry_t entry = {0};
+    mol_seg_res_t load_data_res = MolReader_BytesVec_get(&load_data_seg, i);
+    if (load_data_res.errno != MOL_OK) {
+      printf("invalid load data entry format");
+      return GW_FATAL_INVALID_DATA;
+    }
+    if (load_data_res.seg.size > GW_MAX_LOAD_DATA_SIZE) {
+      printf("invalid load data entry format");
+      return GW_FATAL_INVALID_DATA;
+    }
+
+    /* copy load data to entry */
+    memcpy(entry.data, load_data_res.seg.ptr, load_data_res.seg.size);
+    entry.data_len = load_data_res.seg.size;
+
+    /* copy script hash to entry */
+    blake2b_state blake2b_ctx;
+    blake2b_init(&blake2b_ctx, 32);
+    blake2b_update(&blake2b_ctx, load_data_res.seg.ptr, load_data_res.seg.size);
+    blake2b_final(&blake2b_ctx, entry.hash, 32);
+
+    /* insert entry */
+    memcpy(&load_data[*load_data_entries_size], &entry, sizeof(gw_load_data_entry_t));
+    *load_data_entries_size += 1;
+  }
+
   /* load return data hash */
   mol_seg_t return_data_hash_seg =
       MolReader_VerifyTransactionContext_get_return_data_hash(
@@ -1490,9 +1565,10 @@ int gw_context_init(gw_context_t *ctx) {
       ctx->tx_index, block_merkle_root, &ctx->transaction_context,
       &ctx->block_info, &ctx->kv_state, ctx->kv_pairs, ctx->kv_state_proof,
       &ctx->kv_state_proof_size, ctx->scripts, &ctx->script_entries_size,
-      &ctx->prev_account, &ctx->post_account, ctx->return_data_hash,
-      &ctx->block_hashes_state, ctx->block_hashes_pairs,
-      ctx->prev_tx_checkpoint, ctx->post_tx_checkpoint, &ctx->account_count);
+      ctx->load_data, &ctx->load_data_entries_size, &ctx->prev_account,
+      &ctx->post_account, ctx->return_data_hash, &ctx->block_hashes_state,
+      ctx->block_hashes_pairs, ctx->prev_tx_checkpoint, ctx->post_tx_checkpoint,
+      &ctx->account_count);
   if (ret != 0) {
     printf("failed to load verify transaction witness");
     return ret;
