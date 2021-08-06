@@ -425,7 +425,7 @@ int gw_context_init(gw_context_t *ctx) {
   ctx->_internal_store_raw = _internal_store_raw;
 
   /* initialize context */
-  uint8_t tx_buf[GW_MAX_L2TX_SIZE] = {0};
+  uint8_t tx_buf[GW_MAX_L2TX_SIZE];
   uint64_t len = GW_MAX_L2TX_SIZE;
   int ret = _sys_load_l2transaction(tx_buf, &len);
   if (ret != 0) {
