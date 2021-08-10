@@ -463,7 +463,7 @@ int sys_recover_account(gw_context_t *ctx, uint8_t message[32],
       continue;
     }
     /* load message from cell.data[32..64] */
-    uint8_t checked_message[32] = {0};
+    uint8_t checked_message[32];
     len = 32;
     ret = ckb_load_cell_data(checked_message, &len, 32, i, CKB_SOURCE_INPUT);
     if (ret != 0) {
@@ -479,7 +479,7 @@ int sys_recover_account(gw_context_t *ctx, uint8_t message[32],
       continue;
     }
     /* load signature */
-    uint8_t witness[GW_MAX_WITNESS_SIZE] = {0};
+    uint8_t witness[GW_MAX_WITNESS_SIZE];
     len = GW_MAX_WITNESS_SIZE;
     ret = ckb_checked_load_witness(witness, &len, 0, i, CKB_SOURCE_INPUT);
     if (ret != 0) {
@@ -703,7 +703,7 @@ int _find_cell_by_data_hash(uint8_t data_hash[32], uint64_t source,
 
 /* load rollup script_hash from current script.args first 32 bytes */
 int _load_rollup_script_hash(uint8_t rollup_script_hash[32]) {
-  uint8_t script_buf[GW_MAX_SCRIPT_SIZE] = {0};
+  uint8_t script_buf[GW_MAX_SCRIPT_SIZE];
   uint64_t len = GW_MAX_SCRIPT_SIZE;
   int ret = ckb_checked_load_script(script_buf, &len, 0);
   if (ret != 0) {
@@ -866,7 +866,7 @@ int _load_verification_context(
   mol_seg_t challenge_script_type_hash_seg =
       MolReader_RollupConfig_get_challenge_script_type_hash(&rollup_config_seg);
 
-  uint8_t challenge_script_buf[GW_MAX_SCRIPT_SIZE] = {0};
+  uint8_t challenge_script_buf[GW_MAX_SCRIPT_SIZE];
   *challenge_cell_index = 0;
   mol_seg_t lock_args_seg;
   ret = _load_challenge_lock_args(rollup_script_hash,
