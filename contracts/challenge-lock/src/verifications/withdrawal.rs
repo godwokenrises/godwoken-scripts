@@ -1,11 +1,6 @@
-use alloc::vec;
 use core::result::Result;
-use gw_common::{
-    blake2b::new_blake2b,
-    h256_ext::H256Ext,
-    smt::{Blake2bHasher, CompiledMerkleProof},
-    H256,
-};
+use gw_common::{blake2b::new_blake2b, h256_ext::H256Ext, H256};
+use gw_state::ckb_smt::smt::{Pair, Tree};
 use gw_types::{
     packed::{
         ChallengeLockArgs, RawWithdrawalRequest, VerifyWithdrawalWitness,
@@ -64,21 +59,25 @@ fn verify_withdrawal_proof(lock_args: &ChallengeLockArgs) -> Result<WithdrawalCo
         .unpack();
     let withdrawal_index: u32 = lock_args.target().target_index().unpack();
     let withdrawal_witness_hash: [u8; 32] = withdrawal.witness_hash();
-    let valid = CompiledMerkleProof(unlock_args.withdrawal_proof().unpack())
-        .verify::<Blake2bHasher>(
-            &withdrawal_witness_root.into(),
-            vec![(
-                H256::from_u32(withdrawal_index),
-                withdrawal_witness_hash.into(),
-            )],
+    {
+        let mut buf = [Pair::default(); 256];
+        let mut tree = Tree::new(&mut buf);
+        tree.update(
+            &H256::from_u32(withdrawal_index).into(),
+            &withdrawal_witness_hash,
         )
-        .map_err(|_err| {
-            debug!("withdrawal_witness_root merkle proof error: {:?}", _err);
+        .map_err(|err| {
+            debug!("[verify withdrawal exist] update kv error: {}", err);
             Error::MerkleProof
         })?;
-    if !valid {
-        debug!("Wrong withdrawal merkle proof");
-        return Err(Error::MerkleProof);
+        tree.verify(
+            &withdrawal_witness_root,
+            &unlock_args.withdrawal_proof().raw_data(),
+        )
+        .map_err(|err| {
+            debug!("[verify withdrawal exist] merkle verify error: {}", err);
+            Error::MerkleProof
+        })?;
     }
 
     let context = WithdrawalContext {
