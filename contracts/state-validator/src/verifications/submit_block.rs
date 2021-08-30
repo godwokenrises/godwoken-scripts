@@ -3,8 +3,8 @@ use core::result::Result;
 
 // Import heap related library from `alloc`
 // https://doc.rust-lang.org/alloc/index.html
-use alloc::{collections::BTreeMap, vec, vec::Vec};
-use gw_state::ckb_smt::smt::Pair;
+use alloc::{collections::BTreeMap, vec::Vec};
+use gw_state::ckb_smt::smt::{Pair, Tree};
 use gw_state::constants::GW_MAX_KV_PAIRS;
 use gw_utils::gw_types::packed::{L2BlockReader, WithdrawalRequestReader};
 
@@ -34,7 +34,6 @@ use gw_common::{
     error::Error as StateError,
     h256_ext::H256Ext,
     merkle_utils::{calculate_merkle_root, calculate_state_checkpoint},
-    smt::{Blake2bHasher, CompiledMerkleProof},
     state::{to_short_address, State},
     CKB_SUDT_SCRIPT_ARGS, H256,
 };
@@ -374,18 +373,26 @@ fn load_block_context_and_state<'a>(
         return Err(Error::InvalidBlock);
     }
 
+    // verify prev block merkle proof
     let block_smt_key = RawL2Block::compute_smt_key(number);
     let block_proof: Bytes = l2block.block_proof().unpack();
-    let block_merkle_proof = CompiledMerkleProof(block_proof.to_vec());
-    let prev_block_root: [u8; 32] = prev_global_state.block().merkle_root().unpack();
-    if !block_merkle_proof
-        .verify::<Blake2bHasher>(
-            &prev_block_root.into(),
-            vec![(block_smt_key.into(), H256::zero())],
-        )
-        .map_err(|_| Error::MerkleProof)?
     {
-        return Err(Error::MerkleProof);
+        let prev_block_root: [u8; 32] = prev_global_state.block().merkle_root().unpack();
+
+        let mut buf = [Pair::default(); 256];
+        let mut block_tree = Tree::new(&mut buf);
+        block_tree
+            .update(&block_smt_key, &H256::zero().into())
+            .map_err(|err| {
+                debug!("[verify block exist] update kv error: {}", err);
+                Error::MerkleProof
+            })?;
+        block_tree
+            .verify(&prev_block_root, &block_proof)
+            .map_err(|err| {
+                debug!("[verify block exist] merkle verify error: {}", err);
+                Error::MerkleProof
+            })?;
     }
 
     // Check post block merkle proof
@@ -395,14 +402,22 @@ fn load_block_context_and_state<'a>(
 
     let post_block_root: [u8; 32] = post_global_state.block().merkle_root().unpack();
     let block_hash: H256 = raw_block.hash().into();
-    if !block_merkle_proof
-        .verify::<Blake2bHasher>(
-            &post_block_root.into(),
-            vec![(block_smt_key.into(), block_hash)],
-        )
-        .map_err(|_| Error::MerkleProof)?
+    // verify prev block merkle proof
     {
-        return Err(Error::MerkleProof);
+        let mut buf = [Pair::default(); 256];
+        let mut block_tree = Tree::new(&mut buf);
+        block_tree
+            .update(&block_smt_key, &block_hash.into())
+            .map_err(|err| {
+                debug!("[verify block exist] update kv error: {}", err);
+                Error::MerkleProof
+            })?;
+        block_tree
+            .verify(&post_block_root, &block_proof)
+            .map_err(|err| {
+                debug!("[verify block exist] merkle verify error: {}", err);
+                Error::MerkleProof
+            })?;
     }
 
     // Check prev account state
@@ -718,17 +733,24 @@ pub fn verify_reverted_block_hashes(
     prev_global_state: &GlobalState,
 ) -> Result<(), Error> {
     let reverted_block_root = prev_global_state.reverted_block_root().unpack();
-    let merkle_proof = CompiledMerkleProof(reverted_block_proof.into());
-    let leaves: Vec<_> = reverted_block_hashes
-        .into_iter()
-        .map(|k| (k, H256::one()))
-        .collect();
-    if leaves.is_empty() && merkle_proof.0.is_empty() {
+    if reverted_block_hashes.is_empty() && reverted_block_proof.is_empty() {
         return Ok(());
     }
-    let valid = merkle_proof.verify::<Blake2bHasher>(&reverted_block_root, leaves)?;
-    if !valid {
-        return Err(Error::MerkleProof);
+    let mut buf = [Pair::default(); 256];
+    let mut block_tree = Tree::new(&mut buf);
+    for key in reverted_block_hashes {
+        block_tree
+            .update(&key.into(), &H256::one().into())
+            .map_err(|err| {
+                debug!("[verify reverted block] update kv error: {}", err);
+                Error::MerkleProof
+            })?;
     }
+    block_tree
+        .verify(&reverted_block_root, &reverted_block_proof)
+        .map_err(|err| {
+            debug!("[verify reverted block] merkle verify error: {}", err);
+            Error::MerkleProof
+        })?;
     Ok(())
 }
