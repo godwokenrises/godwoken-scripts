@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::script_tests::utils::layer1::build_simple_tx_with_out_point;
 use crate::script_tests::utils::layer1::random_out_point;
 use crate::script_tests::utils::rollup::{
@@ -83,15 +85,18 @@ fn test_enter_challenge() {
                 .build(),
         ];
         let produce_block_result = {
-            let mem_pool = chain.mem_pool().lock();
-            construct_block(&chain, &mem_pool, deposit_requests.clone()).unwrap()
+            let mem_pool = chain.mem_pool().as_ref().unwrap();
+            let mut mem_pool = smol::block_on(mem_pool.lock());
+            construct_block(&chain, &mut mem_pool, deposit_requests.clone()).unwrap()
         };
         let rollup_cell = gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes());
+        let asset_scripts = HashSet::new();
         apply_block_result(
             &mut chain,
             rollup_cell.clone(),
             produce_block_result,
             deposit_requests,
+            asset_scripts,
         );
         let db = chain.store().begin_transaction();
         let tip_block = db.get_tip_block().unwrap();
@@ -102,7 +107,7 @@ fn test_enter_challenge() {
             StateDBMode::ReadOnly,
         )
         .unwrap();
-        let tree = state_db.account_state_tree().unwrap();
+        let tree = state_db.state_tree().unwrap();
         let sender_id = tree
             .get_account_id_by_script_hash(&sender_script.hash().into())
             .unwrap()
@@ -133,11 +138,19 @@ fn test_enter_challenge() {
                         .build(),
                 )
                 .build();
-            let mut mem_pool = chain.mem_pool().lock();
+            let mem_pool = chain.mem_pool().as_ref().unwrap();
+            let mut mem_pool = smol::block_on(mem_pool.lock());
             mem_pool.push_transaction(tx).unwrap();
-            construct_block(&chain, &mem_pool, Vec::default()).unwrap()
+            construct_block(&chain, &mut mem_pool, Vec::default()).unwrap()
         };
-        apply_block_result(&mut chain, rollup_cell, produce_block_result, vec![]);
+        let asset_scripts = HashSet::new();
+        apply_block_result(
+            &mut chain,
+            rollup_cell,
+            produce_block_result,
+            vec![],
+            asset_scripts,
+        );
     }
     // deploy scripts
     let param = CellContextParam {
@@ -275,15 +288,18 @@ fn test_enter_challenge_finalized_block() {
                 .build(),
         ];
         let produce_block_result = {
-            let mem_pool = chain.mem_pool().lock();
-            construct_block(&chain, &mem_pool, deposit_requests.clone()).unwrap()
+            let mem_pool = chain.mem_pool().as_ref().unwrap();
+            let mut mem_pool = smol::block_on(mem_pool.lock());
+            construct_block(&chain, &mut mem_pool, deposit_requests.clone()).unwrap()
         };
         let rollup_cell = gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes());
+        let asset_scripts = HashSet::new();
         apply_block_result(
             &mut chain,
             rollup_cell.clone(),
             produce_block_result,
             deposit_requests,
+            asset_scripts,
         );
         let db = chain.store().begin_transaction();
         let tip_block = db.get_tip_block().unwrap();
@@ -294,7 +310,7 @@ fn test_enter_challenge_finalized_block() {
             StateDBMode::ReadOnly,
         )
         .unwrap();
-        let tree = state_db.account_state_tree().unwrap();
+        let tree = state_db.state_tree().unwrap();
         let sender_id = tree
             .get_account_id_by_script_hash(&sender_script.hash().into())
             .unwrap()
@@ -331,11 +347,19 @@ fn test_enter_challenge_finalized_block() {
                         .build(),
                 )
                 .build();
-            let mut mem_pool = chain.mem_pool().lock();
+            let mem_pool = chain.mem_pool().as_ref().unwrap();
+            let mut mem_pool = smol::block_on(mem_pool.lock());
             mem_pool.push_transaction(tx).unwrap();
-            construct_block(&chain, &mem_pool, Vec::default()).unwrap()
+            construct_block(&chain, &mut mem_pool, Vec::default()).unwrap()
         };
-        apply_block_result(chain, rollup_cell, produce_block_result, vec![]);
+        let asset_scripts = HashSet::new();
+        apply_block_result(
+            chain,
+            rollup_cell,
+            produce_block_result,
+            vec![],
+            asset_scripts,
+        );
     };
 
     // produce two blocks and challenge first one

@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::script_tests::utils::layer1::build_simple_tx_with_out_point;
 use crate::script_tests::utils::layer1::random_out_point;
 use crate::script_tests::utils::rollup::{
@@ -12,12 +14,7 @@ use ckb_types::{
     packed::{CellInput, CellOutput},
     prelude::{Pack as CKBPack, Unpack},
 };
-use gw_common::{
-    h256_ext::H256Ext,
-    sparse_merkle_tree::default_store::DefaultStore,
-    state::{to_short_address, State},
-    H256,
-};
+use gw_common::{state::to_short_address, state::State, H256};
 use gw_generator::account_lock_manage::{always_success::AlwaysSuccess, AccountLockManage};
 use gw_store::state_db::SubState;
 use gw_store::state_db::{CheckPoint, StateDBMode, StateDBTransaction};
@@ -105,15 +102,18 @@ fn test_cancel_tx_signature() {
                 .build(),
         ];
         let produce_block_result = {
-            let mem_pool = chain.mem_pool().lock();
-            construct_block(&chain, &mem_pool, deposit_requests.clone()).unwrap()
+            let mem_pool = chain.mem_pool().as_ref().unwrap();
+            let mut mem_pool = smol::block_on(mem_pool.lock());
+            construct_block(&chain, &mut mem_pool, deposit_requests.clone()).unwrap()
         };
         let rollup_cell = gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes());
+        let asset_scripts = HashSet::new();
         apply_block_result(
             &mut chain,
             rollup_cell.clone(),
             produce_block_result,
             deposit_requests,
+            asset_scripts,
         );
         let db = chain.store().begin_transaction();
         let tip_block = db.get_tip_block().unwrap();
@@ -124,7 +124,7 @@ fn test_cancel_tx_signature() {
             StateDBMode::ReadOnly,
         )
         .unwrap();
-        let tree = state_db.account_state_tree().unwrap();
+        let tree = state_db.state_tree().unwrap();
         let sender_id = tree
             .get_account_id_by_script_hash(&sender_script.hash().into())
             .unwrap()
@@ -160,11 +160,19 @@ fn test_cancel_tx_signature() {
             )
             .build();
         let produce_block_result = {
-            let mut mem_pool = chain.mem_pool().lock();
+            let mem_pool = chain.mem_pool().as_ref().unwrap();
+            let mut mem_pool = smol::block_on(mem_pool.lock());
             mem_pool.push_transaction(tx).unwrap();
-            construct_block(&chain, &mem_pool, Vec::default()).unwrap()
+            construct_block(&chain, &mut mem_pool, Vec::default()).unwrap()
         };
-        apply_block_result(&mut chain, rollup_cell, produce_block_result, vec![]);
+        let asset_scripts = HashSet::new();
+        apply_block_result(
+            &mut chain,
+            rollup_cell,
+            produce_block_result,
+            vec![],
+            asset_scripts,
+        );
         (sender_script, receiver_script, sudt_script)
     };
     // deploy scripts
@@ -224,22 +232,13 @@ fn test_cancel_tx_signature() {
     };
     let challenge_witness = {
         let witness = {
-            let tx_proof: Bytes = {
-                let mut tree: gw_common::smt::SMT<DefaultStore<H256>> = Default::default();
-                for (index, tx) in challenged_block.transactions().into_iter().enumerate() {
-                    tree.update(H256::from_u32(index as u32), tx.witness_hash().into())
-                        .unwrap();
-                }
-                tree.merkle_proof(vec![H256::from_u32(challenge_target_index as u32)])
-                    .unwrap()
-                    .compile(vec![(
-                        H256::from_u32(challenge_target_index as u32),
-                        tx.witness_hash().into(),
-                    )])
-                    .unwrap()
-                    .0
-                    .into()
-            };
+            let leaves: Vec<H256> = challenged_block
+                .transactions()
+                .into_iter()
+                .enumerate()
+                .map(|(_idx, tx)| tx.witness_hash().into())
+                .collect();
+            let tx_proof = super::build_merkle_proof(&leaves, &[challenge_target_index]);
             let challenged_block_number =
                 gw_types::prelude::Unpack::unpack(&challenged_block.raw().number());
             let db = chain.store().begin_transaction();
@@ -249,7 +248,7 @@ fn test_cancel_tx_signature() {
                 StateDBMode::ReadOnly,
             )
             .unwrap();
-            let mut tree = state_db.account_state_tree().unwrap();
+            let mut tree = state_db.state_tree().unwrap();
             tree.tracker_mut().enable();
             let sender_id = tree
                 .get_account_id_by_script_hash(&sender_script.hash().into())
@@ -304,7 +303,7 @@ fn test_cancel_tx_signature() {
                 .l2tx(tx.clone())
                 .raw_l2block(challenged_block.raw())
                 .kv_state_proof(Pack::pack(&kv_state_proof))
-                .tx_proof(Pack::pack(&tx_proof))
+                .tx_proof(tx_proof)
                 .context(context)
                 .build()
         };

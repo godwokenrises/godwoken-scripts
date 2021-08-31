@@ -7,16 +7,16 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-gw-types = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "2c882c5e28995427a0d35246d0c7c75d41000898" }
-gw-common = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "2c882c5e28995427a0d35246d0c7c75d41000898" }
-gw-config = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "2c882c5e28995427a0d35246d0c7c75d41000898" }
-gw-db = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "2c882c5e28995427a0d35246d0c7c75d41000898" }
-gw-store = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "2c882c5e28995427a0d35246d0c7c75d41000898" }
-gw-traits = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "2c882c5e28995427a0d35246d0c7c75d41000898" }
-gw-generator = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "2c882c5e28995427a0d35246d0c7c75d41000898" }
-gw-chain = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "2c882c5e28995427a0d35246d0c7c75d41000898" }
-gw-mem-pool = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "2c882c5e28995427a0d35246d0c7c75d41000898" }
-gw-block-producer = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "2c882c5e28995427a0d35246d0c7c75d41000898" }
+gw-types = { git = "https://github.com/magicalne/godwoken.git", rev = "155f21fe126f72b19659000e5b4c15a463660caf" }
+gw-common = { git = "https://github.com/magicalne/godwoken.git", rev = "155f21fe126f72b19659000e5b4c15a463660caf"}
+gw-config = { git = "https://github.com/magicalne/godwoken.git", rev = "155f21fe126f72b19659000e5b4c15a463660caf" }
+gw-db = { git = "https://github.com/magicalne/godwoken.git", rev = "155f21fe126f72b19659000e5b4c15a463660caf" }
+gw-store = { git = "https://github.com/magicalne/godwoken.git", rev = "155f21fe126f72b19659000e5b4c15a463660caf" }
+gw-traits = { git = "https://github.com/magicalne/godwoken.git", rev = "155f21fe126f72b19659000e5b4c15a463660caf" }
+gw-generator = { git = "https://github.com/magicalne/godwoken.git", rev = "155f21fe126f72b19659000e5b4c15a463660caf" }
+gw-chain = { git = "https://github.com/magicalne/godwoken.git", rev = "155f21fe126f72b19659000e5b4c15a463660caf" }
+gw-mem-pool = { git = "https://github.com/magicalne/godwoken.git", rev = "155f21fe126f72b19659000e5b4c15a463660caf" }
+gw-block-producer = { git = "https://github.com/magicalne/godwoken.git", rev = "155f21fe126f72b19659000e5b4c15a463660caf" }
 parking_lot = "0.11"
 anyhow = "1.0"
 blake2b-rs = "0.2"
@@ -39,3 +39,4 @@ ckb-vm = "=0.19.3"
 ckb-vm-definitions = "=0.19.3"
 tentacle-multiaddr = "=0.2.0"
 molecule = "=0.6.0"
+smol = "1.2.5"
