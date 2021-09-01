@@ -170,8 +170,8 @@ fn test_revert() {
     };
     // deploy scripts
     let param = CellContextParam {
-        stake_lock_type: stake_lock_type.clone(),
-        challenge_lock_type: challenge_lock_type.clone(),
+        stake_lock_type,
+        challenge_lock_type,
         ..Default::default()
     };
     let mut ctx = CellContext::new(&rollup_config, param);
@@ -238,6 +238,12 @@ fn test_revert() {
         .status(Status::Halting.into())
         .build();
     let initial_rollup_cell_data = global_state.as_bytes();
+    let new_tip_block = {
+        let db = chain.store().begin_transaction();
+        let maybe_block = db.get_block(&challenged_block.raw().parent_block_hash().unpack());
+        maybe_block.unwrap().unwrap().raw()
+    };
+    let new_tip_block_timestamp = new_tip_block.timestamp();
     let mut reverted_block_tree: gw_common::smt::SMT<DefaultStore<H256>> = Default::default();
     // verify enter challenge
     let witness = {
@@ -272,6 +278,7 @@ fn test_revert() {
                     .reverted_blocks(vec![challenged_block.raw()].pack())
                     .block_proof(Pack::pack(&block_proof))
                     .reverted_block_proof(Pack::pack(&reverted_block_proof))
+                    .new_tip_block(new_tip_block)
                     .build(),
             ))
             .build();
@@ -283,7 +290,7 @@ fn test_revert() {
         reverted_block_tree
             .update(challenged_block.hash().into(), H256::one())
             .unwrap();
-        reverted_block_tree.root().clone()
+        *reverted_block_tree.root()
     };
     let last_finalized_block_number = {
         let number: u64 = challenged_block.raw().number().unpack();
@@ -291,7 +298,6 @@ fn test_revert() {
         (number - 1).saturating_sub(finalize_blocks)
     };
     let rollup_cell_data = global_state
-        .clone()
         .as_builder()
         .status(Status::Running.into())
         .reverted_block_root(Pack::pack(&post_reverted_block_root))
@@ -299,6 +305,7 @@ fn test_revert() {
         .account(challenged_block.raw().prev_account())
         .block(prev_block_merkle)
         .tip_block_hash(challenged_block.raw().parent_block_hash())
+        .tip_block_timestamp(new_tip_block_timestamp)
         .build()
         .as_bytes();
     let tx = build_simple_tx_with_out_point(
