@@ -23,7 +23,7 @@ use gw_types::{
     prelude::*,
 };
 use smol::{lock::Mutex, Task};
-use std::{collections::HashSet, sync::Arc, time::Duration};
+use std::{collections::HashSet, sync::Arc, time::{SystemTime, Duration, UNIX_EPOCH}};
 
 // meta contract
 pub const META_VALIDATOR_PATH: &str = "../c/build/meta-contract-validator";
@@ -203,6 +203,20 @@ pub fn construct_block(
     mem_pool: &mut MemPool,
     deposit_requests: Vec<DepositRequest>,
 ) -> anyhow::Result<ProduceBlockResult> {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("timestamp")
+        .as_millis() as u64;
+
+    construct_block_from_timestamp(chain, mem_pool, deposit_requests, timestamp)
+}
+
+pub fn construct_block_from_timestamp(
+    chain: &Chain,
+    mem_pool: &MemPool,
+    deposit_requests: Vec<DepositRequest>,
+    timestamp: u64,
+) -> anyhow::Result<ProduceBlockResult> {
     let stake_cell_owner_lock_hash = H256::zero();
     let db = chain.store().begin_transaction();
     let generator = chain.generator();
@@ -252,7 +266,7 @@ pub fn construct_block(
         .collect();
     let provider = DummyMemPoolProvider {
         deposit_cells,
-        fake_blocktime: Duration::from_millis(0),
+        fake_blocktime: Duration::from_millis(timestamp),
         available_custodians,
     };
     mem_pool.set_provider(Box::new(provider));
