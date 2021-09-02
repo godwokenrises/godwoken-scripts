@@ -28,8 +28,13 @@ use gw_types::{
 };
 use gw_types::{packed::StakeLockArgs, prelude::*};
 
+fn init() {
+    let _ = env_logger::builder().is_test(true).try_init();
+}
+
 #[test]
 fn test_revert() {
+    init();
     let input_out_point = random_out_point();
     let type_id = calculate_state_validator_type_id(input_out_point.clone());
     let rollup_type_script = {
@@ -60,6 +65,7 @@ fn test_revert() {
         .reward_burn_rate(50u8.into())
         .burn_lock_hash(Pack::pack(&reward_burn_lock_hash))
         .finality_blocks(Pack::pack(&finality_blocks))
+        .allowed_eoa_type_hashes(vec![ALWAYS_SUCCESS_CODE_HASH.clone()].pack())
         .build();
     // setup chain
     let mut chain = setup_chain(rollup_type_script.clone(), rollup_config.clone());
@@ -71,26 +77,31 @@ fn test_revert() {
             rollup_type_script.as_bytes(),
         )),
     );
+    let rollup_script_hash = rollup_type_script.hash();
     // produce a block so we can challenge it
     let prev_block_merkle = {
         // deposit two account
+        let mut sender_args = rollup_script_hash.to_vec();
+        sender_args.extend_from_slice(b"sender");
         let sender_script = Script::new_builder()
             .code_hash(Pack::pack(&ALWAYS_SUCCESS_CODE_HASH.clone()))
-            .hash_type(ScriptHashType::Data.into())
-            .args(Pack::pack(&Bytes::from(b"sender".to_vec())))
+            .hash_type(ScriptHashType::Type.into())
+            .args(Pack::pack(&Bytes::from(sender_args)))
             .build();
+        let mut receiver_args = rollup_script_hash.to_vec();
+        receiver_args.extend_from_slice(b"receiver");
         let receiver_script = Script::new_builder()
             .code_hash(Pack::pack(&ALWAYS_SUCCESS_CODE_HASH.clone()))
-            .hash_type(ScriptHashType::Data.into())
-            .args(Pack::pack(&Bytes::from(b"receiver".to_vec())))
+            .hash_type(ScriptHashType::Type.into())
+            .args(Pack::pack(&Bytes::from(receiver_args)))
             .build();
         let deposit_requests = vec![
             DepositRequest::new_builder()
-                .capacity(Pack::pack(&100_00000000u64))
+                .capacity(Pack::pack(&300_00000000u64))
                 .script(sender_script.clone())
                 .build(),
             DepositRequest::new_builder()
-                .capacity(Pack::pack(&50_00000000u64))
+                .capacity(Pack::pack(&150_00000000u64))
                 .script(receiver_script.clone())
                 .build(),
         ];
@@ -127,7 +138,7 @@ fn test_revert() {
             let args = SUDTArgs::new_builder()
                 .set(SUDTArgsUnion::SUDTTransfer(
                     SUDTTransfer::new_builder()
-                        .amount(Pack::pack(&50_00000000u128))
+                        .amount(Pack::pack(&150_00000000u128))
                         .to(Pack::pack(&receiver_address))
                         .build(),
                 ))
