@@ -1043,10 +1043,12 @@ int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
       MolReader_VerifyTransactionWitness_get_tx_proof(&verify_tx_witness_seg);
   mol_seg_t raw_tx_proof_seg = MolReader_Bytes_raw_bytes(&tx_proof_seg);
   smt_state_normalize(&txs_state);
+  printf("smt_verify txs_state %d", txs_state.len);
+  printf("smt_verify raw_tx_proof size %d", raw_tx_proof_seg.size);
   ret = smt_verify(tx_witness_root_seg.ptr, &txs_state, raw_tx_proof_seg.ptr,
                    raw_tx_proof_seg.size);
   if (ret != 0) {
-    printf("failed to merkle verify tx witness root");
+    printf("failed to merkle verify tx witness root ret %d", ret);
     return GW_FATAL_SMT_VERIFY;
   }
 
