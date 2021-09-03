@@ -27,7 +27,7 @@ typedef unsigned __int128 uint128_t;
 /* MAX kv state pairs in a tx */
 #define GW_MAX_KV_PAIRS 1024
 #define GW_MAX_SCRIPT_SIZE 256
-#define GW_MAX_LOAD_DATA_SIZE 24
+#define GW_MAX_LOAD_DATA_SIZE (24 * 1024)
 /* MAX scripts in a tx */
 #define GW_MAX_SCRIPT_ENTRIES_SIZE 100
 /* MAX data hash can load using sys_load_data in a tx */
