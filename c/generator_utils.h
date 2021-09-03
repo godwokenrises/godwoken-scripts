@@ -141,7 +141,7 @@ int sys_get_account_nonce(gw_context_t *ctx, uint32_t account_id,
   if (ret != 0) {
     return ret;
   }
-  memcpy(nonce, value, sizeof(uint32_t));
+  _gw_fast_memcpy(nonce, value, sizeof(uint32_t));
   return 0;
 }
 
