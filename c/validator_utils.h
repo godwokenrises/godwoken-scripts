@@ -958,20 +958,12 @@ int _load_tx_checkpoint(mol_seg_t *raw_l2block_seg, uint32_t tx_index,
 
 /* Load verify transaction witness
  */
-int _load_verify_transaction_witness(
-    uint8_t rollup_script_hash[32], uint64_t challenge_cell_index,
-    uint8_t challenged_block_hash[32], uint32_t tx_index,
-    uint8_t block_merkle_root[32],
-    gw_transaction_context_t *transaction_context, gw_block_info_t *block_info,
-    smt_state_t *kv_state, smt_pair_t kv_pairs[GW_MAX_KV_PAIRS],
-    uint8_t kv_state_proof[GW_MAX_KV_PROOF_SIZE], uint64_t *kv_state_proof_size,
-    gw_script_entry_t scripts[GW_MAX_SCRIPT_ENTRIES_SIZE],
-    uint64_t *script_entries_size, gw_account_merkle_state_t *prev_account,
-    gw_account_merkle_state_t *post_account, uint8_t return_data_hash[32],
-    smt_state_t *block_hashes_state,
-    smt_pair_t block_hashes_pairs[GW_MAX_GET_BLOCK_HASH_DEPTH],
-    uint8_t prev_tx_checkpoint[32], uint8_t post_tx_checkpoint[32],
-    uint32_t *prev_tx_account_count) {
+int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
+                                     uint64_t challenge_cell_index,
+                                     uint8_t challenged_block_hash[32],
+                                     uint32_t tx_index,
+                                     uint8_t block_merkle_root[32],
+                                     gw_context_t *ctx) {
   /* load witness from challenge cell */
   int ret;
   uint8_t buf[GW_MAX_WITNESS_SIZE];
@@ -1059,7 +1051,7 @@ int _load_verify_transaction_witness(
   }
 
   /* load transaction context */
-  ret = gw_parse_transaction_context(transaction_context, &raw_l2tx_seg);
+  ret = gw_parse_transaction_context(&ctx->transaction_context, &raw_l2tx_seg);
   if (ret != 0) {
     printf("parse l2 transaction failed");
     return ret;
@@ -1072,9 +1064,9 @@ int _load_verify_transaction_witness(
       MolReader_RawL2Block_get_timestamp(&raw_l2block_seg);
   mol_seg_t block_producer_id_seg =
       MolReader_RawL2Block_get_block_producer_id(&raw_l2block_seg);
-  block_info->number = *((uint64_t *)number_seg.ptr);
-  block_info->timestamp = *((uint64_t *)timestamp_seg.ptr);
-  block_info->block_producer_id = *((uint32_t *)block_producer_id_seg.ptr);
+  ctx->block_info.number = *((uint64_t *)number_seg.ptr);
+  ctx->block_info.timestamp = *((uint64_t *)timestamp_seg.ptr);
+  ctx->block_info.block_producer_id = *((uint32_t *)block_producer_id_seg.ptr);
 
   /* Load VerifyTransactionContext */
   mol_seg_t verify_tx_ctx_seg =
@@ -1085,7 +1077,7 @@ int _load_verify_transaction_witness(
       MolReader_VerifyTransactionContext_get_block_hashes(&verify_tx_ctx_seg);
   uint32_t block_hashes_size =
       MolReader_BlockHashEntryVec_length(&block_hashes_seg);
-  smt_state_init(block_hashes_state, block_hashes_pairs,
+  smt_state_init(&ctx->block_hashes_state, ctx->block_hashes_pairs,
                  GW_MAX_GET_BLOCK_HASH_DEPTH);
   uint64_t max_block_number = 0;
   if (challenged_block_number > 1) {
@@ -1114,7 +1106,7 @@ int _load_verify_transaction_witness(
         MolReader_BlockHashEntry_get_hash(&block_hash_entry_res.seg);
     uint8_t key[32] = {0};
     _gw_block_smt_key(key, block_number);
-    ret = smt_state_insert(block_hashes_state, key, hash_seg.ptr);
+    ret = smt_state_insert(&ctx->block_hashes_state, key, hash_seg.ptr);
     if (ret != 0) {
       printf("failed to insert into smt, ret: %d", ret);
       return GW_FATAL_SMT_STORE;
@@ -1125,8 +1117,8 @@ int _load_verify_transaction_witness(
     mol_seg_t block_hashes_proof_seg =
         MolReader_VerifyTransactionWitness_get_block_hashes_proof(
             &verify_tx_witness_seg);
-    smt_state_normalize(block_hashes_state);
-    ret = smt_verify(block_merkle_root, block_hashes_state,
+    smt_state_normalize(&ctx->block_hashes_state);
+    ret = smt_verify(block_merkle_root, &ctx->block_hashes_state,
                      block_hashes_proof_seg.ptr, block_hashes_proof_seg.size);
     if (ret != 0) {
       printf("failed to verify block merkle root and block hashes");
@@ -1143,7 +1135,7 @@ int _load_verify_transaction_witness(
     return GW_FATAL_INVALID_DATA;
   }
   /* initialize kv state */
-  smt_state_init(kv_state, kv_pairs, GW_MAX_KV_PAIRS);
+  smt_state_init(&ctx->kv_state, ctx->kv_pairs, GW_MAX_KV_PAIRS);
   for (uint32_t i = 0; i < kv_pairs_len; i++) {
     mol_seg_res_t kv_res = MolReader_KVPairVec_get(&kv_state_seg, i);
     if (kv_res.errno != MOL_OK) {
@@ -1152,7 +1144,7 @@ int _load_verify_transaction_witness(
     }
     mol_seg_t key_seg = MolReader_KVPair_get_k(&kv_res.seg);
     mol_seg_t value_seg = MolReader_KVPair_get_v(&kv_res.seg);
-    ret = smt_state_insert(kv_state, key_seg.ptr, value_seg.ptr);
+    ret = smt_state_insert(&ctx->kv_state, key_seg.ptr, value_seg.ptr);
     if (ret != 0) {
       printf("failed to insert smt kv pair, ret: %d", ret);
       return GW_FATAL_SMT_STORE;
@@ -1169,20 +1161,20 @@ int _load_verify_transaction_witness(
     printf("kv state proof is too long");
     return GW_FATAL_BUFFER_OVERFLOW;
   }
-  memcpy(kv_state_proof, kv_state_proof_bytes_seg.ptr,
+  memcpy(ctx->kv_state_proof, kv_state_proof_bytes_seg.ptr,
          kv_state_proof_bytes_seg.size);
-  *kv_state_proof_size = kv_state_proof_bytes_seg.size;
+  ctx->kv_state_proof_size = kv_state_proof_bytes_seg.size;
 
   /* load tx checkpoint */
-  ret = _load_tx_checkpoint(&raw_l2block_seg, tx_index, prev_tx_checkpoint,
-                            post_tx_checkpoint);
+  ret = _load_tx_checkpoint(&raw_l2block_seg, tx_index, ctx->prev_tx_checkpoint,
+                            ctx->post_tx_checkpoint);
   if (ret != 0) {
     return ret;
   }
 
   mol_seg_t account_count_seg =
       MolReader_VerifyTransactionContext_get_account_count(&verify_tx_ctx_seg);
-  *prev_tx_account_count = *((uint32_t *)account_count_seg.ptr);
+  ctx->account_count = *((uint32_t *)account_count_seg.ptr);
 
   /* load prev account state */
   mol_seg_t prev_account_seg =
@@ -1191,8 +1183,8 @@ int _load_verify_transaction_witness(
       MolReader_AccountMerkleState_get_merkle_root(&prev_account_seg);
   mol_seg_t prev_count_seg =
       MolReader_AccountMerkleState_get_count(&prev_account_seg);
-  memcpy(prev_account->merkle_root, prev_merkle_root_seg.ptr, 32);
-  prev_account->count = *((uint32_t *)prev_count_seg.ptr);
+  memcpy(ctx->prev_account.merkle_root, prev_merkle_root_seg.ptr, 32);
+  ctx->prev_account.count = *((uint32_t *)prev_count_seg.ptr);
   /* load post account state */
   mol_seg_t post_account_seg =
       MolReader_RawL2Block_get_post_account(&raw_l2block_seg);
@@ -1200,8 +1192,8 @@ int _load_verify_transaction_witness(
       MolReader_AccountMerkleState_get_merkle_root(&post_account_seg);
   mol_seg_t post_count_seg =
       MolReader_AccountMerkleState_get_count(&post_account_seg);
-  memcpy(post_account->merkle_root, post_merkle_root_seg.ptr, 32);
-  post_account->count = *((uint32_t *)post_count_seg.ptr);
+  memcpy(ctx->post_account.merkle_root, post_merkle_root_seg.ptr, 32);
+  ctx->post_account.count = *((uint32_t *)post_count_seg.ptr);
 
   /* load scripts */
   mol_seg_t scripts_seg =
@@ -1211,7 +1203,7 @@ int _load_verify_transaction_witness(
     printf("script size is exceeded maximum");
     return GW_FATAL_BUFFER_OVERFLOW;
   }
-  *script_entries_size = 0;
+  ctx->script_entries_size = 0;
   for (uint32_t i = 0; i < entries_size; i++) {
     gw_script_entry_t entry = {0};
     mol_seg_res_t script_res = MolReader_ScriptVec_get(&scripts_seg, i);
@@ -1235,15 +1227,16 @@ int _load_verify_transaction_witness(
     blake2b_final(&blake2b_ctx, entry.hash, 32);
 
     /* insert entry */
-    memcpy(&scripts[*script_entries_size], &entry, sizeof(gw_script_entry_t));
-    *script_entries_size += 1;
+    memcpy(&ctx->scripts[ctx->script_entries_size], &entry,
+           sizeof(gw_script_entry_t));
+    ctx->script_entries_size += 1;
   }
 
   /* load return data hash */
   mol_seg_t return_data_hash_seg =
       MolReader_VerifyTransactionContext_get_return_data_hash(
           &verify_tx_ctx_seg);
-  memcpy(return_data_hash, return_data_hash_seg.ptr, 32);
+  memcpy(ctx->return_data_hash, return_data_hash_seg.ptr, 32);
 
   return 0;
 }
@@ -1487,12 +1480,7 @@ int gw_context_init(gw_context_t *ctx) {
   /* load context fields */
   ret = _load_verify_transaction_witness(
       rollup_script_hash, challenge_cell_index, challenged_block_hash,
-      ctx->tx_index, block_merkle_root, &ctx->transaction_context,
-      &ctx->block_info, &ctx->kv_state, ctx->kv_pairs, ctx->kv_state_proof,
-      &ctx->kv_state_proof_size, ctx->scripts, &ctx->script_entries_size,
-      &ctx->prev_account, &ctx->post_account, ctx->return_data_hash,
-      &ctx->block_hashes_state, ctx->block_hashes_pairs,
-      ctx->prev_tx_checkpoint, ctx->post_tx_checkpoint, &ctx->account_count);
+      ctx->tx_index, block_merkle_root, ctx);
   if (ret != 0) {
     printf("failed to load verify transaction witness");
     return ret;
