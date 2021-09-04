@@ -37,7 +37,7 @@ typedef struct {
 /* The struct is design for lazy sys_load_data*/
 typedef struct {
   uint8_t hash[32];
-  uint8_t data[GW_MAX_LOAD_DATA_SIZE];
+  uint8_t *data;
   uint32_t data_len;
 } gw_load_data_entry_t;
 
@@ -1293,12 +1293,17 @@ int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
     }
 
     mol_seg_t raw_data_seg = MolReader_Bytes_raw_bytes(&load_data_res.seg);
-    if (raw_data_seg.size > GW_MAX_LOAD_DATA_SIZE) {
+    if (raw_data_seg.size > GW_MAX_DATA_SIZE) {
       printf("load data too long");
       return GW_FATAL_INVALID_DATA;
     }
 
     /* copy load data to entry */
+    entry.data = (uint8_t *)malloc(raw_data_seg.size);
+    if (NULL == entry.data) {
+      printf("malloc load data failed");
+      return GW_FATAL_BUFFER_OVERFLOW;
+    }
     memcpy(entry.data, raw_data_seg.ptr, raw_data_seg.size);
     entry.data_len = raw_data_seg.size;
 
