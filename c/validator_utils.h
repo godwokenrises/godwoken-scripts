@@ -1291,19 +1291,21 @@ int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
       printf("invalid load data entry format");
       return GW_FATAL_INVALID_DATA;
     }
-    if (load_data_res.seg.size > GW_MAX_LOAD_DATA_SIZE) {
-      printf("invalid load data entry format");
+
+    mol_seg_t raw_data_seg = MolReader_Bytes_raw_bytes(&load_data_res.seg);
+    if (raw_data_seg.size > GW_MAX_LOAD_DATA_SIZE) {
+      printf("load data too long");
       return GW_FATAL_INVALID_DATA;
     }
 
     /* copy load data to entry */
-    memcpy(entry.data, load_data_res.seg.ptr, load_data_res.seg.size);
-    entry.data_len = load_data_res.seg.size;
+    memcpy(entry.data, raw_data_seg.ptr, raw_data_seg.size);
+    entry.data_len = raw_data_seg.size;
 
     /* copy script hash to entry */
     blake2b_state blake2b_ctx;
     blake2b_init(&blake2b_ctx, 32);
-    blake2b_update(&blake2b_ctx, load_data_res.seg.ptr, load_data_res.seg.size);
+    blake2b_update(&blake2b_ctx, raw_data_seg.ptr, raw_data_seg.size);
     blake2b_final(&blake2b_ctx, entry.hash, 32);
 
     /* insert entry */
