@@ -7,9 +7,9 @@ use crate::script_tests::utils::rollup::{
     build_always_success_cell, build_rollup_locked_cell, build_type_id_script,
     calculate_state_validator_type_id, CellContext, CellContextParam,
 };
-use crate::testing_tool::chain::setup_chain;
+use crate::testing_tool::chain::setup_chain_with_account_lock_manage;
 use crate::testing_tool::chain::{apply_block_result, construct_block};
-use crate::testing_tool::programs::{ALWAYS_SUCCESS_CODE_HASH, STATE_VALIDATOR_CODE_HASH};
+use crate::testing_tool::programs::STATE_VALIDATOR_CODE_HASH;
 use ckb_types::{
     packed::{CellInput, CellOutput},
     prelude::{Pack as CKBPack, Unpack as CKBUnpack},
@@ -18,6 +18,8 @@ use gw_chain::chain::Chain;
 use gw_common::merkle_utils::ckb_merkle_leaf_hash;
 use gw_common::merkle_utils::CBMT;
 use gw_common::H256;
+use gw_generator::account_lock_manage::always_success::AlwaysSuccess;
+use gw_generator::account_lock_manage::AccountLockManage;
 use gw_types::prelude::Pack as GWPack;
 use gw_types::prelude::*;
 use gw_types::{
@@ -87,22 +89,19 @@ fn test_burn_challenge_capacity() {
         .challenge_script_type_hash(Pack::pack(&challenge_script_type_hash))
         .reward_burn_rate(50u8.into())
         .burn_lock_hash(Pack::pack(&reward_burn_lock_hash))
-        // .allowed_eoa_type_hashes(PackVec::pack(allowed_eoa_type_hashes))
-        .allowed_eoa_type_hashes(vec![*ALWAYS_SUCCESS_CODE_HASH].pack())
+        .allowed_eoa_type_hashes(PackVec::pack(allowed_eoa_type_hashes))
+        // .allowed_eoa_type_hashes(vec![eoa_lock_type_hash].pack())
         .finality_blocks(Pack::pack(&finality_blocks))
         .build();
     // setup chain
-    // let mut account_lock_manage = AccountLockManage::default();
-    // account_lock_manage.register_lock_algorithm(eoa_lock_type_hash.into(), Box::new(AlwaysSuccess));
-    // account_lock_manage
-    //     .register_lock_algorithm((*ALWAYS_SUCCESS_CODE_HASH).into(), Box::new(AlwaysSuccess));
-    // let mut chain = setup_chain_with_account_lock_manage(
-    //     rollup_type_script.clone(),
-    //     rollup_config.clone(),
-    //     account_lock_manage,
-    // );
-    // chain.complete_initial_syncing().unwrap();
-    let mut chain = setup_chain(rollup_type_script.clone(), rollup_config.clone());
+    let mut account_lock_manage = AccountLockManage::default();
+    account_lock_manage.register_lock_algorithm(eoa_lock_type_hash.into(), Box::new(AlwaysSuccess));
+    let mut chain = setup_chain_with_account_lock_manage(
+        rollup_type_script.clone(),
+        rollup_config.clone(),
+        account_lock_manage,
+    );
+    chain.complete_initial_syncing().unwrap();
     // create a rollup cell
     let capacity = 1000_00000000u64;
     let rollup_cell = build_always_success_cell(
@@ -117,15 +116,14 @@ fn test_burn_challenge_capacity() {
         let mut sender_args = rollup_type_script.hash().to_vec();
         sender_args.extend_from_slice(b"sender");
         let sender_script = Script::new_builder()
-            // .code_hash(Pack::pack(&eoa_lock_type_hash.clone()))
-            .code_hash(Pack::pack(&ALWAYS_SUCCESS_CODE_HASH.clone()))
+            .code_hash(Pack::pack(&eoa_lock_type_hash.clone()))
             .hash_type(ScriptHashType::Type.into())
             .args(Pack::pack(&Bytes::from(sender_args)))
             .build();
         let mut receiver_args = rollup_type_script.hash().to_vec();
         receiver_args.extend_from_slice(b"receiver");
         let receiver_script = Script::new_builder()
-            .code_hash(Pack::pack(&ALWAYS_SUCCESS_CODE_HASH.clone()))
+            .code_hash(Pack::pack(&eoa_lock_type_hash.clone()))
             .hash_type(ScriptHashType::Type.into())
             .args(Pack::pack(&Bytes::from(receiver_args)))
             .build();

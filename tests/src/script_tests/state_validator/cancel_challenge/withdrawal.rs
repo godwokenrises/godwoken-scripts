@@ -11,7 +11,7 @@ use crate::script_tests::utils::rollup::{
 use crate::testing_tool::chain::{
     apply_block_result, construct_block, setup_chain_with_account_lock_manage,
 };
-use crate::testing_tool::programs::{ALWAYS_SUCCESS_CODE_HASH, STATE_VALIDATOR_CODE_HASH};
+use crate::testing_tool::programs::STATE_VALIDATOR_CODE_HASH;
 use ckb_types::{
     packed::{CellInput, CellOutput},
     prelude::{Pack as CKBPack, Unpack},
@@ -53,13 +53,11 @@ fn test_cancel_withdrawal() {
         .challenge_script_type_hash(Pack::pack(&challenge_script_type_hash))
         .allowed_eoa_type_hashes(PackVec::pack(allowed_eoa_type_hashes))
         .finality_blocks(Pack::pack(&finality_blocks))
-        .allowed_eoa_type_hashes(vec![*ALWAYS_SUCCESS_CODE_HASH].pack())
         .build();
     // setup chain
     let mut account_lock_manage = AccountLockManage::default();
     account_lock_manage.register_lock_algorithm(eoa_lock_type_hash.into(), Box::new(AlwaysSuccess));
-    account_lock_manage
-        .register_lock_algorithm((*ALWAYS_SUCCESS_CODE_HASH).into(), Box::new(AlwaysSuccess));
+    account_lock_manage.register_lock_algorithm(eoa_lock_type_hash.into(), Box::new(AlwaysSuccess));
     let mut chain = setup_chain_with_account_lock_manage(
         rollup_type_script.clone(),
         rollup_config.clone(),
@@ -81,14 +79,14 @@ fn test_cancel_withdrawal() {
         let mut sender_args = rollup_script_hash.to_vec();
         sender_args.extend_from_slice(b"sender");
         let sender_script = Script::new_builder()
-            .code_hash(Pack::pack(&ALWAYS_SUCCESS_CODE_HASH.clone()))
+            .code_hash(Pack::pack(&eoa_lock_type_hash.clone()))
             .hash_type(ScriptHashType::Type.into())
             .args(Pack::pack(&Bytes::from(sender_args)))
             .build();
         let mut receiver_args = rollup_script_hash.to_vec();
         receiver_args.extend_from_slice(b"receiver");
         let receiver_script = Script::new_builder()
-            .code_hash(Pack::pack(&ALWAYS_SUCCESS_CODE_HASH.clone()))
+            .code_hash(Pack::pack(&eoa_lock_type_hash.clone()))
             .hash_type(ScriptHashType::Type.into())
             .args(Pack::pack(&Bytes::from(receiver_args)))
             .build();
