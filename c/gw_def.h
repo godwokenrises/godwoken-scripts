@@ -29,6 +29,8 @@ typedef unsigned __int128 uint128_t;
 #define GW_MAX_SCRIPT_SIZE 256
 /* MAX scripts in a tx */
 #define GW_MAX_SCRIPT_ENTRIES_SIZE 100
+/* MAX data hash can load using sys_load_data in a tx */
+#define GW_MAX_LOAD_DATA_ENTRIES_SIZE 100
 /* MAX size of rollup config */
 #define GW_MAX_ROLLUP_CONFIG_SIZE (4 * 1024)
 #define GW_MAX_WITNESS_SIZE (300 * 1024)

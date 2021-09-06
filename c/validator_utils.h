@@ -34,6 +34,13 @@ typedef struct {
   uint32_t script_len;
 } gw_script_entry_t;
 
+/* The struct is design for lazy sys_load_data*/
+typedef struct {
+  uint8_t hash[32];
+  uint8_t *data;
+  uint32_t data_len;
+} gw_load_data_entry_t;
+
 /* Call receipt */
 typedef struct {
   uint8_t return_data[GW_MAX_DATA_SIZE];
@@ -99,6 +106,10 @@ typedef struct gw_context_t {
   /* All the scripts account has read and write */
   gw_script_entry_t scripts[GW_MAX_SCRIPT_ENTRIES_SIZE];
   size_t script_entries_size;
+
+  /* All the data load */
+  gw_load_data_entry_t load_data[GW_MAX_LOAD_DATA_ENTRIES_SIZE];
+  size_t load_data_entries_size;
 
   /* return data hash */
   uint8_t return_data_hash[32];
@@ -282,7 +293,7 @@ int sys_get_account_script(gw_context_t *ctx, uint32_t account_id,
   if (entry == NULL) {
     printf(
         "account script_hash exist, but we can't found, we miss the "
-        "neccesary context");
+        "necessary context");
     return GW_FATAL_SCRIPT_NOT_FOUND;
   }
 
@@ -361,6 +372,34 @@ int sys_load_data(gw_context_t *ctx, uint8_t data_hash[32], uint64_t *len,
   if (!data_exists) {
     /* return not found if data isn't exist in the state tree */
     return GW_ERROR_NOT_FOUND;
+  }
+
+  /* Try load data from witness */
+  gw_load_data_entry_t *entry = NULL;
+  for (uint32_t i = 0; i < ctx->load_data_entries_size; i++) {
+    gw_load_data_entry_t *current = &ctx->load_data[i];
+    if (memcmp(current->hash, data_hash, 32) == 0) {
+      entry = current;
+      break;
+    }
+  }
+
+  if (NULL != entry) {
+    size_t new_len;
+    size_t data_len = entry->data_len;
+    if (offset >= data_len) {
+      printf("load data offset is bigger than actual data len");
+      new_len = 0;
+    } else if ((offset + *len) > data_len) {
+      new_len = data_len - offset;
+    } else {
+      new_len = *len;
+    }
+    if (new_len > 0) {
+      _gw_fast_memcpy(data, entry->data + offset, new_len);
+    }
+    *len = new_len;
+    return 0;
   }
 
   size_t index = 0;
@@ -561,7 +600,7 @@ int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
   blake2b_update(&blake2b_ctx, script, script_len);
   blake2b_final(&blake2b_ctx, script_hash, 32);
 
-  /* check existance */
+  /* check existence */
   int account_exist = 0;
   ret = _check_account_exists_by_script_hash(ctx, script_hash, &account_exist);
   if (ret != 0) {
@@ -1234,6 +1273,50 @@ int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
     _gw_fast_memcpy(&ctx->scripts[ctx->script_entries_size], &entry,
                     sizeof(gw_script_entry_t));
     ctx->script_entries_size += 1;
+  }
+
+  /* load data */
+  mol_seg_t load_data_seg =
+      MolReader_VerifyTransactionContext_get_load_data(&verify_tx_ctx_seg);
+  entries_size = MolReader_BytesVec_length(&load_data_seg);
+  if (entries_size > GW_MAX_LOAD_DATA_ENTRIES_SIZE) {
+    printf("load data size is exceeded maximum");
+    return GW_FATAL_BUFFER_OVERFLOW;
+  }
+  ctx->load_data_entries_size = 0;
+  for (uint32_t i = 0; i < entries_size; i++) {
+    gw_load_data_entry_t entry = {0};
+    mol_seg_res_t load_data_res = MolReader_BytesVec_get(&load_data_seg, i);
+    if (load_data_res.errno != MOL_OK) {
+      printf("invalid load data entry format");
+      return GW_FATAL_INVALID_DATA;
+    }
+
+    mol_seg_t raw_data_seg = MolReader_Bytes_raw_bytes(&load_data_res.seg);
+    if (raw_data_seg.size > GW_MAX_DATA_SIZE) {
+      printf("load data too long");
+      return GW_FATAL_INVALID_DATA;
+    }
+
+    /* copy load data to entry */
+    entry.data = (uint8_t *)malloc(raw_data_seg.size);
+    if (NULL == entry.data) {
+      printf("malloc load data failed");
+      return GW_FATAL_BUFFER_OVERFLOW;
+    }
+    _gw_fast_memcpy(entry.data, raw_data_seg.ptr, raw_data_seg.size);
+    entry.data_len = raw_data_seg.size;
+
+    /* copy script hash to entry */
+    blake2b_state blake2b_ctx;
+    blake2b_init(&blake2b_ctx, 32);
+    blake2b_update(&blake2b_ctx, raw_data_seg.ptr, raw_data_seg.size);
+    blake2b_final(&blake2b_ctx, entry.hash, 32);
+
+    /* insert entry */
+    _gw_fast_memcpy(&ctx->load_data[ctx->load_data_entries_size], &entry,
+                    sizeof(gw_load_data_entry_t));
+    ctx->load_data_entries_size += 1;
   }
 
   /* load return data hash */
