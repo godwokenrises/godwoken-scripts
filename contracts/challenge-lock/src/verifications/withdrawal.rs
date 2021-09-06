@@ -1,6 +1,5 @@
 use core::result::Result;
-use gw_common::{blake2b::new_blake2b, h256_ext::H256Ext, H256};
-use gw_state::ckb_smt::smt::{Pair, Tree};
+use gw_common::{blake2b::new_blake2b, H256};
 use gw_types::{
     packed::{
         ChallengeLockArgs, RawWithdrawalRequest, VerifyWithdrawalWitness,
@@ -8,7 +7,10 @@ use gw_types::{
     },
     prelude::*,
 };
-use gw_utils::gw_common;
+use gw_utils::gw_common::{
+    self,
+    merkle_utils::{ckb_merkle_leaf_hash, CBMTMerkleProof},
+};
 use gw_utils::gw_types;
 use gw_utils::{
     ckb_std::{
@@ -53,31 +55,22 @@ fn verify_withdrawal_proof(lock_args: &ChallengeLockArgs) -> Result<WithdrawalCo
     }
 
     // verify withdrawal merkle proof
-    let withdrawal_witness_root: [u8; 32] = raw_block
+    let withdrawal_witness_root = raw_block
         .submit_withdrawals()
         .withdrawal_witness_root()
         .unpack();
     let withdrawal_index: u32 = lock_args.target().target_index().unpack();
-    let withdrawal_witness_hash: [u8; 32] = withdrawal.witness_hash();
-    {
-        let mut buf = [Pair::default(); 256];
-        let mut tree = Tree::new(&mut buf);
-        tree.update(
-            &H256::from_u32(withdrawal_index).into(),
-            &withdrawal_witness_hash,
-        )
-        .map_err(|err| {
-            debug!("[verify withdrawal exist] update kv error: {}", err);
-            Error::MerkleProof
-        })?;
-        tree.verify(
-            &withdrawal_witness_root,
-            &unlock_args.withdrawal_proof().raw_data(),
-        )
-        .map_err(|err| {
-            debug!("[verify withdrawal exist] merkle verify error: {}", err);
-            Error::MerkleProof
-        })?;
+    let withdrawal_witness_hash = withdrawal.witness_hash().into();
+    let withdrawal_proof = unlock_args.withdrawal_proof();
+    let proof = CBMTMerkleProof::new(
+        withdrawal_proof.indices().unpack(),
+        withdrawal_proof.lemmas().unpack(),
+    );
+    let hash = ckb_merkle_leaf_hash(withdrawal_index, &withdrawal_witness_hash);
+    let valid = proof.verify(&withdrawal_witness_root, &[hash]);
+    if !valid {
+        debug!("[verify withdrawal exist] merkle verify error");
+        return Err(Error::MerkleProof);
     }
 
     let context = WithdrawalContext {
