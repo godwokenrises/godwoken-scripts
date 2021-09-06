@@ -9,6 +9,9 @@
 #include "gw_errors.h"
 #include "stddef.h"
 
+#define _gw_fast_memset _smt_fast_memset
+#define _gw_fast_memcpy _smt_fast_memcpy
+
 /* common functions,
    This file should be included in the generator_utils.h & validator_utils.h
     after the gw_context_t structure is defined.
@@ -43,8 +46,8 @@ void gw_build_account_key(uint32_t id, const uint8_t *key, const size_t key_len,
 
 void gw_build_account_field_key(uint32_t id, uint8_t field_type,
                                 uint8_t key[GW_KEY_BYTES]) {
-  memset(key, 0, 32);
-  memcpy(key, (uint8_t *)(&id), sizeof(uint32_t));
+  _gw_fast_memset(key, 0, 32);
+  _gw_fast_memcpy(key, (uint8_t *)(&id), sizeof(uint32_t));
   key[sizeof(uint32_t)] = field_type;
 }
 
@@ -112,7 +115,7 @@ int gw_parse_transaction_context(gw_transaction_context_t *transaction_context,
   }
   transaction_context->from_id = *(uint32_t *)from_id_seg.ptr;
   transaction_context->to_id = *(uint32_t *)to_id_seg.ptr;
-  memcpy(transaction_context->args, args_seg.ptr, args_seg.size);
+  _gw_fast_memcpy(transaction_context->args, args_seg.ptr, args_seg.size);
   transaction_context->args_len = args_seg.size;
   return 0;
 }
@@ -125,8 +128,8 @@ int gw_parse_block_info(gw_block_info_t *block_info, mol_seg_t *src) {
   mol_seg_t timestamp_seg = MolReader_BlockInfo_get_timestamp(src);
   mol_seg_t block_producer_id_seg =
       MolReader_BlockInfo_get_block_producer_id(src);
-  memcpy(&block_info->number, number_seg.ptr, sizeof(uint64_t));
-  memcpy(&block_info->timestamp, timestamp_seg.ptr, sizeof(uint64_t));
+  _gw_fast_memcpy(&block_info->number, number_seg.ptr, sizeof(uint64_t));
+  _gw_fast_memcpy(&block_info->timestamp, timestamp_seg.ptr, sizeof(uint64_t));
   block_info->block_producer_id = *(uint32_t *)block_producer_id_seg.ptr;
   return 0;
 }
@@ -187,7 +190,7 @@ int _check_account_exists_by_script_hash(gw_context_t *ctx,
     return ret;
   }
   uint32_t account_id = 0;
-  memcpy((uint8_t *)&account_id, value, sizeof(uint32_t));
+  _gw_fast_memcpy((uint8_t *)&account_id, value, sizeof(uint32_t));
 
   *is_exist = account_id != 0;
   return 0;
@@ -208,7 +211,7 @@ int _load_sender_nonce(gw_context_t *ctx, uint32_t *sender_nonce) {
     printf("failed to fetch sender nonce value");
     return ret;
   }
-  memcpy(sender_nonce, nonce_value, sizeof(uint32_t));
+  _gw_fast_memcpy(sender_nonce, nonce_value, sizeof(uint32_t));
   return 0;
 }
 
@@ -233,7 +236,7 @@ int _increase_sender_nonce(gw_context_t *ctx) {
     /* prepare key value */
     gw_build_account_field_key(ctx->transaction_context.from_id,
                                GW_ACCOUNT_NONCE, nonce_key);
-    memcpy(nonce_value, (uint8_t *)&new_nonce, sizeof(uint32_t));
+    _gw_fast_memcpy(nonce_value, (uint8_t *)&new_nonce, sizeof(uint32_t));
 
     ret = ctx->_internal_store_raw(ctx, nonce_key, nonce_value);
     if (ret != 0) {
