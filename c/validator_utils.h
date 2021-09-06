@@ -293,7 +293,7 @@ int sys_get_account_script(gw_context_t *ctx, uint32_t account_id,
   if (entry == NULL) {
     printf(
         "account script_hash exist, but we can't found, we miss the "
-        "neccesary context");
+        "necessary context");
     return GW_FATAL_SCRIPT_NOT_FOUND;
   }
 
@@ -396,7 +396,7 @@ int sys_load_data(gw_context_t *ctx, uint8_t data_hash[32], uint64_t *len,
       new_len = *len;
     }
     if (new_len > 0) {
-      memcpy(data, entry->data + offset, new_len);
+      _gw_fast_memcpy(data, entry->data + offset, new_len);
     }
     *len = new_len;
     return 0;
@@ -600,7 +600,7 @@ int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
   blake2b_update(&blake2b_ctx, script, script_len);
   blake2b_final(&blake2b_ctx, script_hash, 32);
 
-  /* check existance */
+  /* check existence */
   int account_exist = 0;
   ret = _check_account_exists_by_script_hash(ctx, script_hash, &account_exist);
   if (ret != 0) {
@@ -1304,7 +1304,7 @@ int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
       printf("malloc load data failed");
       return GW_FATAL_BUFFER_OVERFLOW;
     }
-    memcpy(entry.data, raw_data_seg.ptr, raw_data_seg.size);
+    _gw_fast_memcpy(entry.data, raw_data_seg.ptr, raw_data_seg.size);
     entry.data_len = raw_data_seg.size;
 
     /* copy script hash to entry */
@@ -1314,8 +1314,8 @@ int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
     blake2b_final(&blake2b_ctx, entry.hash, 32);
 
     /* insert entry */
-    memcpy(&ctx->load_data[ctx->load_data_entries_size], &entry,
-           sizeof(gw_load_data_entry_t));
+    _gw_fast_memcpy(&ctx->load_data[ctx->load_data_entries_size], &entry,
+                    sizeof(gw_load_data_entry_t));
     ctx->load_data_entries_size += 1;
   }
 
