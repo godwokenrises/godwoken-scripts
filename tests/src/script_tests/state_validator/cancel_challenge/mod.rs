@@ -46,19 +46,6 @@ pub(crate) fn build_merkle_proof(leaves: &[H256], indices: &[u32]) -> CKBMerkleP
         .build()
 }
 
-fn produce_empty_block(chain: &mut Chain, rollup_cell: gw_types::packed::CellOutput) -> Result<()> {
-    let block_result = {
-        let mem_pool = chain.mem_pool().as_ref().unwrap();
-        let mut mem_pool = smol::block_on(mem_pool.lock());
-        construct_block(chain, &mut mem_pool, Default::default())?
-    };
-    let asset_scripts = HashSet::new();
-
-    // deposit
-    apply_block_result(chain, rollup_cell, block_result, vec![], asset_scripts);
-    Ok(())
-}
-
 // Cancel withdrawal signature challengen
 #[test]
 fn test_burn_challenge_capacity() {
@@ -90,7 +77,6 @@ fn test_burn_challenge_capacity() {
         .reward_burn_rate(50u8.into())
         .burn_lock_hash(Pack::pack(&reward_burn_lock_hash))
         .allowed_eoa_type_hashes(PackVec::pack(allowed_eoa_type_hashes))
-        // .allowed_eoa_type_hashes(vec![eoa_lock_type_hash].pack())
         .finality_blocks(Pack::pack(&finality_blocks))
         .build();
     // setup chain
@@ -152,9 +138,6 @@ fn test_burn_challenge_capacity() {
             asset_scripts,
         );
 
-        // for _ in 0..6 {
-        //     produce_empty_block(&mut chain, rollup_cell.clone()).unwrap();
-        // }
         let withdrawal_capacity = 265_00000000u64;
         let withdrawal = WithdrawalRequest::new_builder()
             .raw(

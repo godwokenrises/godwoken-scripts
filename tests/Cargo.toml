@@ -1,5 +1,5 @@
 [package]
-name = "gw-tests-local"
+name = "gw-tests"
 version = "0.1.0"
 authors = ["Nervos network"]
 edition = "2018"
