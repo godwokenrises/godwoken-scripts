@@ -1594,11 +1594,6 @@ int gw_context_init(gw_context_t *ctx) {
 }
 
 int gw_finalize(gw_context_t *ctx) {
-  if (ctx->post_account.count != ctx->account_count) {
-    printf("account count not match");
-    return GW_FATAL_INVALID_DATA;
-  }
-
   /* update sender nonce */
   int ret = _increase_sender_nonce(ctx);
   if (ret != 0) {
