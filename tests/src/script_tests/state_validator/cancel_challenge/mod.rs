@@ -14,7 +14,6 @@ use ckb_types::{
     packed::{CellInput, CellOutput},
     prelude::{Pack as CKBPack, Unpack as CKBUnpack},
 };
-use gw_chain::chain::Chain;
 use gw_common::merkle_utils::ckb_merkle_leaf_hash;
 use gw_common::merkle_utils::CBMT;
 use gw_common::H256;
@@ -31,8 +30,6 @@ use gw_types::{
         Script, VerifyWithdrawalWitness, WithdrawalRequest,
     },
 };
-
-use anyhow::Result;
 
 mod tx_execution;
 mod tx_signature;

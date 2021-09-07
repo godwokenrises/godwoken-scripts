@@ -57,7 +57,6 @@ fn test_cancel_withdrawal() {
     // setup chain
     let mut account_lock_manage = AccountLockManage::default();
     account_lock_manage.register_lock_algorithm(eoa_lock_type_hash.into(), Box::new(AlwaysSuccess));
-    account_lock_manage.register_lock_algorithm(eoa_lock_type_hash.into(), Box::new(AlwaysSuccess));
     let mut chain = setup_chain_with_account_lock_manage(
         rollup_type_script.clone(),
         rollup_config.clone(),
