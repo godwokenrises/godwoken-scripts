@@ -72,8 +72,12 @@ fn verify_message_signature(tron_address: TronAddress, message: H256) -> Result<
     // load signature
     let signature = load_signature_from_witness()?;
     // verify message
-    let secp256k1_eth = Secp256k1Tron::default();
-    let valid = secp256k1_eth.verify_message(tron_address, signature, message)?;
+    let secp256k1_tron = Secp256k1Tron::default();
+    let valid = match secp256k1_tron.verify_message(tron_address, signature, message) {
+        Err(_) => secp256k1_tron.verify_alone(tron_address, signature, message)?,
+        Ok(valid) if !valid => secp256k1_tron.verify_alone(tron_address, signature, message)?,
+        Ok(valid) => valid,
+    };
     if !valid {
         debug!("Wrong signature, message: {:?}", message);
         return Err(Error::WrongSignature);

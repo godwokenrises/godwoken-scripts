@@ -28,7 +28,7 @@ pub fn extract_lock_args(lock_args: Bytes) -> Result<(H256, TronAddress), Error>
 pub struct Secp256k1Tron;
 
 impl Secp256k1Tron {
-    fn verify_alone(
+    pub fn verify_alone(
         &self,
         address: TronAddress,
         mut signature: [u8; 65],
