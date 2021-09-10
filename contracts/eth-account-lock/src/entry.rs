@@ -73,7 +73,11 @@ fn verify_message_signature(eth_address: EthAddress, message: H256) -> Result<()
     let signature = load_signature_from_witness()?;
     // verify message
     let secp256k1_eth = Secp256k1Eth::default();
-    let valid = secp256k1_eth.verify_message(eth_address, signature, message)?;
+    let valid = match secp256k1_eth.verify_message(eth_address, signature, message) {
+        Err(_) => secp256k1_eth.verify_alone(eth_address, signature, message)?,
+        Ok(valid) if !valid => secp256k1_eth.verify_alone(eth_address, signature, message)?,
+        Ok(valid) => valid,
+    };
     if !valid {
         debug!("Wrong signature, message: {:?}", message);
         return Err(Error::WrongSignature);
