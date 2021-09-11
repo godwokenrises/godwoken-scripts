@@ -27,10 +27,10 @@ use gw_types::{
     bytes::Bytes,
     core::{ChallengeTargetType, ScriptHashType, Status},
     packed::{
-        BlockHashEntry, BlockHashEntryVec, Byte32, ChallengeLockArgs, ChallengeTarget,
-        DepositRequest, L2Transaction, RawL2Transaction, RollupAction, RollupActionUnion,
-        RollupCancelChallenge, RollupConfig, SUDTArgs, SUDTTransfer, Script, ScriptVec,
-        VerifyTransactionContext, VerifyTransactionWitness,
+        BlockHashEntry, BlockHashEntryVec, ChallengeLockArgs, ChallengeTarget, DepositRequest,
+        L2Transaction, RawL2Transaction, RollupAction, RollupActionUnion, RollupCancelChallenge,
+        RollupConfig, SUDTArgs, SUDTTransfer, Script, ScriptVec, VerifyTransactionContext,
+        VerifyTransactionWitness,
     },
 };
 
@@ -52,7 +52,6 @@ fn test_cancel_tx_execute() {
     let eoa_lock_type = build_type_id_script(b"eoa_lock_type_id");
     let l2_sudt_type = build_type_id_script(b"l2_sudt_type_id");
     let challenge_script_type_hash: [u8; 32] = challenge_lock_type.calc_script_hash().unpack();
-    let eoa_lock_type_hash: [u8; 32] = eoa_lock_type.calc_script_hash().unpack();
     let l2_sudt_type_hash: [u8; 32] = l2_sudt_type.calc_script_hash().unpack();
 
     let finality_blocks = 10;
