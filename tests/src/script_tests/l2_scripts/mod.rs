@@ -1,9 +1,11 @@
 use gw_common::blake2b::new_blake2b;
 use gw_common::state::{to_short_address, State};
 use gw_common::H256;
+use gw_generator::constants::L2TX_MAX_CYCLES;
 use gw_generator::{account_lock_manage::AccountLockManage, Generator};
-use gw_generator::{error::TransactionError, traits::StateExt, types::RollupContext};
+use gw_generator::{error::TransactionError, traits::StateExt};
 use gw_traits::{ChainStore, CodeStore};
+use gw_types::offchain::RollupContext;
 use gw_types::{
     bytes::Bytes,
     offchain::RunResult,
@@ -19,10 +21,10 @@ mod examples;
 mod meta_contract;
 mod sudt;
 
-const EXAMPLES_DIR: &'static str = "../../godwoken-scripts/c/build/examples";
-const SUM_BIN_NAME: &'static str = "sum-generator";
-const ACCOUNT_OP_BIN_NAME: &'static str = "account-operation-generator";
-const RECOVER_BIN_NAME: &'static str = "recover-account-generator";
+const EXAMPLES_DIR: &str = "../../godwoken-scripts/c/build/examples";
+const SUM_BIN_NAME: &str = "sum-generator";
+const ACCOUNT_OP_BIN_NAME: &str = "account-operation-generator";
+const RECOVER_BIN_NAME: &str = "recover-account-generator";
 
 lazy_static! {
     static ref SUM_PROGRAM: Bytes = {
@@ -204,7 +206,8 @@ pub fn run_contract_get_result<S: State + CodeStore>(
     };
     let generator = Generator::new(backend_manage, account_lock_manage, rollup_ctx);
     let chain_view = DummyChainStore;
-    let run_result = generator.execute_transaction(&chain_view, tree, block_info, &raw_tx)?;
+    let run_result =
+        generator.execute_transaction(&chain_view, tree, block_info, &raw_tx, L2TX_MAX_CYCLES)?;
     tree.apply_run_result(&run_result).expect("update state");
     Ok(run_result)
 }

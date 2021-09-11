@@ -147,17 +147,18 @@ dependencies = [
 [[package]]
 name = "gw-common"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=e8a72d48a1c4b37b894dab500e381f8b8809cb96#e8a72d48a1c4b37b894dab500e381f8b8809cb96"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=46dfa5da7461302aa05adf3d3689042b6e42e841#46dfa5da7461302aa05adf3d3689042b6e42e841"
 dependencies = [
  "cfg-if",
  "gw-hash",
+ "merkle-cbt",
  "sparse-merkle-tree",
 ]
 
 [[package]]
 name = "gw-hash"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=e8a72d48a1c4b37b894dab500e381f8b8809cb96#e8a72d48a1c4b37b894dab500e381f8b8809cb96"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=46dfa5da7461302aa05adf3d3689042b6e42e841#46dfa5da7461302aa05adf3d3689042b6e42e841"
 dependencies = [
  "blake2b-ref",
 ]
@@ -173,7 +174,7 @@ dependencies = [
 [[package]]
 name = "gw-types"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=e8a72d48a1c4b37b894dab500e381f8b8809cb96#e8a72d48a1c4b37b894dab500e381f8b8809cb96"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=46dfa5da7461302aa05adf3d3689042b6e42e841#46dfa5da7461302aa05adf3d3689042b6e42e841"
 dependencies = [
  "cfg-if",
  "gw-hash",
@@ -195,6 +196,15 @@ name = "keccak"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67c21572b4949434e4fc1e1978b99c5f77064153c59d998bf13ecd96fb5ecba7"
+
+[[package]]
+name = "merkle-cbt"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f1ac8428ec02d6caa5a79c15e851d84d5dc7a00df0429a8aa860d104f0a81be"
+dependencies = [
+ "cfg-if",
+]
 
 [[package]]
 name = "molecule"

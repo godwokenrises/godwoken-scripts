@@ -1,17 +1,17 @@
 use core::result::Result;
-use gw_common::{h256_ext::H256Ext, merkle_utils::calculate_state_checkpoint, state::State, H256};
-use gw_state::{
-    ckb_smt::smt::{Pair, Tree},
-    kv_state::KVState,
-};
+use gw_common::{merkle_utils::calculate_state_checkpoint, state::State, H256};
+use gw_state::kv_state::KVState;
 use gw_types::{
     core::ScriptHashType,
     packed::{ChallengeTarget, L2Transaction, RawL2Block, RollupConfig, ScriptVec},
     prelude::*,
 };
-use gw_utils::gw_common;
-use gw_utils::gw_types;
 use gw_utils::{ckb_std::debug, error::Error};
+use gw_utils::{gw_common::merkle_utils::ckb_merkle_leaf_hash, gw_types};
+use gw_utils::{
+    gw_common::{self, merkle_utils::CBMTMerkleProof},
+    gw_types::packed::CKBMerkleProof,
+};
 
 pub struct TxContextInput<'a> {
     pub tx: L2Transaction,
@@ -20,7 +20,7 @@ pub struct TxContextInput<'a> {
     pub raw_block: RawL2Block,
     pub rollup_config: &'a RollupConfig,
     pub target: ChallengeTarget,
-    pub tx_proof: gw_types::packed::Bytes,
+    pub tx_proof: CKBMerkleProof,
 }
 
 pub struct TxContext {
@@ -120,22 +120,15 @@ pub fn verify_tx_context(input: TxContextInput) -> Result<TxContext, Error> {
     }
 
     // verify tx merkle proof
-    let tx_witness_root: [u8; 32] = raw_block.submit_transactions().tx_witness_root().unpack();
+    let tx_witness_root = raw_block.submit_transactions().tx_witness_root().unpack();
     let tx_index: u32 = target.target_index().unpack();
     let tx_witness_hash: H256 = tx.witness_hash().into();
-    {
-        let mut buf = [Pair::default(); 256];
-        let mut tree = Tree::new(&mut buf);
-        tree.update(&H256::from_u32(tx_index).into(), &tx_witness_hash.into())
-            .map_err(|err| {
-                debug!("[verify tx exist] update kv error: {}", err);
-                Error::MerkleProof
-            })?;
-        tree.verify(&tx_witness_root, &tx_proof.raw_data())
-            .map_err(|err| {
-                debug!("[verify tx exist] merkle verify error: {}", err);
-                Error::MerkleProof
-            })?;
+    let proof = CBMTMerkleProof::new(tx_proof.indices().unpack(), tx_proof.lemmas().unpack());
+    let hash = ckb_merkle_leaf_hash(tx_index, &tx_witness_hash);
+    let valid = proof.verify(&tx_witness_root, &[hash]);
+    if !valid {
+        debug!("[verify tx exist] merkle verify error");
+        return Err(Error::MerkleProof);
     }
 
     // verify kv-state merkle proof (prev state root)

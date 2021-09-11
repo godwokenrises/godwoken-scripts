@@ -1,27 +1,33 @@
+use std::collections::HashSet;
+
+use crate::script_tests::utils::init_env_log;
 use crate::script_tests::utils::layer1::build_simple_tx_with_out_point;
 use crate::script_tests::utils::layer1::random_out_point;
 use crate::script_tests::utils::rollup::{
     build_always_success_cell, build_rollup_locked_cell, build_type_id_script,
     calculate_state_validator_type_id, CellContext, CellContextParam,
 };
-use crate::testing_tool::chain::{
-    apply_block_result, construct_block, setup_chain_with_account_lock_manage,
-};
-use crate::testing_tool::programs::{ALWAYS_SUCCESS_CODE_HASH, STATE_VALIDATOR_CODE_HASH};
+use crate::testing_tool::chain::setup_chain_with_account_lock_manage;
+use crate::testing_tool::chain::{apply_block_result, construct_block};
+use crate::testing_tool::programs::STATE_VALIDATOR_CODE_HASH;
 use ckb_types::{
     packed::{CellInput, CellOutput},
-    prelude::{Pack as CKBPack, Unpack},
+    prelude::{Pack as CKBPack, Unpack as CKBUnpack},
 };
-use gw_common::{h256_ext::H256Ext, sparse_merkle_tree::default_store::DefaultStore, H256};
-use gw_generator::account_lock_manage::{always_success::AlwaysSuccess, AccountLockManage};
+use gw_common::merkle_utils::ckb_merkle_leaf_hash;
+use gw_common::merkle_utils::CBMT;
+use gw_common::H256;
+use gw_generator::account_lock_manage::always_success::AlwaysSuccess;
+use gw_generator::account_lock_manage::AccountLockManage;
+use gw_types::prelude::Pack as GWPack;
 use gw_types::prelude::*;
 use gw_types::{
     bytes::Bytes,
     core::{ChallengeTargetType, ScriptHashType, Status},
     packed::{
-        Byte32, ChallengeLockArgs, ChallengeTarget, DepositRequest, RawWithdrawalRequest,
-        RollupAction, RollupActionUnion, RollupCancelChallenge, RollupConfig, Script,
-        VerifyWithdrawalWitness, WithdrawalRequest,
+        Byte32, CKBMerkleProof, ChallengeLockArgs, ChallengeTarget, DepositRequest,
+        RawWithdrawalRequest, RollupAction, RollupActionUnion, RollupCancelChallenge, RollupConfig,
+        Script, VerifyWithdrawalWitness, WithdrawalRequest,
     },
 };
 
@@ -29,9 +35,18 @@ mod tx_execution;
 mod tx_signature;
 mod withdrawal;
 
-// Cancel withdrawal signature challenge
+pub(crate) fn build_merkle_proof(leaves: &[H256], indices: &[u32]) -> CKBMerkleProof {
+    let proof = CBMT::build_merkle_proof(leaves, indices).unwrap();
+    CKBMerkleProof::new_builder()
+        .lemmas(proof.lemmas().pack())
+        .indices(GWPack::pack(proof.indices()))
+        .build()
+}
+
+// Cancel withdrawal signature challengen
 #[test]
 fn test_burn_challenge_capacity() {
+    init_env_log();
     let input_out_point = random_out_point();
     let type_id = calculate_state_validator_type_id(input_out_point.clone());
     let rollup_type_script = {
@@ -69,6 +84,7 @@ fn test_burn_challenge_capacity() {
         rollup_config.clone(),
         account_lock_manage,
     );
+    chain.complete_initial_syncing().unwrap();
     // create a rollup cell
     let capacity = 1000_00000000u64;
     let rollup_cell = build_always_success_cell(
@@ -80,15 +96,19 @@ fn test_burn_challenge_capacity() {
     // produce a block so we can challenge it
     let sender_script = {
         // deposit two account
+        let mut sender_args = rollup_type_script.hash().to_vec();
+        sender_args.extend_from_slice(b"sender");
         let sender_script = Script::new_builder()
             .code_hash(Pack::pack(&eoa_lock_type_hash.clone()))
             .hash_type(ScriptHashType::Type.into())
-            .args(Pack::pack(&Bytes::from(b"sender".to_vec())))
+            .args(Pack::pack(&Bytes::from(sender_args)))
             .build();
+        let mut receiver_args = rollup_type_script.hash().to_vec();
+        receiver_args.extend_from_slice(b"receiver");
         let receiver_script = Script::new_builder()
-            .code_hash(Pack::pack(&ALWAYS_SUCCESS_CODE_HASH.clone()))
-            .hash_type(ScriptHashType::Data.into())
-            .args(Pack::pack(&Bytes::from(b"receiver".to_vec())))
+            .code_hash(Pack::pack(&eoa_lock_type_hash.clone()))
+            .hash_type(ScriptHashType::Type.into())
+            .args(Pack::pack(&Bytes::from(receiver_args)))
             .build();
         let deposit_requests = vec![
             DepositRequest::new_builder()
@@ -96,22 +116,26 @@ fn test_burn_challenge_capacity() {
                 .script(sender_script.clone())
                 .build(),
             DepositRequest::new_builder()
-                .capacity(Pack::pack(&50_00000000u64))
+                .capacity(Pack::pack(&150_00000000u64))
                 .script(receiver_script.clone())
                 .build(),
         ];
         let produce_block_result = {
-            let mem_pool = chain.mem_pool().lock();
-            construct_block(&chain, &mem_pool, deposit_requests.clone()).unwrap()
+            let mem_pool = chain.mem_pool().as_ref().unwrap();
+            let mut mem_pool = smol::block_on(mem_pool.lock());
+            construct_block(&chain, &mut mem_pool, deposit_requests.clone()).unwrap()
         };
         let rollup_cell = gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes());
+        let asset_scripts = HashSet::new();
         apply_block_result(
             &mut chain,
             rollup_cell.clone(),
             produce_block_result,
             deposit_requests,
+            asset_scripts,
         );
-        let withdrawal_capacity = 400_00000000u64;
+
+        let withdrawal_capacity = 265_00000000u64;
         let withdrawal = WithdrawalRequest::new_builder()
             .raw(
                 RawWithdrawalRequest::new_builder()
@@ -123,11 +147,20 @@ fn test_burn_challenge_capacity() {
             )
             .build();
         let produce_block_result = {
-            let mut mem_pool = chain.mem_pool().lock();
+            let mem_pool = chain.mem_pool().as_ref().unwrap();
+            let mut mem_pool = smol::block_on(mem_pool.lock());
             mem_pool.push_withdrawal_request(withdrawal).unwrap();
-            construct_block(&chain, &mem_pool, Vec::default()).unwrap()
+            construct_block(&chain, &mut mem_pool, Vec::default()).unwrap()
         };
-        apply_block_result(&mut chain, rollup_cell, produce_block_result, vec![]);
+
+        let asset_scripts = HashSet::new();
+        apply_block_result(
+            &mut chain,
+            rollup_cell,
+            produce_block_result,
+            vec![],
+            asset_scripts,
+        );
         sender_script
     };
     // deploy scripts
@@ -191,30 +224,23 @@ fn test_burn_challenge_capacity() {
         .unwrap();
     let challenge_witness = {
         let witness = {
-            let withdrawal_proof: Bytes = {
-                let mut tree: gw_common::smt::SMT<DefaultStore<H256>> = Default::default();
-                for (index, withdrawal) in challenged_block.withdrawals().into_iter().enumerate() {
-                    tree.update(
-                        H256::from_u32(index as u32),
-                        withdrawal.witness_hash().into(),
-                    )
-                    .unwrap();
-                }
-                tree.merkle_proof(vec![H256::from_u32(challenge_target_index as u32)])
-                    .unwrap()
-                    .compile(vec![(
-                        H256::from_u32(challenge_target_index as u32),
-                        withdrawal.witness_hash().into(),
-                    )])
-                    .unwrap()
-                    .0
-                    .into()
-            };
+            // build proof
+            let leaves: Vec<H256> = challenged_block
+                .withdrawals()
+                .into_iter()
+                .enumerate()
+                .map(|(idx, withdrawal)| {
+                    let hash: H256 = withdrawal.witness_hash().into();
+                    ckb_merkle_leaf_hash(idx as u32, &hash)
+                })
+                .collect();
+
+            let proof = build_merkle_proof(&leaves, &[challenge_target_index]);
             // we do not actually execute the signature verification in this test
             VerifyWithdrawalWitness::new_builder()
                 .raw_l2block(challenged_block.raw())
                 .withdrawal_request(withdrawal.clone())
-                .withdrawal_proof(Pack::pack(&withdrawal_proof))
+                .withdrawal_proof(proof)
                 .build()
         };
         ckb_types::packed::WitnessArgs::new_builder()

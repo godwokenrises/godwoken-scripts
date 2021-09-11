@@ -95,8 +95,9 @@ fn test_submit_block() {
     ctx.verify_tx(tx).expect("return success");
     // submit a new block
     let block_result = {
-        let mem_pool = chain.mem_pool().lock();
-        construct_block(&chain, &mem_pool, Vec::default()).unwrap()
+        let mem_pool = chain.mem_pool().as_ref().unwrap();
+        let mut mem_pool = smol::block_on(mem_pool.lock());
+        construct_block(&chain, &mut mem_pool, Vec::default()).unwrap()
     };
     // verify submit block
     let rollup_cell_data = block_result.global_state.as_bytes();
@@ -308,8 +309,9 @@ fn test_check_reverted_cells_in_submit_block() {
     };
     // submit a new block
     let block_result = {
-        let mem_pool = chain.mem_pool().lock();
-        construct_block(&chain, &mem_pool, Vec::default()).unwrap()
+        let mem_pool = chain.mem_pool().as_ref().unwrap();
+        let mut mem_pool = smol::block_on(mem_pool.lock());
+        construct_block(&chain, &mut mem_pool, Vec::default()).unwrap()
     };
     // verify submit block
     let rollup_cell_data = block_result.global_state.as_bytes();

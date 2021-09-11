@@ -1,3 +1,6 @@
+use std::collections::HashSet;
+
+use crate::script_tests::utils::init_env_log;
 use crate::script_tests::utils::layer1::build_simple_tx_with_out_point;
 use crate::script_tests::utils::layer1::{always_success_script, random_out_point};
 use crate::script_tests::utils::rollup::{
@@ -28,6 +31,7 @@ use gw_types::{packed::StakeLockArgs, prelude::*};
 
 #[test]
 fn test_revert() {
+    init_env_log();
     let input_out_point = random_out_point();
     let type_id = calculate_state_validator_type_id(input_out_point.clone());
     let rollup_type_script = {
@@ -58,6 +62,7 @@ fn test_revert() {
         .reward_burn_rate(50u8.into())
         .burn_lock_hash(Pack::pack(&reward_burn_lock_hash))
         .finality_blocks(Pack::pack(&finality_blocks))
+        .allowed_eoa_type_hashes(vec![*ALWAYS_SUCCESS_CODE_HASH].pack())
         .build();
     // setup chain
     let mut chain = setup_chain(rollup_type_script.clone(), rollup_config.clone());
@@ -69,39 +74,47 @@ fn test_revert() {
             rollup_type_script.as_bytes(),
         )),
     );
+    let rollup_script_hash = rollup_type_script.hash();
     // produce a block so we can challenge it
     let prev_block_merkle = {
         // deposit two account
+        let mut sender_args = rollup_script_hash.to_vec();
+        sender_args.extend_from_slice(b"sender");
         let sender_script = Script::new_builder()
             .code_hash(Pack::pack(&ALWAYS_SUCCESS_CODE_HASH.clone()))
-            .hash_type(ScriptHashType::Data.into())
-            .args(Pack::pack(&Bytes::from(b"sender".to_vec())))
+            .hash_type(ScriptHashType::Type.into())
+            .args(Pack::pack(&Bytes::from(sender_args)))
             .build();
+        let mut receiver_args = rollup_script_hash.to_vec();
+        receiver_args.extend_from_slice(b"receiver");
         let receiver_script = Script::new_builder()
             .code_hash(Pack::pack(&ALWAYS_SUCCESS_CODE_HASH.clone()))
-            .hash_type(ScriptHashType::Data.into())
-            .args(Pack::pack(&Bytes::from(b"receiver".to_vec())))
+            .hash_type(ScriptHashType::Type.into())
+            .args(Pack::pack(&Bytes::from(receiver_args)))
             .build();
         let deposit_requests = vec![
             DepositRequest::new_builder()
-                .capacity(Pack::pack(&100_00000000u64))
+                .capacity(Pack::pack(&300_00000000u64))
                 .script(sender_script.clone())
                 .build(),
             DepositRequest::new_builder()
-                .capacity(Pack::pack(&50_00000000u64))
+                .capacity(Pack::pack(&150_00000000u64))
                 .script(receiver_script.clone())
                 .build(),
         ];
         let produce_block_result = {
-            let mem_pool = chain.mem_pool().lock();
-            construct_block(&chain, &mem_pool, deposit_requests.clone()).unwrap()
+            let mem_pool = chain.mem_pool().as_ref().unwrap();
+            let mut mem_pool = smol::block_on(mem_pool.lock());
+            construct_block(&chain, &mut mem_pool, deposit_requests.clone()).unwrap()
         };
         let rollup_cell = gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes());
+        let asset_scripts = HashSet::new();
         apply_block_result(
             &mut chain,
             rollup_cell.clone(),
             produce_block_result,
             deposit_requests,
+            asset_scripts,
         );
         let db = chain.store().begin_transaction();
         let tip_block = db.get_tip_block().unwrap();
@@ -112,7 +125,7 @@ fn test_revert() {
             StateDBMode::ReadOnly,
         )
         .unwrap();
-        let tree = state_db.account_state_tree().unwrap();
+        let tree = state_db.state_tree().unwrap();
         let sender_id = tree
             .get_account_id_by_script_hash(&sender_script.hash().into())
             .unwrap()
@@ -122,7 +135,8 @@ fn test_revert() {
             let args = SUDTArgs::new_builder()
                 .set(SUDTArgsUnion::SUDTTransfer(
                     SUDTTransfer::new_builder()
-                        .amount(Pack::pack(&50_00000000u128))
+                        .amount(Pack::pack(&150_00000000u128))
+                        .fee(Pack::pack(&1_00000000u128))
                         .to(Pack::pack(&receiver_address))
                         .build(),
                 ))
@@ -138,12 +152,20 @@ fn test_revert() {
                         .build(),
                 )
                 .build();
-            let mut mem_pool = chain.mem_pool().lock();
+            let mem_pool = chain.mem_pool().as_ref().unwrap();
+            let mut mem_pool = smol::block_on(mem_pool.lock());
             mem_pool.push_transaction(tx).unwrap();
-            construct_block(&chain, &mem_pool, Vec::default()).unwrap()
+            construct_block(&chain, &mut mem_pool, Vec::default()).unwrap()
         };
         let prev_block_merkle = chain.local_state().last_global_state().block();
-        apply_block_result(&mut chain, rollup_cell, produce_block_result, vec![]);
+        let asset_scripts = HashSet::new();
+        apply_block_result(
+            &mut chain,
+            rollup_cell,
+            produce_block_result,
+            vec![],
+            asset_scripts,
+        );
         prev_block_merkle
     };
     // deploy scripts
