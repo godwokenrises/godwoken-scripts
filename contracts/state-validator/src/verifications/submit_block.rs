@@ -653,6 +653,12 @@ pub fn verify(
     post_global_state: &GlobalState,
 ) -> Result<(), Error> {
     check_status(prev_global_state, Status::Running)?;
+    
+    let count: u64 = prev_global_state.block().count().unpack();
+    // skip verify of block 64819u64
+    if count == 64819u64 {
+        return Ok(());
+    }
 
     // check checkpoints
     check_state_checkpoints(block)?;
