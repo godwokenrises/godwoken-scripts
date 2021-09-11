@@ -1825,7 +1825,7 @@ dependencies = [
 [[package]]
 name = "gw-block-producer"
 version = "0.2.0-rc1"
-source = "git+https://github.com/magicalne/godwoken.git?branch=magicalne/ckb-merkle-tree#f63f237af15572145f0d1e3103abdb06fd02e89f"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=46dfa5da7461302aa05adf3d3689042b6e42e841#46dfa5da7461302aa05adf3d3689042b6e42e841"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -1834,13 +1834,11 @@ dependencies = [
  "async-std",
  "async-trait",
  "ckb-chain-spec 0.38.0",
- "ckb-crypto 0.38.0",
  "ckb-fixed-hash 0.38.0",
  "ckb-types 0.38.0",
  "clap",
  "ctrlc",
  "env_logger",
- "faster-hex 0.4.1",
  "futures 0.3.15",
  "gw-chain",
  "gw-challenge",
@@ -1855,6 +1853,7 @@ dependencies = [
  "gw-rpc-server",
  "gw-store",
  "gw-types",
+ "gw-utils",
  "gw-version",
  "gw-web3-indexer",
  "hex",
@@ -1871,7 +1870,7 @@ dependencies = [
 [[package]]
 name = "gw-chain"
 version = "0.1.0"
-source = "git+https://github.com/magicalne/godwoken.git?branch=magicalne/ckb-merkle-tree#f63f237af15572145f0d1e3103abdb06fd02e89f"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=46dfa5da7461302aa05adf3d3689042b6e42e841#46dfa5da7461302aa05adf3d3689042b6e42e841"
 dependencies = [
  "anyhow",
  "ckb-fixed-hash 0.38.0",
@@ -1896,16 +1895,14 @@ dependencies = [
 [[package]]
 name = "gw-challenge"
 version = "0.1.0"
-source = "git+https://github.com/magicalne/godwoken.git?branch=magicalne/ckb-merkle-tree#f63f237af15572145f0d1e3103abdb06fd02e89f"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=46dfa5da7461302aa05adf3d3689042b6e42e841#46dfa5da7461302aa05adf3d3689042b6e42e841"
 dependencies = [
  "anyhow",
  "ckb-chain-spec 0.38.0",
- "ckb-crypto 0.38.0",
  "ckb-fixed-hash 0.38.0",
  "ckb-script 0.38.0",
  "ckb-traits 0.38.0",
  "ckb-types 0.38.0",
- "faster-hex 0.4.1",
  "gw-common",
  "gw-config",
  "gw-db",
@@ -1916,6 +1913,7 @@ dependencies = [
  "gw-store",
  "gw-traits",
  "gw-types",
+ "gw-utils",
  "hex",
  "log",
  "rand 0.8.3",
@@ -1927,7 +1925,7 @@ dependencies = [
 [[package]]
 name = "gw-common"
 version = "0.1.0"
-source = "git+https://github.com/magicalne/godwoken.git?branch=magicalne/ckb-merkle-tree#f63f237af15572145f0d1e3103abdb06fd02e89f"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=46dfa5da7461302aa05adf3d3689042b6e42e841#46dfa5da7461302aa05adf3d3689042b6e42e841"
 dependencies = [
  "cfg-if 0.1.10",
  "gw-hash",
@@ -1939,7 +1937,7 @@ dependencies = [
 [[package]]
 name = "gw-config"
 version = "0.1.0"
-source = "git+https://github.com/magicalne/godwoken.git?branch=magicalne/ckb-merkle-tree#f63f237af15572145f0d1e3103abdb06fd02e89f"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=46dfa5da7461302aa05adf3d3689042b6e42e841#46dfa5da7461302aa05adf3d3689042b6e42e841"
 dependencies = [
  "ckb-fixed-hash 0.38.0",
  "gw-jsonrpc-types",
@@ -1949,7 +1947,7 @@ dependencies = [
 [[package]]
 name = "gw-db"
 version = "0.1.0"
-source = "git+https://github.com/magicalne/godwoken.git?branch=magicalne/ckb-merkle-tree#f63f237af15572145f0d1e3103abdb06fd02e89f"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=46dfa5da7461302aa05adf3d3689042b6e42e841#46dfa5da7461302aa05adf3d3689042b6e42e841"
 dependencies = [
  "ckb-rocksdb",
  "libc",
@@ -1961,7 +1959,7 @@ dependencies = [
 [[package]]
 name = "gw-generator"
 version = "0.1.0"
-source = "git+https://github.com/magicalne/godwoken.git?branch=magicalne/ckb-merkle-tree#f63f237af15572145f0d1e3103abdb06fd02e89f"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=46dfa5da7461302aa05adf3d3689042b6e42e841#46dfa5da7461302aa05adf3d3689042b6e42e841"
 dependencies = [
  "anyhow",
  "blake2b-rs 0.2.0",
@@ -1983,7 +1981,7 @@ dependencies = [
 [[package]]
 name = "gw-hash"
 version = "0.1.0"
-source = "git+https://github.com/magicalne/godwoken.git?branch=magicalne/ckb-merkle-tree#f63f237af15572145f0d1e3103abdb06fd02e89f"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=46dfa5da7461302aa05adf3d3689042b6e42e841#46dfa5da7461302aa05adf3d3689042b6e42e841"
 dependencies = [
  "blake2b-ref",
 ]
@@ -1991,7 +1989,7 @@ dependencies = [
 [[package]]
 name = "gw-jsonrpc-types"
 version = "0.1.0"
-source = "git+https://github.com/magicalne/godwoken.git?branch=magicalne/ckb-merkle-tree#f63f237af15572145f0d1e3103abdb06fd02e89f"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=46dfa5da7461302aa05adf3d3689042b6e42e841#46dfa5da7461302aa05adf3d3689042b6e42e841"
 dependencies = [
  "anyhow",
  "ckb-fixed-hash 0.38.0",
@@ -2005,7 +2003,7 @@ dependencies = [
 [[package]]
 name = "gw-mem-pool"
 version = "0.1.0"
-source = "git+https://github.com/magicalne/godwoken.git?branch=magicalne/ckb-merkle-tree#f63f237af15572145f0d1e3103abdb06fd02e89f"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=46dfa5da7461302aa05adf3d3689042b6e42e841#46dfa5da7461302aa05adf3d3689042b6e42e841"
 dependencies = [
  "anyhow",
  "gw-challenge",
@@ -2025,7 +2023,7 @@ dependencies = [
 [[package]]
 name = "gw-poa"
 version = "0.1.0"
-source = "git+https://github.com/magicalne/godwoken.git?branch=magicalne/ckb-merkle-tree#f63f237af15572145f0d1e3103abdb06fd02e89f"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=46dfa5da7461302aa05adf3d3689042b6e42e841#46dfa5da7461302aa05adf3d3689042b6e42e841"
 dependencies = [
  "anyhow",
  "gw-common",
@@ -2041,7 +2039,7 @@ dependencies = [
 [[package]]
 name = "gw-rpc-client"
 version = "0.1.0"
-source = "git+https://github.com/magicalne/godwoken.git?branch=magicalne/ckb-merkle-tree#f63f237af15572145f0d1e3103abdb06fd02e89f"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=46dfa5da7461302aa05adf3d3689042b6e42e841#46dfa5da7461302aa05adf3d3689042b6e42e841"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -2072,7 +2070,7 @@ dependencies = [
 [[package]]
 name = "gw-rpc-server"
 version = "0.1.0"
-source = "git+https://github.com/magicalne/godwoken.git?branch=magicalne/ckb-merkle-tree#f63f237af15572145f0d1e3103abdb06fd02e89f"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=46dfa5da7461302aa05adf3d3689042b6e42e841#46dfa5da7461302aa05adf3d3689042b6e42e841"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -2112,7 +2110,7 @@ dependencies = [
 [[package]]
 name = "gw-store"
 version = "0.1.0"
-source = "git+https://github.com/magicalne/godwoken.git?branch=magicalne/ckb-merkle-tree#f63f237af15572145f0d1e3103abdb06fd02e89f"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=46dfa5da7461302aa05adf3d3689042b6e42e841#46dfa5da7461302aa05adf3d3689042b6e42e841"
 dependencies = [
  "anyhow",
  "gw-common",
@@ -2165,7 +2163,7 @@ dependencies = [
 [[package]]
 name = "gw-traits"
 version = "0.1.0"
-source = "git+https://github.com/magicalne/godwoken.git?branch=magicalne/ckb-merkle-tree#f63f237af15572145f0d1e3103abdb06fd02e89f"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=46dfa5da7461302aa05adf3d3689042b6e42e841#46dfa5da7461302aa05adf3d3689042b6e42e841"
 dependencies = [
  "gw-common",
  "gw-db",
@@ -2175,7 +2173,7 @@ dependencies = [
 [[package]]
 name = "gw-types"
 version = "0.1.0"
-source = "git+https://github.com/magicalne/godwoken.git?branch=magicalne/ckb-merkle-tree#f63f237af15572145f0d1e3103abdb06fd02e89f"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=46dfa5da7461302aa05adf3d3689042b6e42e841#46dfa5da7461302aa05adf3d3689042b6e42e841"
 dependencies = [
  "cfg-if 0.1.10",
  "ckb-fixed-hash 0.38.0",
@@ -2186,9 +2184,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "gw-utils"
+version = "0.1.0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=46dfa5da7461302aa05adf3d3689042b6e42e841#46dfa5da7461302aa05adf3d3689042b6e42e841"
+dependencies = [
+ "anyhow",
+ "ckb-crypto 0.38.0",
+ "faster-hex 0.4.1",
+ "gw-common",
+ "gw-config",
+ "gw-poa",
+ "gw-rpc-client",
+ "gw-types",
+]
+
+[[package]]
 name = "gw-version"
 version = "0.6.2"
-source = "git+https://github.com/magicalne/godwoken.git?branch=magicalne/ckb-merkle-tree#f63f237af15572145f0d1e3103abdb06fd02e89f"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=46dfa5da7461302aa05adf3d3689042b6e42e841#46dfa5da7461302aa05adf3d3689042b6e42e841"
 dependencies = [
  "anyhow",
 ]
@@ -2196,7 +2209,7 @@ dependencies = [
 [[package]]
 name = "gw-web3-indexer"
 version = "0.1.0"
-source = "git+https://github.com/magicalne/godwoken.git?branch=magicalne/ckb-merkle-tree#f63f237af15572145f0d1e3103abdb06fd02e89f"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=46dfa5da7461302aa05adf3d3689042b6e42e841#46dfa5da7461302aa05adf3d3689042b6e42e841"
 dependencies = [
  "anyhow",
  "ckb-hash 0.38.0",
