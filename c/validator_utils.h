@@ -549,7 +549,7 @@ int sys_recover_account(gw_context_t *ctx, uint8_t message[32],
     }
 
     /* found script, recover account script */
-    if (0 != *script_len && *script_len < script_seg.size) {
+    if (*script_len < script_seg.size) {
       printf("recover account: buffer overflow");
       return GW_FATAL_BUFFER_OVERFLOW;
     }
