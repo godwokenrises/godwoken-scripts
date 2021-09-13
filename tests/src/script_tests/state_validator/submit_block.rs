@@ -237,8 +237,9 @@ fn test_block_timestamp_smaller_or_equal_than_previous_block_in_submit_block() {
     assert!(tip_block_timestamp > 100);
     let block_result = {
         let timestamp = tip_block_timestamp.saturating_sub(100);
-        let mem_pool = chain.mem_pool().lock();
-        construct_block_from_timestamp(&chain, &mem_pool, Vec::default(), timestamp).unwrap()
+        let mem_pool = chain.mem_pool().as_ref().unwrap();
+        let mut mem_pool = smol::block_on(mem_pool.lock());
+        construct_block_from_timestamp(&chain, &mut mem_pool, Vec::default(), timestamp).unwrap()
     };
     // verify submit block
     let block_timestamp = GWUnpack::unpack(&block_result.block.raw().timestamp());
@@ -283,8 +284,9 @@ fn test_block_timestamp_smaller_or_equal_than_previous_block_in_submit_block() {
 
     // #### Submit a equal block timestamp
     let block_result = {
-        let mem_pool = chain.mem_pool().lock();
-        construct_block_from_timestamp(&chain, &mem_pool, Vec::default(), tip_block_timestamp)
+        let mem_pool = chain.mem_pool().as_ref().unwrap();
+        let mut mem_pool = smol::block_on(mem_pool.lock());
+        construct_block_from_timestamp(&chain, &mut mem_pool, Vec::default(), tip_block_timestamp)
             .unwrap()
     };
     // verify submit block
@@ -403,8 +405,9 @@ fn test_block_timestamp_bigger_than_rollup_input_since_in_submit_block() {
     ctx.verify_tx(tx).expect("return success");
     // submit a new block
     let block_result = {
-        let mem_pool = chain.mem_pool().lock();
-        construct_block(&chain, &mem_pool, Vec::default()).unwrap()
+        let mem_pool = chain.mem_pool().as_ref().unwrap();
+        let mut mem_pool = smol::block_on(mem_pool.lock());
+        construct_block(&chain, &mut mem_pool, Vec::default()).unwrap()
     };
     // verify submit block
     let tip_block_timestamp = GWUnpack::unpack(&block_result.block.raw().timestamp());
@@ -522,8 +525,9 @@ fn test_wrong_global_state_tip_block_timestamp_in_submit_block() {
     ctx.verify_tx(tx).expect("return success");
     // submit a new block
     let block_result = {
-        let mem_pool = chain.mem_pool().lock();
-        construct_block(&chain, &mem_pool, Vec::default()).unwrap()
+        let mem_pool = chain.mem_pool().as_ref().unwrap();
+        let mut mem_pool = smol::block_on(mem_pool.lock());
+        construct_block(&chain, &mut mem_pool, Vec::default()).unwrap()
     };
     // verify submit block
     let tip_block_timestamp = GWUnpack::unpack(&block_result.block.raw().timestamp());
