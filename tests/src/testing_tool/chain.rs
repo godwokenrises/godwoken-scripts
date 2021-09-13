@@ -23,7 +23,11 @@ use gw_types::{
     prelude::*,
 };
 use smol::{lock::Mutex, Task};
-use std::{collections::HashSet, sync::Arc, time::{SystemTime, Duration, UNIX_EPOCH}};
+use std::{
+    collections::HashSet,
+    sync::Arc,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 // meta contract
 pub const META_VALIDATOR_PATH: &str = "../c/build/meta-contract-validator";
@@ -213,7 +217,7 @@ pub fn construct_block(
 
 pub fn construct_block_from_timestamp(
     chain: &Chain,
-    mem_pool: &MemPool,
+    mem_pool: &mut MemPool,
     deposit_requests: Vec<DepositRequest>,
     timestamp: u64,
 ) -> anyhow::Result<ProduceBlockResult> {
