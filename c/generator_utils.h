@@ -328,7 +328,7 @@ int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
   blake2b_update(&blake2b_ctx, script, script_len);
   blake2b_final(&blake2b_ctx, script_hash, 32);
 
-  /* check existance */
+  /* check existence */
   int account_exist = 0;
   int ret =
       _check_account_exists_by_script_hash(ctx, script_hash, &account_exist);
@@ -352,6 +352,12 @@ int sys_recover_account(struct gw_context_t *ctx, uint8_t message[32],
   volatile uint64_t inner_script_len = 0;
   int ret = syscall(GW_SYS_RECOVER_ACCOUNT, script, &inner_script_len, message,
                     signature, signature_len, code_hash);
+
+  if (0 == ret && *script_len < inner_script_len) {
+    printf("recover account: buffer overflow");
+    return GW_FATAL_BUFFER_OVERFLOW;
+  }
+
   *script_len = inner_script_len;
   return ret;
 }
