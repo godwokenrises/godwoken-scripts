@@ -32,8 +32,9 @@ int main() {
     return -1;
   }
   uint8_t script[1024] = {0};
-  uint64_t script_len = 0;
-  ret = ctx.sys_recover_account(&ctx, message, signature, signature_len, code_hash, script, &script_len);
+  uint64_t script_len = GW_MAX_SCRIPT_SIZE;
+  ret = ctx.sys_recover_account(&ctx, message, signature, signature_len,
+                                code_hash, script, &script_len);
   if (ret != 0) {
     return ret;
   }
