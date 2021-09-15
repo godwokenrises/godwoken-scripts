@@ -15,7 +15,7 @@ use crate::{
 };
 use gw_utils::{
     cells::utils::search_lock_hash, ckb_std::high_level::load_witness_args, error::Error,
-    gw_common::H256, gw_types::core::SignatureMessageType,
+    gw_common::H256, gw_types::core::SigningType,
 };
 
 /// Eth account lock
@@ -29,7 +29,7 @@ pub fn main() -> Result<(), Error> {
     debug!("eth_address {:?}", &eth_address);
 
     // parse data
-    let (owner_lock_hash, message_type, message) = parse_data()?;
+    let (owner_lock_hash, signing_type, message) = parse_data()?;
 
     // check owner lock hash cell
     // to prevent others unlock this cell
@@ -39,7 +39,7 @@ pub fn main() -> Result<(), Error> {
 
     // verify signature
     debug!("Verify message signature {:?}", &message);
-    verify_message_signature(eth_address, message_type, message)?;
+    verify_message_signature(eth_address, signing_type, message)?;
 
     Ok(())
 }
@@ -70,20 +70,16 @@ fn load_signature_from_witness() -> Result<[u8; 65], Error> {
 
 fn verify_message_signature(
     eth_address: EthAddress,
-    message_type: SignatureMessageType,
+    signing_type: SigningType,
     message: H256,
 ) -> Result<(), Error> {
     // load signature
     let signature = load_signature_from_witness()?;
     // verify message
     let secp256k1_eth = Secp256k1Eth::default();
-    let valid = match message_type {
-        SignatureMessageType::Raw => {
-            secp256k1_eth.verify_message(eth_address, signature, message)?
-        }
-        SignatureMessageType::Signing => {
-            secp256k1_eth.verify_alone(eth_address, signature, message)?
-        }
+    let valid = match signing_type {
+        SigningType::Raw => secp256k1_eth.verify_message(eth_address, signature, message)?,
+        SigningType::WithPrefix => secp256k1_eth.verify_alone(eth_address, signature, message)?,
     };
     if !valid {
         debug!("Wrong signature, message: {:?}", message);
@@ -94,7 +90,7 @@ fn verify_message_signature(
 
 /// parse cell's data
 /// return (owner_lock_hash, message)
-fn parse_data() -> Result<([u8; 32], SignatureMessageType, H256), Error> {
+fn parse_data() -> Result<([u8; 32], SigningType, H256), Error> {
     let mut data = [0u8; 65];
     let loaded_size = load_cell_data(&mut data, 0, 0, Source::GroupInput)?;
 
@@ -108,19 +104,19 @@ fn parse_data() -> Result<([u8; 32], SignatureMessageType, H256), Error> {
     owner_lock_hash.copy_from_slice(&data[..32]);
 
     // copy message
-    let (msg_type, msg_start, msg_end) = if loaded_size == 64 {
-        (SignatureMessageType::Raw, 32, 64)
+    let (signing_type, msg_start, msg_end) = if loaded_size == 64 {
+        (SigningType::Raw, 32, 64)
     } else {
-        let msg_type = SignatureMessageType::try_from(data[32]).map_err(|err| {
+        let signing_type = SigningType::try_from(data[32]).map_err(|err| {
             debug!("Invalid signature message type {}", err);
             Error::Encoding
         })?;
 
-        (msg_type, 33, 65)
+        (signing_type, 33, 65)
     };
 
     let mut msg = [0u8; 32];
     msg.copy_from_slice(&data[msg_start..msg_end]);
 
-    Ok((owner_lock_hash, msg_type, msg.into()))
+    Ok((owner_lock_hash, signing_type, msg.into()))
 }
