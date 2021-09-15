@@ -86,7 +86,8 @@ pub fn main() -> Result<(), Error> {
     let rollup_config = load_rollup_config(&prev_global_state.rollup_config_hash().unpack())?;
     let rollup_type_hash = load_script_hash()?.into();
 
-    if post_global_state.version() < prev_global_state.version() {
+    if Into::<u8>::into(post_global_state.version()) < Into::<u8>::into(prev_global_state.version())
+    {
         debug!("downgrade rollup version");
         return Err(Error::InvalidPostGlobalState);
     }

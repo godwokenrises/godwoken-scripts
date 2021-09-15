@@ -655,6 +655,20 @@ fn check_block_timestamp(
     post_global_state: &GlobalState,
     block_timestamp: u64,
 ) -> Result<(), Error> {
+    let prev_version: u8 = prev_global_state.version().into();
+    let post_version: u8 = post_global_state.version().into();
+
+    if 0 == post_version && post_global_state.tip_block_timestamp().unpack() != 0 {
+        debug!("v0 global state tip block timestamp isn't 0");
+        return Err(Error::InvalidPostGlobalState);
+    }
+
+    // NOTE: Downgrade already checked in main
+    if 0 == post_version {
+        debug!("[check block timestamp] skip block timestamp");
+        return Ok(());
+    }
+
     let rollup_input_since = Since::new(load_input_since(0, Source::GroupInput)?);
     if !rollup_input_since.is_absolute() {
         return Err(Error::InvalidSince);
@@ -670,14 +684,14 @@ fn check_block_timestamp(
     );
 
     let tip_block_timestamp = prev_global_state.tip_block_timestamp().unpack();
-    if tip_block_timestamp >= rollup_input_timestamp {
+    if prev_version > 0 && tip_block_timestamp >= rollup_input_timestamp {
         debug!("[check block timestamp] input since is smaller than tip block timestamp");
         return Err(Error::InvalidSince);
     }
 
     if block_timestamp != post_global_state.tip_block_timestamp().unpack()
         || block_timestamp > rollup_input_timestamp
-        || block_timestamp <= tip_block_timestamp
+        || (prev_version != 0 && block_timestamp <= tip_block_timestamp)
     {
         debug!(
             "[check block timestamp] invalid block timestamp {}",
@@ -759,6 +773,7 @@ pub fn verify(
         let block_merkle_state = post_global_state.block();
         // last finalized block number
         let last_finalized_block_number = context.finalized_number;
+        let version = post_global_state.version();
 
         prev_global_state
             .clone()
@@ -768,6 +783,7 @@ pub fn verify(
             .tip_block_hash(context.block_hash.pack())
             .tip_block_timestamp(context.timestamp.pack())
             .last_finalized_block_number(last_finalized_block_number.pack())
+            .version(version)
             .build()
     };
 
