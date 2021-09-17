@@ -656,7 +656,7 @@ fn check_block_timestamp(
     block_timestamp: u64,
 ) -> Result<(), Error> {
     let rollup_input_since = Since::new(load_input_since(0, Source::GroupInput)?);
-    if !rollup_input_since.flags_is_valid() {
+    if !rollup_input_since.is_absolute() {
         return Err(Error::InvalidSince);
     }
 
