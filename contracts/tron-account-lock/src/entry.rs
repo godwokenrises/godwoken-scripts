@@ -78,8 +78,10 @@ fn verify_message_signature(
     // verify message
     let secp256k1_tron = Secp256k1Tron::default();
     let valid = match signing_type {
-        SigningType::Raw => secp256k1_tron.verify_message(tron_address, signature, message)?,
-        SigningType::WithPrefix => secp256k1_tron.verify_alone(tron_address, signature, message)?,
+        SigningType::WithPrefix => {
+            secp256k1_tron.verify_message(tron_address, signature, message)?
+        }
+        SigningType::Raw => secp256k1_tron.verify_alone(tron_address, signature, message)?,
     };
     if !valid {
         debug!("Wrong signature, message: {:?}", message);
@@ -105,7 +107,7 @@ fn parse_data() -> Result<([u8; 32], SigningType, H256), Error> {
 
     // copy message
     let (signing_type, msg_start, msg_end) = if loaded_size == 64 {
-        (SigningType::Raw, 32, 64)
+        (SigningType::WithPrefix, 32, 64)
     } else {
         let signing_type = SigningType::try_from(data[32]).map_err(|err| {
             debug!("Invalid signature message type {}", err);

@@ -251,7 +251,7 @@ fn test_submit_signing_tron_message() {
         hasher.update(&message);
         let buf = hasher.finalize();
         let mut signing_message = [0u8; 33];
-        signing_message[0] = 1;
+        signing_message[0] = 0;
         signing_message[1..33].copy_from_slice(&buf[..]);
         signing_message
     };
