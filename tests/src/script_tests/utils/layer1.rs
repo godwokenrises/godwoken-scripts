@@ -6,12 +6,14 @@ use ckb_types::{
         cell::{CellMetaBuilder, ResolvedTransaction},
         EpochExt, HeaderView, ScriptHashType, TransactionView,
     },
-    packed::{Byte32, CellInput, CellOutput, OutPoint, Script, Transaction},
+    packed::{Byte32, CellInput, CellOutput, OutPoint, Script, Transaction, Uint64},
     prelude::*,
 };
 use rand::{thread_rng, Rng};
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
+/// Transaction since flag
+pub const SINCE_BLOCK_TIMESTAMP_FLAG: u64 = 0x4000_0000_0000_0000;
 pub const MAX_CYCLES: u64 = std::u64::MAX;
 
 #[derive(Default)]
@@ -57,13 +59,48 @@ pub fn random_out_point() -> OutPoint {
         .build()
 }
 
+pub fn since_timestamp(t: u64) -> Uint64 {
+    let input_timestamp = Duration::from_millis(t).as_secs() + 1;
+    (SINCE_BLOCK_TIMESTAMP_FLAG | input_timestamp).pack()
+}
+
 pub fn build_simple_tx(
     data_loader: &mut DummyDataLoader,
     input_cell: (CellOutput, Bytes),
+    since: Uint64,
     output_cell: (CellOutput, Bytes),
 ) -> TransactionView {
     let out_point = random_out_point();
-    build_simple_tx_with_out_point(data_loader, input_cell, out_point, output_cell)
+
+    build_simple_tx_with_out_point_and_since(
+        data_loader,
+        input_cell,
+        (out_point, since),
+        output_cell,
+    )
+}
+
+pub fn build_simple_tx_with_out_point_and_since(
+    data_loader: &mut DummyDataLoader,
+    input_cell: (CellOutput, Bytes),
+    input_out_point_since: (OutPoint, Uint64),
+    output_cell: (CellOutput, Bytes),
+) -> TransactionView {
+    let (out_point, since) = input_out_point_since;
+    data_loader.cells.insert(out_point.clone(), input_cell);
+
+    let input = CellInput::new_builder()
+        .previous_output(out_point)
+        .since(since)
+        .build();
+    let (output_cell, output_data) = output_cell;
+
+    Transaction::default()
+        .as_advanced_builder()
+        .input(input)
+        .output(output_cell)
+        .output_data(output_data.pack())
+        .build()
 }
 
 pub fn build_simple_tx_with_out_point(
@@ -72,19 +109,12 @@ pub fn build_simple_tx_with_out_point(
     input_out_point: OutPoint,
     output_cell: (CellOutput, Bytes),
 ) -> TransactionView {
-    data_loader
-        .cells
-        .insert(input_out_point.clone(), input_cell);
-    let input = CellInput::new_builder()
-        .previous_output(input_out_point)
-        .build();
-    let (output_cell, output_data) = output_cell;
-    Transaction::default()
-        .as_advanced_builder()
-        .input(input)
-        .output(output_cell)
-        .output_data(output_data.pack())
-        .build()
+    build_simple_tx_with_out_point_and_since(
+        data_loader,
+        input_cell,
+        (input_out_point, Default::default()),
+        output_cell,
+    )
 }
 
 pub fn build_resolved_tx(
