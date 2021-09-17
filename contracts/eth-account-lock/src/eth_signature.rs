@@ -28,7 +28,7 @@ pub fn extract_eth_lock_args(lock_args: Bytes) -> Result<(H256, EthAddress), Err
 pub struct Secp256k1Eth;
 
 impl Secp256k1Eth {
-    fn verify_alone(
+    pub fn verify_alone(
         &self,
         eth_address: EthAddress,
         signature: [u8; 65],

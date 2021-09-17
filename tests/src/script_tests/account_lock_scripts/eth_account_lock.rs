@@ -153,6 +153,7 @@ fn gen_tx(dummy: &mut DummyDataLoader, lock_args: Bytes, message: Bytes) -> Tran
     };
     let mut input_data = owner_lock_hash.to_vec();
     input_data.extend_from_slice(&message);
+    println!("input data len {}", input_data.len());
     dummy.cells.insert(
         previous_out_point.clone(),
         (previous_output_cell.clone(), input_data.into()),
@@ -204,6 +205,54 @@ fn test_sign_eth_message() {
         args.into()
     };
     let tx = gen_tx(&mut data_loader, lock_args, message.to_vec().into());
+    let tx = tx
+        .as_advanced_builder()
+        .set_witnesses(vec![WitnessArgs::new_builder()
+            .lock(Some(signature.clone()).pack())
+            .build()
+            .as_bytes()
+            .pack()])
+        .build();
+    let resolved_tx = build_resolved_tx(&data_loader, &tx);
+    let mut verifier = TransactionScriptsVerifier::new(&resolved_tx, &data_loader);
+    verifier.set_debug_printer(|_script, msg| println!("[script debug] {}", msg));
+    let verify_result = verifier.verify(MAX_CYCLES);
+    verify_result.expect("pass verification");
+    let mut lock_args = vec![0u8; 32];
+    lock_args.extend(pubkey_hash.as_ref());
+    let valid = Secp256k1Eth::default()
+        .verify_message(lock_args.into(), signature, message.into())
+        .unwrap();
+    assert!(valid);
+}
+
+#[test]
+fn test_submit_signing_eth_message() {
+    let mut data_loader = DummyDataLoader::default();
+    let privkey = Generator::random_privkey();
+    let pubkey = privkey.pubkey().expect("pubkey");
+    let pubkey_hash = sha3_pubkey_hash(&pubkey);
+    let mut rng = thread_rng();
+    let mut message = [0u8; 32];
+    rng.fill(&mut message);
+    let signature = sign_message(&privkey, message);
+    let lock_args = {
+        let rollup_script_hash = [42u8; 32];
+        let mut args = rollup_script_hash.to_vec();
+        args.extend_from_slice(&pubkey_hash);
+        args.into()
+    };
+    let signing_message = {
+        let mut hasher = Keccak256::new();
+        hasher.update("\x19Ethereum Signed Message:\n32");
+        hasher.update(&message);
+        let buf = hasher.finalize();
+        let mut signing_message = [0u8; 33];
+        signing_message[0] = 0;
+        signing_message[1..33].copy_from_slice(&buf[..]);
+        signing_message
+    };
+    let tx = gen_tx(&mut data_loader, lock_args, signing_message.to_vec().into());
     let tx = tx
         .as_advanced_builder()
         .set_witnesses(vec![WitnessArgs::new_builder()

@@ -509,7 +509,7 @@ int sys_recover_account(gw_context_t *ctx, uint8_t message[32],
       printf("recover account: failed to load cell data");
       continue;
     }
-    if (len != 64) {
+    if (len != 32) {
       printf("recover account: invalid data format");
       continue;
     }
