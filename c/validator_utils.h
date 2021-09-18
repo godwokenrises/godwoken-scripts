@@ -946,6 +946,78 @@ int _load_verification_context(
   return 0;
 }
 
+int _gw_cbmt_is_left(uint32_t index) { return (index & 1) == 1; }
+
+int _gw_verify_cbmt_tx_proof(mol_seg_t *proof_seg, mol_seg_t *root_seg,
+                             uint32_t tx_index, mol_seg_t *l2tx_seg) {
+  mol_seg_t indices_seg = MolReader_CKBMerkleProof_get_indices(proof_seg);
+  uint32_t indices_size = MolReader_Uint32Vec_length(&indices_seg);
+  if (indices_size != 1) {
+    printf("[verify tx proof] more than one leaf, len %d", indices_size);
+    return GW_FATAL_INVALID_DATA;
+  }
+  mol_seg_res_t tx_leaf_index_res = MolReader_Uint32Vec_get(&indices_seg, 0);
+  if (tx_leaf_index_res.errno != MOL_OK) {
+    printf("[verify tx proof] invalid tx leaf index");
+    return GW_FATAL_INVALID_DATA;
+  }
+
+  uint32_t leaf_index = *((uint32_t *)tx_leaf_index_res.seg.ptr);
+  printf("[verify tx proof] leaf index %d", leaf_index);
+
+  /* calculate leaf hash */
+  uint8_t leaf_hash[32] = {0};
+
+  blake2b_state blake2b_ctx;
+  blake2b_init(&blake2b_ctx, 32);
+  blake2b_update(&blake2b_ctx, l2tx_seg->ptr, l2tx_seg->size);
+  blake2b_final(&blake2b_ctx, leaf_hash, 32);
+
+  blake2b_init(&blake2b_ctx, 32);
+  blake2b_update(&blake2b_ctx, (uint8_t *)&tx_index, 4);
+  blake2b_update(&blake2b_ctx, leaf_hash, 32);
+  blake2b_final(&blake2b_ctx, leaf_hash, 32);
+
+  mol_seg_t lemmas_seg = MolReader_CKBMerkleProof_get_lemmas(proof_seg);
+  uint32_t lemmas_size = MolReader_Byte32Vec_length(&lemmas_seg);
+  printf("[verify tx proof] lemmas size %d", lemmas_size);
+
+  uint8_t *left;
+  uint8_t *right;
+  mol_seg_res_t lemma_res;
+
+  for (uint32_t i = 0; i < lemmas_size; i++) {
+    lemma_res = MolReader_Byte32Vec_get(&lemmas_seg, i);
+    if (lemma_res.errno != MOL_OK) {
+      printf("[verify tx proof] invalid proof lemma idx %d", i);
+      return GW_FATAL_INVALID_DATA;
+    }
+    if (lemma_res.seg.size != 32) {
+      printf("[verify tx proof] invalid proof lemma size, idx %d", i);
+      return GW_FATAL_INVALID_DATA;
+    }
+
+    if (_gw_cbmt_is_left(leaf_index)) {
+      left = leaf_hash;
+      right = lemma_res.seg.ptr;
+    } else {
+      left = lemma_res.seg.ptr;
+      right = leaf_hash;
+    }
+
+    blake2b_init(&blake2b_ctx, 32);
+    blake2b_update(&blake2b_ctx, left, 32);
+    blake2b_update(&blake2b_ctx, right, 32);
+    blake2b_final(&blake2b_ctx, leaf_hash, 32);
+
+    /* move to parent */
+    leaf_index = (leaf_index - 1) / 2;
+    printf("[verify tx proof] leaf parent index %d", leaf_index);
+  }
+
+  return memcmp(root_seg->ptr, leaf_hash, 32);
+}
+
 /*
  * Load transaction checkpoints
  */
@@ -1058,38 +1130,17 @@ int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
   mol_seg_t raw_l2tx_seg = MolReader_L2Transaction_get_raw(&l2tx_seg);
 
   /* verify tx merkle proof */
-  uint8_t tx_witness_hash[32] = {0};
-  blake2b_init(&blake2b_ctx, 32);
-  blake2b_update(&blake2b_ctx, l2tx_seg.ptr, l2tx_seg.size);
-  blake2b_final(&blake2b_ctx, tx_witness_hash, 32);
-
-  /* create a state to insert tx_witness_hash pair */
-  smt_state_t txs_state;
-  smt_pair_t txs_state_buffer[1] = {0};
-  smt_state_init(&txs_state, txs_state_buffer, 1);
-  uint8_t tx_key[32] = {0};
-  _gw_fast_memcpy(tx_key, (uint8_t *)&tx_index, 4);
-  /* insert tx_index -> tx_witness_hash */
-  ret = smt_state_insert(&txs_state, tx_key, tx_witness_hash);
-  if (ret != 0) {
-    printf("failed to insert smt tx witness hash %d", ret);
-    return GW_FATAL_SMT_STORE;
-  }
-
   mol_seg_t submit_txs_seg =
       MolReader_RawL2Block_get_submit_transactions(&raw_l2block_seg);
   mol_seg_t tx_witness_root_seg =
       MolReader_SubmitTransactions_get_tx_witness_root(&submit_txs_seg);
   mol_seg_t tx_proof_seg =
       MolReader_VerifyTransactionWitness_get_tx_proof(&verify_tx_witness_seg);
-  mol_seg_t raw_tx_proof_seg = MolReader_Bytes_raw_bytes(&tx_proof_seg);
-  smt_state_normalize(&txs_state);
-  printf("smt_verify txs_state %d", txs_state.len);
-  printf("smt_verify raw_tx_proof size %d", raw_tx_proof_seg.size);
-  ret = smt_verify(tx_witness_root_seg.ptr, &txs_state, raw_tx_proof_seg.ptr,
-                   raw_tx_proof_seg.size);
+
+  ret = _gw_verify_cbmt_tx_proof(&tx_proof_seg, &tx_witness_root_seg, tx_index,
+                                 &l2tx_seg);
   if (ret != 0) {
-    printf("failed to merkle verify tx witness root ret %d", ret);
+    printf("failed to verify tx witness root ret %d", ret);
     return GW_FATAL_SMT_VERIFY;
   }
 
