@@ -47,6 +47,11 @@ int main() {
     return ret;
   };
 
+  /* return error if contract account id isn't zero */
+  if (ctx.transaction_context.to_id != 0) {
+    return GW_FATAL_INVALID_CONTEXT;
+  }
+
   /* parse Meta contract args */
   mol_seg_t args_seg;
   args_seg.ptr = ctx.transaction_context.args;
