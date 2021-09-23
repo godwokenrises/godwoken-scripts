@@ -7,3 +7,6 @@
 [submodule "c/deps/sparse-merkle-tree"]
 	path = c/deps/sparse-merkle-tree
 	url = https://github.com/nervosnetwork/sparse-merkle-tree.git
+[submodule "c/deps/molecule"]
+	path = c/deps/molecule
+	url = https://github.com/nervosnetwork/molecule.git
