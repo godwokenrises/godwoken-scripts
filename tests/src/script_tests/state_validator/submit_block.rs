@@ -270,8 +270,14 @@ fn test_downgrade_rollup_cell() {
     .build();
 
     let err = ctx.verify_tx(tx).unwrap_err();
-    let expected_err =
-        ScriptError::ValidationFailure(INVALID_POST_GLOBAL_STATE).input_type_script(0);
+    let expected_err = ScriptError::ValidationFailure(
+        format!(
+            "by-data-hash/{}",
+            ckb_types::H256(*STATE_VALIDATOR_CODE_HASH)
+        ),
+        INVALID_POST_GLOBAL_STATE,
+    )
+    .input_type_script(0);
     assert_error_eq!(err, expected_err);
 }
 
@@ -411,7 +417,14 @@ fn test_v1_block_timestamp_smaller_or_equal_than_previous_block_in_submit_block(
     .build();
 
     let err = ctx.verify_tx(tx).unwrap_err();
-    let expected_err = ScriptError::ValidationFailure(INVALID_BLOCK_ERROR).input_type_script(0);
+    let expected_err = ScriptError::ValidationFailure(
+        format!(
+            "by-data-hash/{}",
+            ckb_types::H256(*STATE_VALIDATOR_CODE_HASH)
+        ),
+        INVALID_BLOCK_ERROR,
+    )
+    .input_type_script(0);
     assert_error_eq!(err, expected_err);
 
     // #### Submit a equal block timestamp
@@ -461,7 +474,14 @@ fn test_v1_block_timestamp_smaller_or_equal_than_previous_block_in_submit_block(
     .build();
 
     let err = ctx.verify_tx(tx).unwrap_err();
-    let expected_err = ScriptError::ValidationFailure(INVALID_BLOCK_ERROR).input_type_script(0);
+    let expected_err = ScriptError::ValidationFailure(
+        format!(
+            "by-data-hash/{}",
+            ckb_types::H256(*STATE_VALIDATOR_CODE_HASH)
+        ),
+        INVALID_BLOCK_ERROR,
+    )
+    .input_type_script(0);
     assert_error_eq!(err, expected_err);
 }
 
@@ -587,7 +607,14 @@ fn test_v1_block_timestamp_bigger_than_rollup_input_since_in_submit_block() {
     .build();
 
     let err = ctx.verify_tx(tx).unwrap_err();
-    let expected_err = ScriptError::ValidationFailure(INVALID_BLOCK_ERROR).input_type_script(0);
+    let expected_err = ScriptError::ValidationFailure(
+        format!(
+            "by-data-hash/{}",
+            ckb_types::H256(*STATE_VALIDATOR_CODE_HASH)
+        ),
+        INVALID_BLOCK_ERROR,
+    )
+    .input_type_script(0);
     assert_error_eq!(err, expected_err);
 }
 
@@ -681,6 +708,7 @@ fn test_v0_v1_wrong_global_state_tip_block_timestamp_in_submit_block() {
         .clone()
         .as_builder()
         .tip_block_timestamp(GWPack::pack(&tip_block_timestamp.saturating_sub(100)))
+        .version(0.into())
         .build()
         .as_bytes();
     let witness = {
@@ -713,8 +741,14 @@ fn test_v0_v1_wrong_global_state_tip_block_timestamp_in_submit_block() {
     .build();
 
     let err = ctx.verify_tx(tx).unwrap_err();
-    let expected_err =
-        ScriptError::ValidationFailure(INVALID_POST_GLOBAL_STATE).input_type_script(0);
+    let expected_err = ScriptError::ValidationFailure(
+        format!(
+            "by-data-hash/{}",
+            ckb_types::H256(*STATE_VALIDATOR_CODE_HASH)
+        ),
+        INVALID_POST_GLOBAL_STATE,
+    )
+    .input_type_script(0);
     assert_error_eq!(err, expected_err);
 
     // #### Submit a version 1 global state but wrong block timestamp aka witness block timestamp don't
@@ -745,7 +779,14 @@ fn test_v0_v1_wrong_global_state_tip_block_timestamp_in_submit_block() {
     .build();
 
     let err = ctx.verify_tx(tx).unwrap_err();
-    let expected_err = ScriptError::ValidationFailure(INVALID_BLOCK_ERROR).input_type_script(0);
+    let expected_err = ScriptError::ValidationFailure(
+        format!(
+            "by-data-hash/{}",
+            ckb_types::H256(*STATE_VALIDATOR_CODE_HASH)
+        ),
+        INVALID_BLOCK_ERROR,
+    )
+    .input_type_script(0);
     assert_error_eq!(err, expected_err);
 
     // #### Submit a version 1 global state but block timestamp is bigger than input since
@@ -773,7 +814,14 @@ fn test_v0_v1_wrong_global_state_tip_block_timestamp_in_submit_block() {
     .build();
 
     let err = ctx.verify_tx(tx).unwrap_err();
-    let expected_err = ScriptError::ValidationFailure(INVALID_BLOCK_ERROR).input_type_script(0);
+    let expected_err = ScriptError::ValidationFailure(
+        format!(
+            "by-data-hash/{}",
+            ckb_types::H256(*STATE_VALIDATOR_CODE_HASH)
+        ),
+        INVALID_BLOCK_ERROR,
+    )
+    .input_type_script(0);
     assert_error_eq!(err, expected_err);
 }
 
