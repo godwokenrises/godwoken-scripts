@@ -30,6 +30,8 @@ use gw_utils::gw_types;
 
 use gw_utils::error::Error;
 
+const MAX_ROLLUP_VERSION: u8 = 1;
+
 pub fn parse_global_state(source: Source) -> Result<GlobalState, Error> {
     let data = load_cell_data(0, source)?;
     match GlobalStateReader::verify(&data, false) {
@@ -86,8 +88,12 @@ pub fn main() -> Result<(), Error> {
     let rollup_config = load_rollup_config(&prev_global_state.rollup_config_hash().unpack())?;
     let rollup_type_hash = load_script_hash()?.into();
 
-    if Into::<u8>::into(post_global_state.version()) < Into::<u8>::into(prev_global_state.version())
-    {
+    let post_version: u8 = post_global_state.version().into();
+    if post_version > MAX_ROLLUP_VERSION {
+        debug!("exceeded max rollup version");
+        return Err(Error::InvalidPostGlobalState);
+    }
+    if post_version < prev_global_state.version().into() {
         debug!("downgrade rollup version");
         return Err(Error::InvalidPostGlobalState);
     }
