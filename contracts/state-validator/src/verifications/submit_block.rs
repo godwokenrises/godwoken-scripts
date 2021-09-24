@@ -774,6 +774,11 @@ pub fn verify(
         // last finalized block number
         let last_finalized_block_number = context.finalized_number;
         let version = post_global_state.version();
+        let tip_block_timestamp = if version == 0.into() {
+            0
+        } else {
+            context.timestamp
+        };
 
         prev_global_state
             .clone()
@@ -781,7 +786,7 @@ pub fn verify(
             .account(account_merkle_state.to_entity())
             .block(block_merkle_state)
             .tip_block_hash(context.block_hash.pack())
-            .tip_block_timestamp(context.timestamp.pack())
+            .tip_block_timestamp(tip_block_timestamp.pack())
             .last_finalized_block_number(last_finalized_block_number.pack())
             .version(version)
             .build()
