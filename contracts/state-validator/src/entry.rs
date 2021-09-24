@@ -38,17 +38,7 @@ pub fn parse_global_state(source: Source) -> Result<GlobalState, Error> {
         Ok(_) => Ok(GlobalState::new_unchecked(data.into())),
         Err(_) if GlobalStateV0Reader::verify(&data, false).is_ok() => {
             let global_state_v0 = GlobalStateV0::new_unchecked(data.into());
-            Ok(GlobalState::new_builder()
-                .rollup_config_hash(global_state_v0.rollup_config_hash())
-                .account(global_state_v0.account())
-                .block(global_state_v0.block())
-                .reverted_block_root(global_state_v0.reverted_block_root())
-                .tip_block_hash(global_state_v0.tip_block_hash())
-                .last_finalized_block_number(global_state_v0.last_finalized_block_number())
-                .status(global_state_v0.status())
-                .tip_block_timestamp(0u64.pack())
-                .version(0.into())
-                .build())
+            Ok(GlobalState::from(global_state_v0))
         }
         Err(_) => Err(Error::Encoding),
     }
