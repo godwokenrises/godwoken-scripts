@@ -10,11 +10,15 @@ use gw_generator::{
     genesis::init_genesis,
     Generator,
 };
-use gw_mem_pool::{custodian::AvailableCustodians, pool::MemPool, traits::MemPoolProvider};
-use gw_store::Store;
+use gw_mem_pool::{
+    custodian::AvailableCustodians,
+    pool::{MemPool, OutputParam},
+    traits::MemPoolProvider,
+};
+use gw_store::{transaction::mem_pool_store::MemPoolStore, Store};
 use gw_types::{
     core::ScriptHashType,
-    offchain::{CellInfo, DepositInfo, RollupContext},
+    offchain::{CellInfo, CollectedCustodianCells, DepositInfo, RollupContext},
     packed::{
         CellOutput, DepositRequest, L2BlockCommittedInfo, RawTransaction, RollupAction,
         RollupActionUnion, RollupConfig, RollupSubmitBlock, Script, Transaction, WithdrawalRequest,
@@ -59,9 +63,14 @@ impl MemPoolProvider for DummyMemPoolProvider {
         _withdrawals: Vec<WithdrawalRequest>,
         _last_finalized_block_number: u64,
         _rollup_context: RollupContext,
-    ) -> Task<Result<AvailableCustodians>> {
+    ) -> Task<Result<CollectedCustodianCells>> {
         let available_custodians = self.available_custodians.clone();
-        smol::spawn(async move { Ok(available_custodians) })
+        let collected_custodian_cells = CollectedCustodianCells {
+            cells_info: Vec::default(),
+            capacity: available_custodians.capacity,
+            sudt: available_custodians.sudt,
+        };
+        smol::spawn(async move { Ok(collected_custodian_cells) })
     }
 }
 
@@ -233,7 +242,7 @@ pub fn construct_block_from_timestamp(
         ..AvailableCustodians::default()
     };
     for withdrawal_hash in mem_pool.mem_block().withdrawals().iter() {
-        let req = mem_pool.all_withdrawals().get(withdrawal_hash).unwrap();
+        let req = db.get_mem_pool_withdrawal(withdrawal_hash)?.unwrap();
         if 0 == req.raw().amount().unpack() {
             continue;
         }
@@ -279,7 +288,8 @@ pub fn construct_block_from_timestamp(
     // refresh mem block
     mem_pool.reset_mem_block()?;
 
-    let block_param = mem_pool.output_mem_block().unwrap();
+    let (_collected_custodian, block_param) =
+        mem_pool.output_mem_block(&OutputParam::default()).unwrap();
     let param = ProduceBlockParam {
         stake_cell_owner_lock_hash,
         rollup_config_hash,
