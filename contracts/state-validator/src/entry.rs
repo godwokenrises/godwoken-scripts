@@ -7,9 +7,10 @@ use gw_utils::{
     cells::rollup::{load_rollup_config, parse_rollup_action, MAX_ROLLUP_WITNESS_SIZE},
     ckb_std::{
         ckb_types::prelude::Unpack as CKBUnpack,
+        debug,
         high_level::{load_cell_capacity, load_cell_data, load_script},
     },
-    gw_types::packed::RollupActionUnionReader,
+    gw_types::packed::{GlobalStateV0, GlobalStateV0Reader, RollupActionUnionReader},
     type_id::{check_type_id, TYPE_ID_SIZE},
 };
 
@@ -29,10 +30,16 @@ use gw_utils::gw_types;
 
 use gw_utils::error::Error;
 
+const MAX_ROLLUP_VERSION: u8 = 1;
+
 pub fn parse_global_state(source: Source) -> Result<GlobalState, Error> {
     let data = load_cell_data(0, source)?;
     match GlobalStateReader::verify(&data, false) {
         Ok(_) => Ok(GlobalState::new_unchecked(data.into())),
+        Err(_) if GlobalStateV0Reader::verify(&data, false).is_ok() => {
+            let global_state_v0 = GlobalStateV0::new_unchecked(data.into());
+            Ok(GlobalState::from(global_state_v0))
+        }
         Err(_) => Err(Error::Encoding),
     }
 }
@@ -70,6 +77,16 @@ pub fn main() -> Result<(), Error> {
     let post_global_state = parse_global_state(Source::GroupOutput)?;
     let rollup_config = load_rollup_config(&prev_global_state.rollup_config_hash().unpack())?;
     let rollup_type_hash = load_script_hash()?.into();
+
+    let post_version: u8 = post_global_state.version().into();
+    if post_version > MAX_ROLLUP_VERSION {
+        debug!("exceeded max rollup version");
+        return Err(Error::InvalidPostGlobalState);
+    }
+    if post_version < prev_global_state.version().into() {
+        debug!("downgrade rollup version");
+        return Err(Error::InvalidPostGlobalState);
+    }
 
     // load rollup action
     let mut rollup_witness_buf = [0u8; MAX_ROLLUP_WITNESS_SIZE];

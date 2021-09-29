@@ -6,8 +6,8 @@ use ckb_std::{
 };
 use gw_types::{
     packed::{
-        GlobalState, GlobalStateReader, RollupActionReader, RollupConfig, RollupConfigReader,
-        WitnessArgsReader,
+        GlobalState, GlobalStateReader, GlobalStateV0, GlobalStateV0Reader, RollupActionReader,
+        RollupConfig, RollupConfigReader, WitnessArgsReader,
     },
     prelude::*,
 };
@@ -48,7 +48,11 @@ pub fn search_rollup_state(
     };
     let data = load_cell_data(index, source)?;
     match GlobalStateReader::verify(&data, false) {
-        Ok(()) => Ok(Some(GlobalState::new_unchecked(data.into()))),
+        Ok(_) => Ok(Some(GlobalState::new_unchecked(data.into()))),
+        Err(_) if GlobalStateV0Reader::verify(&data, false).is_ok() => {
+            let global_state_v0 = GlobalStateV0::new_unchecked(data.into());
+            Ok(Some(GlobalState::from(global_state_v0)))
+        }
         Err(_) => Err(SysError::Encoding),
     }
 }

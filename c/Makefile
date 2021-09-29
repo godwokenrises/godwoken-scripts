@@ -10,7 +10,7 @@ VALIDATOR_FLAGS := -DGW_VALIDATOR
 LDFLAGS := -Wl,-static -fdata-sections -ffunction-sections -Wl,--gc-sections
 MOLC := moleculec
 MOLC_VERSION := 0.7.2
-PROTOCOL_VERSION := f6c8f8d8edf094bd45469a28d8493c54958c3321
+PROTOCOL_VERSION := f73308423eb36229f7786ec3024b7e7bf5cde131
 PROTOCOL_SCHEMA_URL := https://raw.githubusercontent.com/nervosnetwork/godwoken/${PROTOCOL_VERSION}/crates/types/schemas
 
 # docker pull nervos/ckb-riscv-gnu-toolchain:gnu-bionic-20191012

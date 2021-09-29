@@ -9,12 +9,18 @@ use crate::script_tests::utils::layer1::build_simple_tx_with_out_point;
 use crate::script_tests::utils::layer1::random_out_point;
 use crate::script_tests::utils::layer1::DummyDataLoader;
 use crate::script_tests::utils::layer1::MAX_CYCLES;
+use ckb_chain_spec::consensus::ConsensusBuilder;
 use ckb_script::TransactionScriptsVerifier;
+use ckb_script::TxVerifyEnv;
+use ckb_types::core::hardfork::HardForkSwitch;
+use ckb_types::core::HeaderView;
 use ckb_types::packed::CellDep;
 use ckb_types::{
     packed::{CellInput, CellOutput},
     prelude::{Pack as CKBPack, Unpack},
 };
+use gw_ckb_hardfork::GLOBAL_CURRENT_EPOCH_NUMBER;
+use gw_ckb_hardfork::GLOBAL_HARDFORK_SWITCH;
 use gw_types::bytes::Bytes;
 use gw_types::prelude::*;
 
@@ -94,8 +100,32 @@ fn test_consume_challenge_resolve_cell() {
     .cell_dep(CellDep::new_builder().out_point(script_out_point).build())
     .cell_dep(CellDep::new_builder().out_point(lock_out_point).build())
     .build();
+    let hardfork_switch = smol::block_on(async {
+        let switch = &*GLOBAL_HARDFORK_SWITCH.lock().await;
+        HardForkSwitch::new_without_any_enabled()
+            .as_builder()
+            .rfc_0028(switch.rfc_0028())
+            .rfc_0029(switch.rfc_0029())
+            .rfc_0030(switch.rfc_0030())
+            .rfc_0031(switch.rfc_0031())
+            .rfc_0032(switch.rfc_0032())
+            .rfc_0036(switch.rfc_0036())
+            .rfc_0038(switch.rfc_0038())
+            .build()
+            .unwrap()
+    });
+    let consensus = ConsensusBuilder::default()
+        .hardfork_switch(hardfork_switch)
+        .build();
+    let current_epoch_number = smol::block_on(async { *GLOBAL_CURRENT_EPOCH_NUMBER.lock().await });
+    let tx_verify_env = TxVerifyEnv::new_submit(
+        &HeaderView::new_advanced_builder()
+            .epoch(CKBPack::pack(&current_epoch_number))
+            .build(),
+    );
     let resolved_tx = build_resolved_tx(&ctx, &tx);
-    let mut verifier = TransactionScriptsVerifier::new(&resolved_tx, &ctx);
+    let mut verifier =
+        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &ctx, &tx_verify_env);
     verifier.set_debug_printer(|_script, msg| println!("[script debug] {}", msg));
     verifier.verify(MAX_CYCLES).expect("success");
 }

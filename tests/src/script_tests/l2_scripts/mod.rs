@@ -1,6 +1,7 @@
 use gw_common::blake2b::new_blake2b;
 use gw_common::state::{to_short_address, State};
 use gw_common::H256;
+use gw_config::RPCConfig;
 use gw_generator::constants::L2TX_MAX_CYCLES;
 use gw_generator::{account_lock_manage::AccountLockManage, Generator};
 use gw_generator::{error::TransactionError, traits::StateExt};
@@ -204,7 +205,12 @@ pub fn run_contract_get_result<S: State + CodeStore>(
         rollup_config: rollup_config.clone(),
         rollup_script_hash: [42u8; 32].into(),
     };
-    let generator = Generator::new(backend_manage, account_lock_manage, rollup_ctx);
+    let generator = Generator::new(
+        backend_manage,
+        account_lock_manage,
+        rollup_ctx,
+        RPCConfig::default(),
+    );
     let chain_view = DummyChainStore;
     let run_result =
         generator.execute_transaction(&chain_view, tree, block_info, &raw_tx, L2TX_MAX_CYCLES)?;

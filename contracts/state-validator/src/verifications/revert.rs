@@ -111,7 +111,7 @@ fn check_rewards(
         return Err(Error::InvalidStakeCell);
     }
 
-    // calcuate rewards assets & burn assets
+    // calculate rewards assets & burn assets
     let total_stake_capacity: u128 = stake_cells.iter().map(|cell| cell.capacity as u128).sum();
     let reward_burn_rate: u8 = config.reward_burn_rate().into();
     let expected_reward_capacity =
@@ -253,6 +253,12 @@ fn check_reverted_blocks(
             .saturating_sub(1)
             .saturating_sub(config.finality_blocks().unpack())
     };
+    let new_tip_block = revert_args.new_tip_block();
+    if new_tip_block.hash() != tip_block_hash.as_slice() {
+        debug!("[verify revert] reverted new_tip_block doesn't match");
+        return Err(Error::InvalidRevertedBlocks);
+    }
+    let tip_block_timestamp = new_tip_block.timestamp();
     // check post global state
     let reverted_post_global_state = {
         let status: u8 = Status::Running.into();
@@ -262,6 +268,7 @@ fn check_reverted_blocks(
             .account(account_merkle_state.to_entity())
             .block(block_merkle_state)
             .tip_block_hash(tip_block_hash.to_entity())
+            .tip_block_timestamp(tip_block_timestamp.to_entity())
             .last_finalized_block_number(last_finalized_block_number.pack())
             .reverted_block_root(reverted_block_root)
             .status(status.into())

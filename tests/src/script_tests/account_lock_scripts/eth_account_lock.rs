@@ -1,16 +1,21 @@
 use crate::script_tests::utils::layer1::*;
 use crate::testing_tool::programs::{
-    ALWAYS_SUCCESS_CODE_HASH, ALWAYS_SUCCESS_PROGRAM, ETH_ACCOUNT_LOCK_PROGRAM, SECP256K1_DATA,
+    ALWAYS_SUCCESS_CODE_HASH, ALWAYS_SUCCESS_PROGRAM, ETH_ACCOUNT_LOCK_CODE_HASH,
+    ETH_ACCOUNT_LOCK_PROGRAM, SECP256K1_DATA,
 };
+use ckb_chain_spec::consensus::ConsensusBuilder;
 use ckb_crypto::secp::{Generator, Privkey, Pubkey};
 use ckb_error::assert_error_eq;
-use ckb_script::{ScriptError, TransactionScriptsVerifier};
+use ckb_script::{ScriptError, TransactionScriptsVerifier, TxVerifyEnv};
+use ckb_types::core::hardfork::HardForkSwitch;
+use ckb_types::core::HeaderView;
 use ckb_types::{
     bytes::Bytes,
     core::{Capacity, DepType, ScriptHashType, TransactionBuilder, TransactionView},
     packed::{CellDep, CellInput, CellOutput, OutPoint, Script, WitnessArgs},
     prelude::*,
 };
+use gw_ckb_hardfork::{GLOBAL_CURRENT_EPOCH_NUMBER, GLOBAL_HARDFORK_SWITCH};
 use gw_generator::account_lock_manage::{secp256k1::Secp256k1Eth, LockAlgorithm};
 use rand::{thread_rng, Rng};
 use sha3::{Digest, Keccak256};
@@ -26,7 +31,7 @@ fn gen_tx(dummy: &mut DummyDataLoader, lock_args: Bytes, message: Bytes) -> Tran
             rng.fill(&mut buf);
             buf.pack()
         };
-        OutPoint::new(tx_hash.clone(), 0)
+        OutPoint::new(tx_hash, 0)
     };
     let owner_lock_script_out_point = {
         let tx_hash = {
@@ -34,7 +39,7 @@ fn gen_tx(dummy: &mut DummyDataLoader, lock_args: Bytes, message: Bytes) -> Tran
             rng.fill(&mut buf);
             buf.pack()
         };
-        OutPoint::new(tx_hash.clone(), 0)
+        OutPoint::new(tx_hash, 0)
     };
     // dep contract code
     // eth account lock
@@ -213,8 +218,32 @@ fn test_sign_eth_message() {
             .as_bytes()
             .pack()])
         .build();
+    let hardfork_switch = smol::block_on(async {
+        let switch = &*GLOBAL_HARDFORK_SWITCH.lock().await;
+        HardForkSwitch::new_without_any_enabled()
+            .as_builder()
+            .rfc_0028(switch.rfc_0028())
+            .rfc_0029(switch.rfc_0029())
+            .rfc_0030(switch.rfc_0030())
+            .rfc_0031(switch.rfc_0031())
+            .rfc_0032(switch.rfc_0032())
+            .rfc_0036(switch.rfc_0036())
+            .rfc_0038(switch.rfc_0038())
+            .build()
+            .unwrap()
+    });
+    let consensus = ConsensusBuilder::default()
+        .hardfork_switch(hardfork_switch)
+        .build();
+    let current_epoch_number = smol::block_on(async { *GLOBAL_CURRENT_EPOCH_NUMBER.lock().await });
+    let tx_verify_env = TxVerifyEnv::new_submit(
+        &HeaderView::new_advanced_builder()
+            .epoch(current_epoch_number.pack())
+            .build(),
+    );
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
-    let mut verifier = TransactionScriptsVerifier::new(&resolved_tx, &data_loader);
+    let mut verifier =
+        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_verify_env);
     verifier.set_debug_printer(|_script, msg| println!("[script debug] {}", msg));
     let verify_result = verifier.verify(MAX_CYCLES);
     verify_result.expect("pass verification");
@@ -261,8 +290,32 @@ fn test_submit_signing_eth_message() {
             .as_bytes()
             .pack()])
         .build();
+    let hardfork_switch = smol::block_on(async {
+        let switch = &*GLOBAL_HARDFORK_SWITCH.lock().await;
+        HardForkSwitch::new_without_any_enabled()
+            .as_builder()
+            .rfc_0028(switch.rfc_0028())
+            .rfc_0029(switch.rfc_0029())
+            .rfc_0030(switch.rfc_0030())
+            .rfc_0031(switch.rfc_0031())
+            .rfc_0032(switch.rfc_0032())
+            .rfc_0036(switch.rfc_0036())
+            .rfc_0038(switch.rfc_0038())
+            .build()
+            .unwrap()
+    });
+    let consensus = ConsensusBuilder::default()
+        .hardfork_switch(hardfork_switch)
+        .build();
+    let current_epoch_number = smol::block_on(async { *GLOBAL_CURRENT_EPOCH_NUMBER.lock().await });
+    let tx_verify_env = TxVerifyEnv::new_submit(
+        &HeaderView::new_advanced_builder()
+            .epoch(current_epoch_number.pack())
+            .build(),
+    );
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
-    let mut verifier = TransactionScriptsVerifier::new(&resolved_tx, &data_loader);
+    let mut verifier =
+        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_verify_env);
     verifier.set_debug_printer(|_script, msg| println!("[script debug] {}", msg));
     let verify_result = verifier.verify(MAX_CYCLES);
     verify_result.expect("pass verification");
@@ -303,14 +356,45 @@ fn test_wrong_signature() {
             .as_bytes()
             .pack()])
         .build();
+    let hardfork_switch = smol::block_on(async {
+        let switch = &*GLOBAL_HARDFORK_SWITCH.lock().await;
+        HardForkSwitch::new_without_any_enabled()
+            .as_builder()
+            .rfc_0028(switch.rfc_0028())
+            .rfc_0029(switch.rfc_0029())
+            .rfc_0030(switch.rfc_0030())
+            .rfc_0031(switch.rfc_0031())
+            .rfc_0032(switch.rfc_0032())
+            .rfc_0036(switch.rfc_0036())
+            .rfc_0038(switch.rfc_0038())
+            .build()
+            .unwrap()
+    });
+    let consensus = ConsensusBuilder::default()
+        .hardfork_switch(hardfork_switch)
+        .build();
+    let current_epoch_number = smol::block_on(async { *GLOBAL_CURRENT_EPOCH_NUMBER.lock().await });
+    let tx_verify_env = TxVerifyEnv::new_submit(
+        &HeaderView::new_advanced_builder()
+            .epoch(current_epoch_number.pack())
+            .build(),
+    );
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
-    let mut verifier = TransactionScriptsVerifier::new(&resolved_tx, &data_loader);
+    let mut verifier =
+        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_verify_env);
     verifier.set_debug_printer(|_script, msg| println!("[script debug] {}", msg));
     let verify_result = verifier.verify(MAX_CYCLES);
     let script_cell_index = 0;
     assert_error_eq!(
         verify_result.unwrap_err(),
-        ScriptError::ValidationFailure(ERROR_WRONG_SIGNATURE).input_lock_script(script_cell_index)
+        ScriptError::ValidationFailure(
+            format!(
+                "by-data-hash/{}",
+                ckb_types::H256(*ETH_ACCOUNT_LOCK_CODE_HASH)
+            ),
+            ERROR_WRONG_SIGNATURE
+        )
+        .input_lock_script(script_cell_index)
     );
     let mut lock_args = vec![0u8; 32];
     lock_args.extend(pubkey_hash.as_ref());

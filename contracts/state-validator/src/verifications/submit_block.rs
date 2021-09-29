@@ -6,6 +6,8 @@ use core::result::Result;
 use alloc::{collections::BTreeMap, vec::Vec};
 use gw_state::ckb_smt::smt::{Pair, Tree};
 use gw_state::constants::GW_MAX_KV_PAIRS;
+use gw_utils::ckb_std::high_level::load_input_since;
+use gw_utils::ckb_std::since::{LockValue, Since};
 use gw_utils::gw_types::packed::{L2BlockReader, WithdrawalRequestReader};
 
 // Import CKB syscalls and structures
@@ -368,6 +370,9 @@ fn load_block_context_and_state<'a>(
         return Err(Error::InvalidBlock);
     }
 
+    let timestamp: u64 = raw_block.timestamp().unpack();
+    check_block_timestamp(prev_global_state, post_global_state, timestamp)?;
+
     // verify parent block hash
     if raw_block.parent_block_hash().as_slice() != prev_global_state.tip_block_hash().as_slice() {
         return Err(Error::InvalidBlock);
@@ -452,6 +457,7 @@ fn load_block_context_and_state<'a>(
     let context = BlockContext {
         number,
         finalized_number,
+        timestamp,
         rollup_type_hash,
         block_hash,
         prev_account_root,
@@ -644,6 +650,59 @@ fn check_block_withdrawals(block: &L2BlockReader) -> Result<(), Error> {
     Ok(())
 }
 
+fn check_block_timestamp(
+    prev_global_state: &GlobalState,
+    post_global_state: &GlobalState,
+    block_timestamp: u64,
+) -> Result<(), Error> {
+    let prev_version: u8 = prev_global_state.version().into();
+    let post_version: u8 = post_global_state.version().into();
+
+    if 0 == post_version && post_global_state.tip_block_timestamp().unpack() != 0 {
+        debug!("v0 global state tip block timestamp isn't 0");
+        return Err(Error::InvalidPostGlobalState);
+    }
+
+    // NOTE: Downgrade already checked in main
+    if 0 == post_version {
+        debug!("[check block timestamp] skip block timestamp");
+        return Ok(());
+    }
+
+    let rollup_input_since = Since::new(load_input_since(0, Source::GroupInput)?);
+    if !rollup_input_since.is_absolute() {
+        return Err(Error::InvalidSince);
+    }
+
+    let rollup_input_timestamp = match rollup_input_since.extract_lock_value() {
+        Some(LockValue::Timestamp(time)) => time,
+        _ => return Err(Error::InvalidSince),
+    };
+    debug!(
+        "[check block timestamp] input since timestamp {}",
+        rollup_input_timestamp
+    );
+
+    let tip_block_timestamp = prev_global_state.tip_block_timestamp().unpack();
+    if prev_version > 0 && tip_block_timestamp >= rollup_input_timestamp {
+        debug!("[check block timestamp] input since is smaller than tip block timestamp");
+        return Err(Error::InvalidSince);
+    }
+
+    if block_timestamp != post_global_state.tip_block_timestamp().unpack()
+        || block_timestamp > rollup_input_timestamp
+        || (prev_version != 0 && block_timestamp <= tip_block_timestamp)
+    {
+        debug!(
+            "[check block timestamp] invalid block timestamp {}",
+            block_timestamp
+        );
+        return Err(Error::InvalidBlock);
+    }
+
+    Ok(())
+}
+
 /// Verify Deposit & Withdrawal
 pub fn verify(
     rollup_type_hash: H256,
@@ -714,6 +773,12 @@ pub fn verify(
         let block_merkle_state = post_global_state.block();
         // last finalized block number
         let last_finalized_block_number = context.finalized_number;
+        let version = post_global_state.version();
+        let tip_block_timestamp = if version == 0.into() {
+            0
+        } else {
+            context.timestamp
+        };
 
         prev_global_state
             .clone()
@@ -721,7 +786,9 @@ pub fn verify(
             .account(account_merkle_state.to_entity())
             .block(block_merkle_state)
             .tip_block_hash(context.block_hash.pack())
+            .tip_block_timestamp(tip_block_timestamp.pack())
             .last_finalized_block_number(last_finalized_block_number.pack())
+            .version(version)
             .build()
     };
 

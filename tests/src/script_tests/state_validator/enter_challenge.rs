@@ -466,7 +466,13 @@ fn test_enter_challenge_finalized_block() {
     .build();
 
     let err = ctx.verify_tx(tx).unwrap_err();
-    let expected_err =
-        ScriptError::ValidationFailure(INVALID_CHALLENGE_TARGET_ERROR).input_type_script(0);
+    let expected_err = ScriptError::ValidationFailure(
+        format!(
+            "by-data-hash/{}",
+            ckb_types::H256(*STATE_VALIDATOR_CODE_HASH)
+        ),
+        INVALID_CHALLENGE_TARGET_ERROR,
+    )
+    .input_type_script(0);
     assert_error_eq!(err, expected_err);
 }

@@ -6,6 +6,7 @@ use super::{
     SUM_PROGRAM, SUM_PROGRAM_CODE_HASH,
 };
 use gw_common::{h256_ext::H256Ext, H256};
+use gw_config::RPCConfig;
 use gw_generator::{
     account_lock_manage::{always_success::AlwaysSuccess, secp256k1::Secp256k1, AccountLockManage},
     backend_manage::Backend,
@@ -58,7 +59,12 @@ fn test_example_sum() {
             rollup_config: Default::default(),
             rollup_script_hash: [42u8; 32].into(),
         };
-        let generator = Generator::new(backend_manage, account_lock_manage, rollup_context);
+        let generator = Generator::new(
+            backend_manage,
+            account_lock_manage,
+            rollup_context,
+            RPCConfig::default(),
+        );
         let mut sum_value = init_value;
         for (number, add_value) in &[(1u64, 7u64), (2u64, 16u64)] {
             let block_info = new_block_info(0, *number, 0);
@@ -173,7 +179,12 @@ fn test_example_account_operation() {
         rollup_config: Default::default(),
         rollup_script_hash: [42u8; 32].into(),
     };
-    let generator = Generator::new(backend_manage, account_lock_manage, rollup_context);
+    let generator = Generator::new(
+        backend_manage,
+        account_lock_manage,
+        rollup_context,
+        RPCConfig::default(),
+    );
     let block_info = new_block_info(0, 2, 0);
 
     // Load: success
@@ -370,7 +381,12 @@ fn test_example_recover_account() {
         rollup_config: Default::default(),
         rollup_script_hash,
     };
-    let generator = Generator::new(backend_manage, account_lock_manage, rollup_context);
+    let generator = Generator::new(
+        backend_manage,
+        account_lock_manage,
+        rollup_context,
+        RPCConfig::default(),
+    );
     let block_info = new_block_info(0, 2, 0);
 
     let lock_args_hex = "404f90829ec0e5821aeba9bce7d5e841ce9f7fa5";

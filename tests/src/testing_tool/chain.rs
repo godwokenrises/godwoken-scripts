@@ -3,18 +3,22 @@ use anyhow::Result;
 use gw_block_producer::produce_block::{produce_block, ProduceBlockParam, ProduceBlockResult};
 use gw_chain::chain::{Chain, L1Action, L1ActionContext, SyncParam};
 use gw_common::H256;
-use gw_config::{BackendConfig, GenesisConfig};
+use gw_config::{BackendConfig, ChainConfig, GenesisConfig, RPCConfig};
 use gw_generator::{
     account_lock_manage::{always_success::AlwaysSuccess, AccountLockManage},
     backend_manage::BackendManage,
     genesis::init_genesis,
     Generator,
 };
-use gw_mem_pool::{custodian::AvailableCustodians, pool::MemPool, traits::MemPoolProvider};
-use gw_store::Store;
+use gw_mem_pool::{
+    custodian::AvailableCustodians,
+    pool::{MemPool, OutputParam},
+    traits::MemPoolProvider,
+};
+use gw_store::{transaction::mem_pool_store::MemPoolStore, Store};
 use gw_types::{
     core::ScriptHashType,
-    offchain::{CellInfo, DepositInfo, RollupContext},
+    offchain::{CellInfo, CollectedCustodianCells, DepositInfo, RollupContext},
     packed::{
         CellOutput, DepositRequest, L2BlockCommittedInfo, RawTransaction, RollupAction,
         RollupActionUnion, RollupConfig, RollupSubmitBlock, Script, Transaction, WithdrawalRequest,
@@ -23,7 +27,11 @@ use gw_types::{
     prelude::*,
 };
 use smol::{lock::Mutex, Task};
-use std::{collections::HashSet, sync::Arc, time::Duration};
+use std::{
+    collections::HashSet,
+    sync::Arc,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 // meta contract
 pub const META_VALIDATOR_PATH: &str = "../c/build/meta-contract-validator";
@@ -55,9 +63,14 @@ impl MemPoolProvider for DummyMemPoolProvider {
         _withdrawals: Vec<WithdrawalRequest>,
         _last_finalized_block_number: u64,
         _rollup_context: RollupContext,
-    ) -> Task<Result<AvailableCustodians>> {
+    ) -> Task<Result<CollectedCustodianCells>> {
         let available_custodians = self.available_custodians.clone();
-        smol::spawn(async move { Ok(available_custodians) })
+        let collected_custodian_cells = CollectedCustodianCells {
+            cells_info: Vec::default(),
+            capacity: available_custodians.capacity,
+            sudt: available_custodians.sudt,
+        };
+        smol::spawn(async move { Ok(collected_custodian_cells) })
     }
 }
 
@@ -118,6 +131,7 @@ pub fn setup_chain_with_account_lock_manage(
         backend_manage,
         account_lock_manage,
         rollup_context,
+        RPCConfig::default(),
     ));
     init_genesis(
         &store,
@@ -138,6 +152,7 @@ pub fn setup_chain_with_account_lock_manage(
     Chain::create(
         &rollup_config,
         &rollup_type_script,
+        &ChainConfig::default(),
         store,
         generator,
         Some(Arc::new(Mutex::new(mem_pool))),
@@ -203,6 +218,20 @@ pub fn construct_block(
     mem_pool: &mut MemPool,
     deposit_requests: Vec<DepositRequest>,
 ) -> anyhow::Result<ProduceBlockResult> {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("timestamp")
+        .as_millis() as u64;
+
+    construct_block_from_timestamp(chain, mem_pool, deposit_requests, timestamp)
+}
+
+pub fn construct_block_from_timestamp(
+    chain: &Chain,
+    mem_pool: &mut MemPool,
+    deposit_requests: Vec<DepositRequest>,
+    timestamp: u64,
+) -> anyhow::Result<ProduceBlockResult> {
     let stake_cell_owner_lock_hash = H256::zero();
     let db = chain.store().begin_transaction();
     let generator = chain.generator();
@@ -213,7 +242,7 @@ pub fn construct_block(
         ..AvailableCustodians::default()
     };
     for withdrawal_hash in mem_pool.mem_block().withdrawals().iter() {
-        let req = mem_pool.all_withdrawals().get(withdrawal_hash).unwrap();
+        let req = db.get_mem_pool_withdrawal(withdrawal_hash)?.unwrap();
         if 0 == req.raw().amount().unpack() {
             continue;
         }
@@ -252,14 +281,15 @@ pub fn construct_block(
         .collect();
     let provider = DummyMemPoolProvider {
         deposit_cells,
-        fake_blocktime: Duration::from_millis(0),
+        fake_blocktime: Duration::from_millis(timestamp),
         available_custodians,
     };
     mem_pool.set_provider(Box::new(provider));
     // refresh mem block
     mem_pool.reset_mem_block()?;
 
-    let block_param = mem_pool.output_mem_block().unwrap();
+    let (_collected_custodian, block_param) =
+        mem_pool.output_mem_block(&OutputParam::default()).unwrap();
     let param = ProduceBlockParam {
         stake_cell_owner_lock_hash,
         rollup_config_hash,
