@@ -18,8 +18,8 @@ typedef unsigned __int128 uint128_t;
 #define GW_SHORT_ACCOUNT_SCRIPT_HASH_TO_SCRIPT_HASH 5
 
 /* Limitations */
-/* 24KB (ethereum max contract code size) */
-#define GW_MAX_DATA_SIZE (24 * 1024)
+/* 25KB (ethereum max contract code size) */
+#define GW_MAX_DATA_SIZE (25 * 1024)
 /* 128KB */
 #define GW_MAX_L2TX_ARGS_SIZE (128 * 1024)
 /* 128KB + 4KB */
