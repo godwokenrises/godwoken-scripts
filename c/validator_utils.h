@@ -501,10 +501,10 @@ int sys_recover_account(gw_context_t *ctx, uint8_t message[32],
     if ((*(uint8_t *)hash_type_seg.ptr) != SCRIPT_HASH_TYPE_TYPE) {
       continue;
     }
-    /* load message from cell.data[32..64] */
+    /* load message from cell.data[33..65] */
     uint8_t checked_message[32];
     len = 32;
-    ret = ckb_load_cell_data(checked_message, &len, 32, i, CKB_SOURCE_INPUT);
+    ret = ckb_load_cell_data(checked_message, &len, 33, i, CKB_SOURCE_INPUT);
     if (ret != 0) {
       printf("recover account: failed to load cell data");
       continue;
