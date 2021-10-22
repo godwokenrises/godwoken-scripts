@@ -366,7 +366,12 @@ fn load_block_context_and_state<'a>(
 
     // Check pre block merkle proof
     let number: u64 = raw_block.number().unpack();
-    if number != prev_global_state.block().count().unpack() {
+    let expected_number: u64 = prev_global_state.block().count().unpack();
+    if number != expected_number {
+        debug!(
+            "[check block context] block number error, number: {}, expected_number: {}",
+            number, expected_number
+        );
         return Err(Error::InvalidBlock);
     }
 
@@ -375,6 +380,7 @@ fn load_block_context_and_state<'a>(
 
     // verify parent block hash
     if raw_block.parent_block_hash().as_slice() != prev_global_state.tip_block_hash().as_slice() {
+        debug!("[check block context] parent block hash error");
         return Err(Error::InvalidBlock);
     }
 
@@ -402,6 +408,7 @@ fn load_block_context_and_state<'a>(
 
     // Check post block merkle proof
     if number + 1 != post_global_state.block().count().unpack() {
+        debug!("[check block context] post global state block count error");
         return Err(Error::InvalidBlock);
     }
 
@@ -414,19 +421,20 @@ fn load_block_context_and_state<'a>(
         block_tree
             .update(&block_smt_key, &block_hash.into())
             .map_err(|err| {
-                debug!("[verify block exist] update kv error: {}", err);
+                debug!("[check block context] update kv error: {}", err);
                 Error::MerkleProof
             })?;
         block_tree
             .verify(&post_block_root, &block_proof)
             .map_err(|err| {
-                debug!("[verify block exist] merkle verify error: {}", err);
+                debug!("[check block context] merkle verify error: {}", err);
                 Error::MerkleProof
             })?;
     }
 
     // Check prev account state
     if raw_block.prev_account().as_slice() != prev_global_state.account().as_slice() {
+        debug!("[check block context] block's prev account error");
         return Err(Error::InvalidBlock);
     }
 
@@ -482,8 +490,12 @@ fn verify_block_producer(
     )?
     .ok_or(Error::InvalidStakeCell)?;
     // check stake cell capacity
-    if output_stake_cell.capacity < config.required_staking_capacity().unpack() {
-        debug!("stake cell's capacity is insufficient");
+    let required_staking_capacity: u64 = config.required_staking_capacity().unpack();
+    if output_stake_cell.capacity < required_staking_capacity {
+        debug!(
+            "[verify block producer] stake cell's capacity is insufficient {} {}",
+            output_stake_cell.capacity, required_staking_capacity
+        );
         return Err(Error::InvalidStakeCell);
     }
     // make sure input stake cell is identical to the output stake cell if we have one
