@@ -296,9 +296,9 @@ int _check_data_hash_exist(gw_context_t *ctx, uint8_t data_hash[32],
 /**
  * @param script_hash should have been initialed as zero_hash = {0}
  */
-int _load_script_hash_by_short_script_hash(gw_context_t *ctx,
-    uint8_t *short_script_hash, uint32_t short_script_hash_len,
-    uint8_t script_hash[GW_VALUE_BYTES]) {
+int _load_script_hash_by_short_script_hash(
+    gw_context_t *ctx, uint8_t *short_script_hash,
+    uint32_t short_script_hash_len, uint8_t script_hash[GW_VALUE_BYTES]) {
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
   }
