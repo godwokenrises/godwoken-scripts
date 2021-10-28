@@ -73,13 +73,13 @@ build/sudt-validator: contracts/sudt.c sudt_utils.h gw_def.h validator_utils.h
 
 build/eth-addr-reg-generator: contracts/eth_addr_reg.c gw_def.h generator_utils.h
 	$(CC) $(CFLAGS) -DCKB_C_STDLIB_PRINTF $(GENERATOR_FLAGS) $(LDFLAGS) -o $@ $<
-# $(OBJCOPY) --only-keep-debug $@ $@.debug
-# $(OBJCOPY) --strip-debug --strip-all $@
+	$(OBJCOPY) --only-keep-debug $@ $@.debug
+	$(OBJCOPY) --strip-debug --strip-all $@
 
 build/eth-addr-reg-validator: contracts/eth_addr_reg.c gw_def.h validator_utils.h
 	$(CC) $(CFLAGS) -DCKB_C_STDLIB_PRINTF $(VALIDATOR_FLAGS) $(LDFLAGS) -o $@ $<
-# $(OBJCOPY) --only-keep-debug $@ $@.debug
-# $(OBJCOPY) --strip-debug --strip-all $@
+	$(OBJCOPY) --only-keep-debug $@ $@.debug
+	$(OBJCOPY) --strip-debug --strip-all $@
 
 build/examples/sum-generator: examples/sum.c gw_def.h generator_utils.h
 	$(CC) $(CFLAGS) $(GENERATOR_FLAGS) $(LDFLAGS) -o $@ $<
