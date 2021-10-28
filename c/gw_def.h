@@ -16,6 +16,8 @@ typedef unsigned __int128 uint128_t;
 #define GW_ACCOUNT_SCRIPT_HASH_TO_ID 3
 #define GW_DATA_HASH_PREFIX 4
 #define GW_SHORT_ACCOUNT_SCRIPT_HASH_TO_SCRIPT_HASH 5
+#define GW_ETH_ADDRESS_TO_ACCOUNT_SCRIPT_HASH 6
+#define GW_ACCOUNT_SCRIPT_HASH_TO_ETH_ADDRESS 7
 
 /* Limitations */
 /* 25KB (ethereum max contract code size) */
@@ -41,6 +43,7 @@ typedef unsigned __int128 uint128_t;
 #define GW_LOG_POLYJUICE_USER 0x3
 
 #define GW_DEFAULT_SHORT_SCRIPT_HASH_LEN 20
+#define ETH_ADDRESS_LEN 20
 
 /* Godwoken context */
 typedef struct {

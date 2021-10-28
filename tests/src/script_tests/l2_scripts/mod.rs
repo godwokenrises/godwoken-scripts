@@ -18,6 +18,7 @@ use std::{fs, io::Read, path::PathBuf};
 
 use crate::testing_tool::chain::build_backend_manage;
 
+mod eth_addr_reg;
 mod examples;
 mod meta_contract;
 mod sudt;

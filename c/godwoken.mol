@@ -255,6 +255,25 @@ table SUDTTransfer {
 }
 // --- end of layer2 SUDT ---
 
+// --- ETH Address Registry ---
+union ETHAddrRegArgs {
+    EthToGw,
+    GwToEth,
+}
+
+// option ETHAddrOpt (Byte20);
+
+struct EthToGw {
+    eth_address: Byte20,
+}
+
+struct GwToEth {
+    gw_script_hash: Byte32,
+    // TODO: should we use gw_short_script_hash?
+    // a.k.a. godwoken short address (script_hash[0..n])
+}
+// --- end of ETH Address Registry ---
+
 // --- challenge ---
 
 struct ChallengeTarget {

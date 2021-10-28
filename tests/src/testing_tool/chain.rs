@@ -42,6 +42,11 @@ pub const META_VALIDATOR_SCRIPT_TYPE_HASH: [u8; 32] = [1u8; 32];
 pub const SUDT_VALIDATOR_PATH: &str = "../c/build/sudt-validator";
 pub const SUDT_GENERATOR_PATH: &str = "../c/build/sudt-generator";
 
+// ETH Address Registry
+pub const ETH_ADDRESS_REGISTRY_VALIDATOR_PATH: &str = "../c/build/eth-addr-reg-validator";
+pub const ETH_ADDRESS_REGISTRY_GENERATOR_PATH: &str = "../c/build/eth-addr-reg-generator";
+pub const DUMMY_ETH_ADDRESS_REGISTRY_SCRIPT_HASH: [u8; 32] = [6u8; 32];
+
 #[derive(Debug, Default)]
 pub struct DummyMemPoolProvider {
     pub fake_blocktime: Duration,
@@ -87,6 +92,11 @@ pub fn build_backend_manage(rollup_config: &RollupConfig) -> BackendManage {
             validator_path: SUDT_VALIDATOR_PATH.into(),
             generator_path: SUDT_GENERATOR_PATH.into(),
             validator_script_type_hash: sudt_validator_script_type_hash.into(),
+        },
+        BackendConfig {
+            validator_path: ETH_ADDRESS_REGISTRY_VALIDATOR_PATH.into(),
+            generator_path: ETH_ADDRESS_REGISTRY_GENERATOR_PATH.into(),
+            validator_script_type_hash: DUMMY_ETH_ADDRESS_REGISTRY_SCRIPT_HASH.into(),
         },
     ];
     BackendManage::from_config(configs).expect("default backend")

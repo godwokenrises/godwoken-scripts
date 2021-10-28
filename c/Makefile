@@ -16,8 +16,8 @@ PROTOCOL_SCHEMA_URL := https://raw.githubusercontent.com/nervosnetwork/godwoken/
 # docker pull nervos/ckb-riscv-gnu-toolchain:gnu-bionic-20191012
 BUILDER_DOCKER := nervos/ckb-riscv-gnu-toolchain@sha256:aae8a3f79705f67d505d1f1d5ddc694a4fd537ed1c7e9622420a470d59ba2ec3
 
-GENERATORS := build/meta-contract-generator build/sudt-generator build/examples/sum-generator build/examples/account-operation-generator build/examples/recover-account-generator
-VALIDATORS := build/meta-contract-validator build/sudt-validator build/examples/sum-validator build/examples/account-operation-validator build/examples/recover-account-validator
+GENERATORS := build/meta-contract-generator build/sudt-generator build/eth-addr-reg-generator build/examples/sum-generator build/examples/account-operation-generator build/examples/recover-account-generator
+VALIDATORS := build/meta-contract-validator build/sudt-validator build/eth-addr-reg-validator build/examples/sum-validator build/examples/account-operation-validator build/examples/recover-account-validator
 SECP256K1_HELPER := deps/ckb-production-scripts/build/secp256k1_data_info.h
 
 BINS := $(GENERATORS) $(VALIDATORS)
@@ -44,7 +44,7 @@ clean: clean-examples
 	rm -f build/*.o
 	rm -f build/*.a
 
-debug-all: CFLAGS += -DCKB_C_STDLIB_PRINTF 
+debug-all: CFLAGS += -DCKB_C_STDLIB_PRINTF -O0
 debug-all: all
 
 # secp256k1_helper.h
@@ -70,6 +70,16 @@ build/sudt-validator: contracts/sudt.c sudt_utils.h gw_def.h validator_utils.h
 	$(CC) $(CFLAGS) $(VALIDATOR_FLAGS) $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
+
+build/eth-addr-reg-generator: contracts/eth_addr_reg.c gw_def.h generator_utils.h
+	$(CC) $(CFLAGS) -DCKB_C_STDLIB_PRINTF $(GENERATOR_FLAGS) $(LDFLAGS) -o $@ $<
+# $(OBJCOPY) --only-keep-debug $@ $@.debug
+# $(OBJCOPY) --strip-debug --strip-all $@
+
+build/eth-addr-reg-validator: contracts/eth_addr_reg.c gw_def.h validator_utils.h
+	$(CC) $(CFLAGS) -DCKB_C_STDLIB_PRINTF $(VALIDATOR_FLAGS) $(LDFLAGS) -o $@ $<
+# $(OBJCOPY) --only-keep-debug $@ $@.debug
+# $(OBJCOPY) --strip-debug --strip-all $@
 
 build/examples/sum-generator: examples/sum.c gw_def.h generator_utils.h
 	$(CC) $(CFLAGS) $(GENERATOR_FLAGS) $(LDFLAGS) -o $@ $<
