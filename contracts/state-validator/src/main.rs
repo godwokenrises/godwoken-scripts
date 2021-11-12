@@ -19,7 +19,7 @@ use ckb_std::default_alloc;
 pub use gw_utils::ckb_std;
 
 ckb_std::entry!(program_entry);
-default_alloc!();
+default_alloc!(4 * 1024, 1024 * 1024, 64);
 
 /// program entry
 fn program_entry() -> i8 {

@@ -15,7 +15,7 @@ use gw_types::{
 use crate::error::Error;
 
 /// we choose this value because it is smaller than the MAX_BLOCK_BYTES which is 597K
-pub const MAX_ROLLUP_WITNESS_SIZE: usize = 1 << 19;
+pub const MAX_ROLLUP_WITNESS_SIZE: usize = 580_000;
 
 pub fn search_rollup_cell(rollup_type_hash: &[u8; 32], source: Source) -> Option<usize> {
     QueryIter::new(load_cell_type_hash, source)
