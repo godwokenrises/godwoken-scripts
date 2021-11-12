@@ -14,7 +14,7 @@ use gw_types::{
 
 use crate::error::Error;
 
-/// 524_288 we choose this value because it is smaller than the MAX_BLOCK_BYTES which is 597K
+/// we choose this value because it is smaller than the MAX_BLOCK_BYTES which is 597K
 pub const MAX_ROLLUP_WITNESS_SIZE: usize = 1 << 19;
 
 pub fn search_rollup_cell(rollup_type_hash: &[u8; 32], source: Source) -> Option<usize> {
@@ -62,7 +62,19 @@ pub fn parse_rollup_action(
     index: usize,
     source: Source,
 ) -> Result<RollupActionReader, Error> {
-    let loaded_len = load_witness(buf, 0, index, source)?;
+    let loaded_len = match load_witness(buf, 0, index, source) {
+        Ok(loaded_len) => loaded_len,
+        Err(err @ SysError::LengthNotEnough(full_len)) => {
+            debug!(
+                "fail to load witness, buf: {}, full len: {}",
+                MAX_ROLLUP_WITNESS_SIZE, full_len
+            );
+            return Err(err.into());
+        }
+        Err(err) => {
+            return Err(err.into());
+        }
+    };
     debug!("load rollup witness, loaded len: {}", loaded_len);
 
     let witness_args = WitnessArgsReader::from_slice(&buf[..loaded_len]).map_err(|_err| {
