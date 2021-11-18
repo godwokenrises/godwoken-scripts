@@ -701,13 +701,17 @@ fn check_block_timestamp(
         return Err(Error::InvalidSince);
     }
 
-    if block_timestamp != post_global_state.tip_block_timestamp().unpack()
+    let post_block_timestamp: u64 = post_global_state.tip_block_timestamp().unpack();
+    if block_timestamp != post_block_timestamp
         || block_timestamp > rollup_input_timestamp
         || (prev_version != 0 && block_timestamp <= tip_block_timestamp)
     {
         debug!(
-            "[check block timestamp] invalid block timestamp {}",
-            block_timestamp
+            "[check block timestamp] invalid block timestamp {}, post block timestamp {}, rollup input timestamp {} tip block timestamp {}",
+            block_timestamp,
+            post_block_timestamp,
+            rollup_input_timestamp,
+            tip_block_timestamp
         );
         return Err(Error::InvalidBlock);
     }
