@@ -8,7 +8,7 @@
 
 #include "ckb_syscalls.h"
 #include "gw_syscalls.h"
-#include "stdio.h"
+#include "sudt_utils.h"
 
 /* MSG_TYPE */
 #define MSG_CREATE_ACCOUNT 0
@@ -34,9 +34,9 @@ int handle_fee(gw_context_t *ctx, mol_seg_t fee_seg) {
   /* amount */
   mol_seg_t amount_seg = MolReader_Fee_get_amount(&fee_seg);
   uint128_t amount = *(uint128_t *)amount_seg.ptr;
-
-  return ctx->sys_pay_fee(ctx, payer_short_address, short_address_len, sudt_id,
-                          amount);
+  return sudt_pay_fee(ctx, sudt_id,
+                      short_address_len, payer_short_address,
+                      amount);
 }
 
 int main() {
