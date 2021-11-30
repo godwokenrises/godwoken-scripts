@@ -207,15 +207,36 @@ pub fn main() -> Result<(), Error> {
                 return Err(Error::InsufficientAmount);
             }
 
-            // make sure the output should only change owner_lock_hash field
             let new_lock_hash = unlock_args.owner_lock().hash();
-
             let index = match search_lock_hash(&new_lock_hash, Source::Output) {
                 Some(i) => i,
                 None => return Err(Error::InvalidOutput),
             };
+
             // check new withdraw cell
             check_output_cell_has_same_content(index)?;
+
+            // check new withdrawal lock
+            let output_lock = load_cell_lock(index, Source::Output)?;
+            if output_lock.code_hash().as_slice() != script.code_hash().as_slice()
+                || output_lock.hash_type() != script.hash_type()
+            {
+                return Err(Error::InvalidOutput);
+            }
+
+            // make sure the output should only change owner_lock_hash and payment_lock_hash fields
+            let (output_rollup_type_hash, output_lock_args) = parse_lock_args(&output_lock)?;
+            let expected_output_lock_args = lock_args
+                .as_builder()
+                .owner_lock_hash(output_lock_args.owner_lock_hash())
+                .payment_lock_hash(output_lock_args.payment_lock_hash())
+                .build();
+            if output_rollup_type_hash != rollup_type_hash
+                || output_lock_args.as_slice() != expected_output_lock_args.as_slice()
+            {
+                return Err(Error::InvalidOutput);
+            }
+
             Ok(())
         }
     }
