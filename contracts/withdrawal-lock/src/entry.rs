@@ -230,6 +230,9 @@ pub fn main() -> Result<(), Error> {
                 .as_builder()
                 .owner_lock_hash(output_lock_args.owner_lock_hash())
                 .payment_lock_hash(output_lock_args.payment_lock_hash())
+                .sudt_script_hash(output_lock_args.sudt_script_hash())
+                .sell_amount(output_lock_args.sell_amount())
+                .sell_capacity(output_lock_args.sell_capacity())
                 .build();
             if output_rollup_type_hash != rollup_type_hash
                 || output_lock_args.as_slice() != expected_output_lock_args.as_slice()
