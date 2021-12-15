@@ -3,7 +3,7 @@ use anyhow::Result;
 use gw_block_producer::produce_block::{produce_block, ProduceBlockParam, ProduceBlockResult};
 use gw_chain::chain::{Chain, L1Action, L1ActionContext, SyncParam};
 use gw_common::H256;
-use gw_config::{BackendConfig, ChainConfig, GenesisConfig, RPCConfig};
+use gw_config::{BackendConfig, BackendType, ChainConfig, GenesisConfig, MemPoolConfig, RPCConfig};
 use gw_generator::{
     account_lock_manage::{always_success::AlwaysSuccess, AccountLockManage},
     backend_manage::BackendManage,
@@ -15,14 +15,14 @@ use gw_mem_pool::{
     pool::{MemPool, OutputParam},
     traits::MemPoolProvider,
 };
-use gw_store::{transaction::mem_pool_store::MemPoolStore, Store};
+use gw_store::Store;
 use gw_types::{
     core::ScriptHashType,
     offchain::{CellInfo, CollectedCustodianCells, DepositInfo, RollupContext},
     packed::{
-        CellOutput, DepositRequest, L2BlockCommittedInfo, RawTransaction, RollupAction,
-        RollupActionUnion, RollupConfig, RollupSubmitBlock, Script, Transaction, WithdrawalRequest,
-        WitnessArgs,
+        CellOutput, DepositLockArgs, DepositRequest, L2BlockCommittedInfo, RawTransaction,
+        RollupAction, RollupActionUnion, RollupConfig, RollupSubmitBlock, Script, Transaction,
+        WithdrawalRequest, WitnessArgs,
     },
     prelude::*,
 };
@@ -58,6 +58,12 @@ impl MemPoolProvider for DummyMemPoolProvider {
         let deposit_cells = self.deposit_cells.clone();
         smol::spawn(async move { Ok(deposit_cells) })
     }
+    fn get_cell(
+        &self,
+        _out_point: gw_types::packed::OutPoint,
+    ) -> Task<Result<Option<gw_types::offchain::CellWithStatus>>> {
+        smol::spawn(async { Ok(None) })
+    }
     fn query_available_custodians(
         &self,
         _withdrawals: Vec<WithdrawalRequest>,
@@ -72,6 +78,13 @@ impl MemPoolProvider for DummyMemPoolProvider {
         };
         smol::spawn(async move { Ok(collected_custodian_cells) })
     }
+    fn query_mergeable_custodians(
+        &self,
+        collected_custodians: CollectedCustodianCells,
+        _last_finalized_block_number: u64,
+    ) -> Task<Result<CollectedCustodianCells>> {
+        smol::spawn(async move { Ok(collected_custodians) })
+    }
 }
 
 pub fn build_backend_manage(rollup_config: &RollupConfig) -> BackendManage {
@@ -82,11 +95,13 @@ pub fn build_backend_manage(rollup_config: &RollupConfig) -> BackendManage {
             validator_path: META_VALIDATOR_PATH.into(),
             generator_path: META_GENERATOR_PATH.into(),
             validator_script_type_hash: META_VALIDATOR_SCRIPT_TYPE_HASH.into(),
+            backend_type: BackendType::Meta,
         },
         BackendConfig {
             validator_path: SUDT_VALIDATOR_PATH.into(),
             generator_path: SUDT_GENERATOR_PATH.into(),
             validator_script_type_hash: sudt_validator_script_type_hash.into(),
+            backend_type: BackendType::Sudt,
         },
     ];
     BackendManage::from_config(configs).expect("default backend")
@@ -131,7 +146,7 @@ pub fn setup_chain_with_account_lock_manage(
         backend_manage,
         account_lock_manage,
         rollup_context,
-        RPCConfig::default(),
+        Some(RPCConfig::default()),
     ));
     init_genesis(
         &store,
@@ -141,12 +156,17 @@ pub fn setup_chain_with_account_lock_manage(
     )
     .unwrap();
     let provider = Box::new(DummyMemPoolProvider::default());
+    let mem_pool_config = MemPoolConfig {
+        restore_path: tempfile::TempDir::new().unwrap().path().to_path_buf(),
+        ..Default::default()
+    };
     let mem_pool = MemPool::create(
+        0,
         store.clone(),
         Arc::clone(&generator),
         provider,
         None,
-        Default::default(),
+        mem_pool_config,
     )
     .unwrap();
     Chain::create(
@@ -261,22 +281,35 @@ pub fn construct_block_from_timestamp(
 
     let deposit_cells = deposit_requests
         .into_iter()
-        .map(|deposit| DepositInfo {
-            cell: CellInfo {
-                out_point: Default::default(),
-                output: CellOutput::new_builder()
-                    .lock(
-                        Script::new_builder()
-                            .code_hash(deposit_lock_type_hash.clone())
-                            .hash_type(ScriptHashType::Type.into())
-                            .args(rollup_script_hash.as_slice().to_vec().pack())
-                            .build(),
-                    )
-                    .capacity(deposit.capacity())
-                    .build(),
-                data: Default::default(),
-            },
-            request: deposit,
+        .map(|deposit| {
+            let lock_args = {
+                let cancel_timeout = 0xc0000000000004b0u64;
+                let mut buf: Vec<u8> = Vec::new();
+                let deposit_args = DepositLockArgs::new_builder()
+                    .cancel_timeout(cancel_timeout.pack())
+                    .build();
+                buf.extend(rollup_script_hash.as_slice());
+                buf.extend(deposit_args.as_slice());
+                buf
+            };
+
+            DepositInfo {
+                cell: CellInfo {
+                    out_point: Default::default(),
+                    output: CellOutput::new_builder()
+                        .lock(
+                            Script::new_builder()
+                                .code_hash(deposit_lock_type_hash.clone())
+                                .hash_type(ScriptHashType::Type.into())
+                                .args(lock_args.pack())
+                                .build(),
+                        )
+                        .capacity(deposit.capacity())
+                        .build(),
+                    data: Default::default(),
+                },
+                request: deposit,
+            }
         })
         .collect();
     let provider = DummyMemPoolProvider {
