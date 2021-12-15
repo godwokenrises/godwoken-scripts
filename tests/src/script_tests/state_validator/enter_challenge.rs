@@ -1,3 +1,5 @@
+#![allow(clippy::mutable_key_type)]
+
 use std::collections::HashSet;
 
 use crate::script_tests::utils::init_env_log;
@@ -17,8 +19,7 @@ use gw_common::{
     builtins::CKB_SUDT_ACCOUNT_ID,
     state::{to_short_address, State},
 };
-use gw_store::state_db::SubState;
-use gw_store::state_db::{CheckPoint, StateDBMode, StateDBTransaction};
+use gw_store::state::state_db::StateContext;
 use gw_types::prelude::*;
 use gw_types::{
     bytes::Bytes,
@@ -88,7 +89,7 @@ fn test_enter_challenge() {
                 .script(sender_script.clone())
                 .build(),
             DepositRequest::new_builder()
-                .capacity(Pack::pack(&150_00000000u64))
+                .capacity(Pack::pack(&450_00000000u64))
                 .script(receiver_script.clone())
                 .build(),
         ];
@@ -107,15 +108,7 @@ fn test_enter_challenge() {
             asset_scripts,
         );
         let db = chain.store().begin_transaction();
-        let tip_block = db.get_tip_block().unwrap();
-        let tip_block_number = gw_types::prelude::Unpack::unpack(&tip_block.raw().number());
-        let state_db = StateDBTransaction::from_checkpoint(
-            &db,
-            CheckPoint::new(tip_block_number, SubState::Block),
-            StateDBMode::ReadOnly,
-        )
-        .unwrap();
-        let tree = state_db.state_tree().unwrap();
+        let tree = db.state_tree(StateContext::ReadOnly).unwrap();
         let sender_id = tree
             .get_account_id_by_script_hash(&sender_script.hash().into())
             .unwrap()
@@ -162,7 +155,7 @@ fn test_enter_challenge() {
     }
     // deploy scripts
     let param = CellContextParam {
-        stake_lock_type: stake_lock_type.clone(),
+        stake_lock_type,
         ..Default::default()
     };
     let mut ctx = CellContext::new(&rollup_config, param);
@@ -298,7 +291,7 @@ fn test_enter_challenge_finalized_block() {
                 .script(sender_script.clone())
                 .build(),
             DepositRequest::new_builder()
-                .capacity(Pack::pack(&150_00000000u64))
+                .capacity(Pack::pack(&450_00000000u64))
                 .script(receiver_script.clone())
                 .build(),
         ];
@@ -311,21 +304,13 @@ fn test_enter_challenge_finalized_block() {
         let asset_scripts = HashSet::new();
         apply_block_result(
             &mut chain,
-            rollup_cell.clone(),
+            rollup_cell,
             produce_block_result,
             deposit_requests,
             asset_scripts,
         );
         let db = chain.store().begin_transaction();
-        let tip_block = db.get_tip_block().unwrap();
-        let tip_block_number = gw_types::prelude::Unpack::unpack(&tip_block.raw().number());
-        let state_db = StateDBTransaction::from_checkpoint(
-            &db,
-            CheckPoint::new(tip_block_number, SubState::Block),
-            StateDBMode::ReadOnly,
-        )
-        .unwrap();
-        let tree = state_db.state_tree().unwrap();
+        let tree = db.state_tree(StateContext::ReadOnly).unwrap();
         let sender_id = tree
             .get_account_id_by_script_hash(&sender_script.hash().into())
             .unwrap()
@@ -365,7 +350,7 @@ fn test_enter_challenge_finalized_block() {
             let mem_pool = chain.mem_pool().as_ref().unwrap();
             let mut mem_pool = smol::block_on(mem_pool.lock());
             mem_pool.push_transaction(tx).unwrap();
-            construct_block(&chain, &mut mem_pool, Vec::default()).unwrap()
+            construct_block(chain, &mut mem_pool, Vec::default()).unwrap()
         };
         let asset_scripts = HashSet::new();
         apply_block_result(
@@ -387,7 +372,7 @@ fn test_enter_challenge_finalized_block() {
 
     // deploy scripts
     let param = CellContextParam {
-        stake_lock_type: stake_lock_type.clone(),
+        stake_lock_type,
         ..Default::default()
     };
     let mut ctx = CellContext::new(&rollup_config, param);

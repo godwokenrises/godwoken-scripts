@@ -1,3 +1,5 @@
+#![allow(clippy::mutable_key_type)]
+
 use std::collections::HashSet;
 
 use crate::script_tests::utils::init_env_log;
@@ -19,8 +21,8 @@ use gw_common::{
     state::{to_short_address, State},
     H256,
 };
-use gw_store::state_db::SubState;
-use gw_store::state_db::{CheckPoint, StateDBMode, StateDBTransaction};
+use gw_store::state::mem_state_db::MemStateContext;
+use gw_store::state::state_db::StateContext;
 use gw_traits::CodeStore;
 use gw_types::prelude::*;
 use gw_types::{
@@ -98,7 +100,7 @@ fn test_cancel_tx_execute() {
                 .script(sender_script.clone())
                 .build(),
             DepositRequest::new_builder()
-                .capacity(Pack::pack(&150_00000000u64))
+                .capacity(Pack::pack(&450_00000000u64))
                 .script(receiver_script.clone())
                 .build(),
         ];
@@ -117,15 +119,7 @@ fn test_cancel_tx_execute() {
             asset_scripts,
         );
         let db = chain.store().begin_transaction();
-        let tip_block = db.get_tip_block().unwrap();
-        let tip_block_number = gw_types::prelude::Unpack::unpack(&tip_block.raw().number());
-        let state_db = StateDBTransaction::from_checkpoint(
-            &db,
-            CheckPoint::new(tip_block_number, SubState::Block),
-            StateDBMode::ReadOnly,
-        )
-        .unwrap();
-        let tree = state_db.state_tree().unwrap();
+        let tree = db.state_tree(StateContext::ReadOnly).unwrap();
         let sender_id = tree
             .get_account_id_by_script_hash(&sender_script.hash().into())
             .unwrap()
@@ -178,9 +172,9 @@ fn test_cancel_tx_execute() {
     };
     // deploy scripts
     let param = CellContextParam {
-        stake_lock_type: stake_lock_type.clone(),
-        challenge_lock_type: challenge_lock_type.clone(),
-        eoa_lock_type: eoa_lock_type.clone(),
+        stake_lock_type,
+        challenge_lock_type,
+        eoa_lock_type,
         l2_sudt_type,
         ..Default::default()
     };
@@ -242,13 +236,13 @@ fn test_cancel_tx_execute() {
             let challenged_block_number =
                 gw_types::prelude::Unpack::unpack(&challenged_block.raw().number());
             let db = chain.store().begin_transaction();
-            let state_db = StateDBTransaction::from_checkpoint(
-                &db,
-                CheckPoint::new(challenged_block_number - 1, SubState::Block),
-                StateDBMode::ReadOnly,
-            )
-            .unwrap();
-            let mut tree = state_db.state_tree().unwrap();
+            let smt_store = db.account_smt_store().unwrap();
+            let mut tree = db
+                .in_mem_state_tree(
+                    smt_store,
+                    MemStateContext::History(challenged_block_number - 1),
+                )
+                .unwrap();
             tree.tracker_mut().enable();
             let sender_id = tree
                 .get_account_id_by_script_hash(&sender_script.hash().into())
@@ -281,8 +275,16 @@ fn test_cancel_tx_execute() {
                 .collect::<Vec<(H256, H256)>>();
 
             let kv_state_proof: Bytes = {
-                let smt = state_db.account_smt().unwrap();
-                smt.merkle_proof(touched_keys)
+                db.detach_block(&challenged_block).unwrap();
+                {
+                    let mut tree = db
+                        .state_tree(StateContext::DetachBlock(challenged_block_number))
+                        .unwrap();
+                    tree.detach_block_state().unwrap();
+                }
+                let account_smt = db.account_smt().unwrap();
+                account_smt
+                    .merkle_proof(touched_keys)
                     .unwrap()
                     .compile(kv_state.clone())
                     .unwrap()
@@ -313,7 +315,7 @@ fn test_cancel_tx_execute() {
             let context = VerifyTransactionContext::new_builder()
                 .scripts(
                     ScriptVec::new_builder()
-                        .push(sender_script.clone())
+                        .push(sender_script)
                         .push(sudt_script.clone())
                         .build(),
                 )
@@ -347,7 +349,6 @@ fn test_cancel_tx_execute() {
         CellInput::new_builder().previous_output(out_point).build()
     };
     let rollup_cell_data = global_state
-        .clone()
         .as_builder()
         .status(Status::Running.into())
         .build()

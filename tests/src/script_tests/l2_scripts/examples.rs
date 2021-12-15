@@ -6,7 +6,7 @@ use super::{
     SUM_PROGRAM, SUM_PROGRAM_CODE_HASH,
 };
 use gw_common::{h256_ext::H256Ext, H256};
-use gw_config::RPCConfig;
+use gw_config::{BackendType, RPCConfig};
 use gw_generator::{
     account_lock_manage::{always_success::AlwaysSuccess, secp256k1::Secp256k1, AccountLockManage},
     backend_manage::Backend,
@@ -51,6 +51,7 @@ fn test_example_sum() {
             validator: SUM_PROGRAM.clone(),
             generator: SUM_PROGRAM.clone(),
             validator_script_type_hash: SUM_PROGRAM_CODE_HASH.clone().into(),
+            backend_type: BackendType::Unknown,
         });
         let mut account_lock_manage = AccountLockManage::default();
         account_lock_manage
@@ -63,7 +64,7 @@ fn test_example_sum() {
             backend_manage,
             account_lock_manage,
             rollup_context,
-            RPCConfig::default(),
+            Some(RPCConfig::default()),
         );
         let mut sum_value = init_value;
         for (number, add_value) in &[(1u64, 7u64), (2u64, 16u64)] {
@@ -172,6 +173,7 @@ fn test_example_account_operation() {
         validator: ACCOUNT_OP_PROGRAM.clone(),
         generator: ACCOUNT_OP_PROGRAM.clone(),
         validator_script_type_hash: ACCOUNT_OP_PROGRAM_CODE_HASH.clone().into(),
+        backend_type: BackendType::Unknown,
     });
     let mut account_lock_manage = AccountLockManage::default();
     account_lock_manage.register_lock_algorithm(H256::zero(), Box::new(AlwaysSuccess::default()));
@@ -183,7 +185,7 @@ fn test_example_account_operation() {
         backend_manage,
         account_lock_manage,
         rollup_context,
-        RPCConfig::default(),
+        Some(RPCConfig::default()),
     );
     let block_info = new_block_info(0, 2, 0);
 
@@ -371,6 +373,7 @@ fn test_example_recover_account() {
         validator: RECOVER_PROGRAM.clone(),
         generator: RECOVER_PROGRAM.clone(),
         validator_script_type_hash: RECOVER_PROGRAM_CODE_HASH.clone().into(),
+        backend_type: BackendType::Unknown,
     });
     let mut account_lock_manage = AccountLockManage::default();
     let secp256k1_code_hash = H256::from_u32(11);
@@ -385,7 +388,7 @@ fn test_example_recover_account() {
         backend_manage,
         account_lock_manage,
         rollup_context,
-        RPCConfig::default(),
+        Some(RPCConfig::default()),
     );
     let block_info = new_block_info(0, 2, 0);
 
