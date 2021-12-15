@@ -1,3 +1,5 @@
+#![allow(clippy::mutable_key_type)]
+
 use std::collections::HashSet;
 
 use crate::script_tests::utils::init_env_log;
@@ -116,8 +118,8 @@ fn test_burn_challenge_capacity() {
                 .script(sender_script.clone())
                 .build(),
             DepositRequest::new_builder()
-                .capacity(Pack::pack(&150_00000000u64))
-                .script(receiver_script.clone())
+                .capacity(Pack::pack(&550_00000000u64))
+                .script(receiver_script)
                 .build(),
         ];
         let produce_block_result = {
@@ -165,9 +167,9 @@ fn test_burn_challenge_capacity() {
     };
     // deploy scripts
     let param = CellContextParam {
-        stake_lock_type: stake_lock_type.clone(),
-        challenge_lock_type: challenge_lock_type.clone(),
-        eoa_lock_type: eoa_lock_type.clone(),
+        stake_lock_type,
+        challenge_lock_type,
+        eoa_lock_type,
         ..Default::default()
     };
     let mut ctx = CellContext::new(&rollup_config, param);
@@ -264,7 +266,6 @@ fn test_burn_challenge_capacity() {
         CellInput::new_builder().previous_output(out_point).build()
     };
     let rollup_cell_data = global_state
-        .clone()
         .as_builder()
         .status(Status::Running.into())
         .build()
