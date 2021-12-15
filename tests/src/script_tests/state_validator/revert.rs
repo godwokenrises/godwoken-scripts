@@ -1,3 +1,5 @@
+#![allow(clippy::mutable_key_type)]
+
 use std::collections::HashSet;
 
 use crate::script_tests::utils::init_env_log;
@@ -17,7 +19,7 @@ use gw_common::{
     builtins::CKB_SUDT_ACCOUNT_ID, h256_ext::H256Ext,
     sparse_merkle_tree::default_store::DefaultStore, state::State, H256,
 };
-use gw_store::state_db::{CheckPoint, StateDBMode, StateDBTransaction, SubState};
+use gw_store::state::state_db::StateContext;
 use gw_types::{
     bytes::Bytes,
     core::{ChallengeTargetType, ScriptHashType, Status},
@@ -98,7 +100,7 @@ fn test_revert() {
                 .script(sender_script.clone())
                 .build(),
             DepositRequest::new_builder()
-                .capacity(Pack::pack(&150_00000000u64))
+                .capacity(Pack::pack(&450_00000000u64))
                 .script(receiver_script.clone())
                 .build(),
         ];
@@ -117,15 +119,7 @@ fn test_revert() {
             asset_scripts,
         );
         let db = chain.store().begin_transaction();
-        let tip_block = db.get_tip_block().unwrap();
-        let tip_block_number = gw_types::prelude::Unpack::unpack(&tip_block.raw().number());
-        let state_db = StateDBTransaction::from_checkpoint(
-            &db,
-            CheckPoint::new(tip_block_number, SubState::Block),
-            StateDBMode::ReadOnly,
-        )
-        .unwrap();
-        let tree = state_db.state_tree().unwrap();
+        let tree = db.state_tree(StateContext::ReadOnly).unwrap();
         let sender_id = tree
             .get_account_id_by_script_hash(&sender_script.hash().into())
             .unwrap()

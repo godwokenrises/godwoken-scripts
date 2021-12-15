@@ -209,7 +209,7 @@ pub fn run_contract_get_result<S: State + CodeStore>(
         backend_manage,
         account_lock_manage,
         rollup_ctx,
-        RPCConfig::default(),
+        Some(RPCConfig::default()),
     );
     let chain_view = DummyChainStore;
     let run_result =
