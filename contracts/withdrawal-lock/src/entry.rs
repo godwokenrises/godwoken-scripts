@@ -1,26 +1,27 @@
 // Import from `core` instead of from `std` since we are in no-std mode
 use core::result::Result;
 
-use gw_utils::{
-    cells::rollup::MAX_ROLLUP_WITNESS_SIZE,
-    gw_types::{
-        self,
-        core::ScriptHashType,
-        packed::{
-            CustodianLockArgs, CustodianLockArgsReader, RollupActionUnionReader,
-            UnlockWithdrawalWitnessUnion, WithdrawalLockArgs, WithdrawalLockArgsReader,
-        },
-    },
+use gw_types::{
+    packed::{UnlockWithdrawalWitness, UnlockWithdrawalWitnessReader},
+    prelude::*,
+};
+use gw_utils::cells::rollup::{
+    load_rollup_config, parse_rollup_action, search_rollup_cell, search_rollup_state,
+};
+use gw_utils::ckb_std::{
+    debug,
+    high_level::{load_cell_lock_hash, QueryIter},
+};
+use gw_utils::gw_types::packed::{
+    CustodianLockArgs, CustodianLockArgsReader, RollupActionUnionReader, Script, ScriptReader,
+    UnlockWithdrawalWitnessUnion, WithdrawalLockArgs, WithdrawalLockArgsReader,
 };
 use gw_utils::{
-    cells::{
-        rollup::{
-            load_rollup_config, parse_rollup_action, search_rollup_cell, search_rollup_state,
-        },
-        token::fetch_token_amount_by_lock_hash,
-        token::TokenType,
-        utils::search_lock_hash,
-    },
+    cells::rollup::MAX_ROLLUP_WITNESS_SIZE,
+    gw_types::{self, core::ScriptHashType},
+};
+use gw_utils::{
+    cells::{token::fetch_token_amount_by_lock_hash, token::TokenType, utils::search_lock_hash},
     ckb_std::high_level::load_cell_lock,
 };
 
@@ -35,36 +36,71 @@ use crate::ckb_std::{
 };
 
 use crate::error::Error;
-use gw_types::{
-    packed::{UnlockWithdrawalWitness, UnlockWithdrawalWitnessReader},
-    prelude::*,
-};
 
 const FINALIZED_BLOCK_NUMBER: u64 = 0;
 const FINALIZED_BLOCK_HASH: [u8; 32] = [0u8; 32];
 
-/// args: rollup_type_hash | withdrawal lock args
-fn parse_lock_args(
-    script: &ckb_types::packed::Script,
-) -> Result<([u8; 32], WithdrawalLockArgs), Error> {
+struct ParsedWithdrawalLockArgs {
+    rollup_type_hash: [u8; 32],
+    lock_args: WithdrawalLockArgs,
+    opt_owner_lock_hash: Option<[u8; 32]>,
+}
+
+/// args: rollup_type_hash | withdrawal lock args | owner lock len (optional) | owner lock (optional)
+fn parse_lock_args(script: &ckb_types::packed::Script) -> Result<ParsedWithdrawalLockArgs, Error> {
     let mut rollup_type_hash = [0u8; 32];
     let args: Bytes = script.args().unpack();
     if args.len() < rollup_type_hash.len() {
         return Err(Error::InvalidArgs);
     }
+
     rollup_type_hash.copy_from_slice(&args[..32]);
-    match WithdrawalLockArgsReader::verify(&args.slice(32..), false) {
-        Ok(()) => Ok((
-            rollup_type_hash,
-            WithdrawalLockArgs::new_unchecked(args.slice(32..)),
-        )),
-        Err(_) => Err(Error::InvalidArgs),
-    }
+    let lock_args_end = 32 + WithdrawalLockArgs::TOTAL_SIZE;
+    let lock_args = match WithdrawalLockArgsReader::verify(&args.slice(32..lock_args_end), false) {
+        Ok(()) => WithdrawalLockArgs::new_unchecked(args.slice(32..lock_args_end)),
+        Err(_) => return Err(Error::InvalidArgs),
+    };
+
+    let owner_lock_start = lock_args_end + 4;
+    let opt_owner_lock_hash = if args.len() > owner_lock_start {
+        let mut owner_lock_len_buf = [0u8; 4];
+        owner_lock_len_buf.copy_from_slice(&args.slice(lock_args_end..owner_lock_start));
+        let owner_lock_len = u32::from_be_bytes(owner_lock_len_buf) as usize;
+        let owner_lock_end = owner_lock_start + owner_lock_len;
+        if owner_lock_end != args.len() {
+            return Err(Error::InvalidArgs);
+        }
+
+        let owner_lock =
+            match ScriptReader::verify(&args.slice(owner_lock_start..owner_lock_end), false) {
+                Ok(()) => Script::new_unchecked(args.slice(owner_lock_start..owner_lock_end)),
+                Err(_) => return Err(Error::InvalidArgs),
+            };
+
+        let args_owner_lock_hash = lock_args.owner_lock_hash().unpack();
+        if owner_lock.hash() != args_owner_lock_hash {
+            return Err(Error::InvalidArgs);
+        }
+
+        Some(args_owner_lock_hash)
+    } else {
+        None
+    };
+
+    Ok(ParsedWithdrawalLockArgs {
+        rollup_type_hash,
+        lock_args,
+        opt_owner_lock_hash,
+    })
 }
 
 pub fn main() -> Result<(), Error> {
     let script = load_script()?;
-    let (rollup_type_hash, lock_args) = parse_lock_args(&script)?;
+    let ParsedWithdrawalLockArgs {
+        rollup_type_hash,
+        lock_args,
+        opt_owner_lock_hash,
+    } = parse_lock_args(&script)?;
 
     // load unlock arguments from witness
     let witness_args = load_witness_args(0, Source::GroupInput)?;
@@ -146,7 +182,7 @@ pub fn main() -> Result<(), Error> {
             }
 
             // check capacity, data_hash, type_hash
-            check_output_cell_has_same_content(custodian_cell_index)?;
+            check_output_cell_has_same_content(0, Source::GroupInput, custodian_cell_index)?;
             Ok(())
         }
         UnlockWithdrawalWitnessUnion::UnlockWithdrawalViaFinalize(_unlock_args) => {
@@ -170,9 +206,39 @@ pub fn main() -> Result<(), Error> {
             }
 
             // withdrawal lock is finalized, unlock for owner
+            if let Some(owner_lock_hash) = opt_owner_lock_hash {
+                // check whether output cell at same index only change lock script
+                let withdrawal_lock_hash = load_cell_lock_hash(0, Source::GroupInput)?;
+
+                let mut invalid_output_found = false;
+                for (index, _) in QueryIter::new(load_cell_lock_hash, Source::Input)
+                    .enumerate()
+                    .filter(|(_idx, lock_hash)| lock_hash == &withdrawal_lock_hash)
+                {
+                    if check_output_cell_has_same_content(index, Source::Input, index).is_err() {
+                        debug!("[via finalize] output cell content not match, fallback to input owner cell");
+                        invalid_output_found = true;
+                        break;
+                    }
+
+                    let maybe_output_lock_hash = load_cell_lock_hash(index, Source::Output);
+                    if maybe_output_lock_hash != Ok(owner_lock_hash) {
+                        debug!("[via finalize] output cell owner lock not match, fallback to input owner cell");
+                        invalid_output_found = true;
+                        break;
+                    }
+                }
+
+                if !invalid_output_found {
+                    return Ok(());
+                }
+            }
+
+            // fallback to input owner cell way
             if search_lock_hash(&lock_args.owner_lock_hash().unpack(), Source::Input).is_none() {
                 return Err(Error::OwnerCellNotFound);
             }
+
             Ok(())
         }
 
@@ -214,7 +280,7 @@ pub fn main() -> Result<(), Error> {
             };
 
             // check new withdraw cell
-            check_output_cell_has_same_content(index)?;
+            check_output_cell_has_same_content(0, Source::GroupInput, index)?;
 
             // check new withdrawal lock
             let output_lock = load_cell_lock(index, Source::Output)?;
@@ -225,7 +291,13 @@ pub fn main() -> Result<(), Error> {
             }
 
             // make sure the output should only change owner_lock_hash and payment_lock_hash fields
-            let (output_rollup_type_hash, output_lock_args) = parse_lock_args(&output_lock)?;
+            // NOTE: parse_lock_args func already make sure that opt_owner_lock_hash match owner_lock_hash in
+            // lock args.
+            let ParsedWithdrawalLockArgs {
+                rollup_type_hash: output_rollup_type_hash,
+                lock_args: output_lock_args,
+                opt_owner_lock_hash: _,
+            } = parse_lock_args(&output_lock)?;
             let expected_output_lock_args = lock_args
                 .as_builder()
                 .owner_lock_hash(output_lock_args.owner_lock_hash())
@@ -245,8 +317,12 @@ pub fn main() -> Result<(), Error> {
     }
 }
 
-fn check_output_cell_has_same_content(output_index: usize) -> Result<(), Error> {
-    if load_cell_capacity(0, Source::GroupInput)?
+fn check_output_cell_has_same_content(
+    input_index: usize,
+    input_source: Source,
+    output_index: usize,
+) -> Result<(), Error> {
+    if load_cell_capacity(input_index, input_source)?
         != load_cell_capacity(output_index, Source::Output)?
     {
         return Err(Error::InvalidOutput);
@@ -255,11 +331,11 @@ fn check_output_cell_has_same_content(output_index: usize) -> Result<(), Error> 
     // TODO: use load_cell_data_hash
     // NOTE: load_cell_data_hash from inputs throw ItemMissing error. Comparing data directly
     // as temporary workaround. Right now data should be sudt amount only, 16 bytes long.
-    if load_cell_data(0, Source::GroupInput)? != load_cell_data(output_index, Source::Output)? {
+    if load_cell_data(input_index, input_source)? != load_cell_data(output_index, Source::Output)? {
         return Err(Error::InvalidOutput);
     }
 
-    if load_cell_type_hash(0, Source::GroupInput)?
+    if load_cell_type_hash(input_index, input_source)?
         != load_cell_type_hash(output_index, Source::Output)?
     {
         return Err(Error::InvalidOutput);
