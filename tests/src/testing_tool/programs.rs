@@ -10,6 +10,7 @@ const WITHDRAWAL_LOCK_PATH: &str = "withdrawal-lock";
 const STATE_VALIDATOR: &str = "state-validator";
 const ALWAYS_SUCCESS_PATH: &str = "always-success";
 const SECP256K1_DATA_PATH: &str = "../c/deps/ckb-production-scripts/build/secp256k1_data";
+const ANYONE_CAN_PAY_LOCK_PATH: &str = "../c/deps/ckb-production-scripts/build/anyone_can_pay";
 const C_SCRIPTS_DIR: &str = "../../godwoken-scripts/c/build";
 const META_CONTRACT_BIN_NAME: &str = "meta-contract-validator";
 // account locks
@@ -107,6 +108,19 @@ lazy_static! {
         let mut buf = [0u8; 32];
         let mut hasher = new_blake2b();
         hasher.update(&SECP256K1_DATA);
+        hasher.finalize(&mut buf);
+        buf
+    };
+    pub static ref ANYONE_CAN_PAY_LOCK_PROGRAM: Bytes = {
+        let mut buf = Vec::new();
+        let mut f = fs::File::open(&ANYONE_CAN_PAY_LOCK_PATH).expect("load acp lock program");
+        f.read_to_end(&mut buf).expect("read acp program");
+        Bytes::from(buf.to_vec())
+    };
+    pub static ref ANYONE_CAN_PAY_LOCK_CODE_HASH: [u8; 32] = {
+        let mut buf = [0u8; 32];
+        let mut hasher = new_blake2b();
+        hasher.update(&ANYONE_CAN_PAY_LOCK_PROGRAM);
         hasher.finalize(&mut buf);
         buf
     };
