@@ -13,8 +13,8 @@ use gw_utils::ckb_std::{
     high_level::{load_cell_lock_hash, QueryIter},
 };
 use gw_utils::gw_types::packed::{
-    CustodianLockArgs, CustodianLockArgsReader, RollupActionUnionReader, Script, ScriptReader,
-    UnlockWithdrawalWitnessUnion, WithdrawalLockArgs, WithdrawalLockArgsReader,
+    CustodianLockArgs, CustodianLockArgsReader, RollupActionUnionReader,
+    UnlockWithdrawalWitnessUnion, WithdrawalLockArgs,
 };
 use gw_utils::{
     cells::rollup::MAX_ROLLUP_WITNESS_SIZE,
@@ -37,14 +37,14 @@ use crate::error::Error;
 const FINALIZED_BLOCK_NUMBER: u64 = 0;
 const FINALIZED_BLOCK_HASH: [u8; 32] = [0u8; 32];
 
-struct ParsedWithdrawalLockArgs {
+struct ParsedLockArgs {
     rollup_type_hash: [u8; 32],
     lock_args: WithdrawalLockArgs,
     opt_owner_lock_hash: Option<[u8; 32]>,
 }
 
 /// args: rollup_type_hash | withdrawal lock args | owner lock len (optional) | owner lock (optional)
-fn parse_lock_args(script: &ckb_types::packed::Script) -> Result<ParsedWithdrawalLockArgs, Error> {
+fn parse_lock_args(script: &ckb_types::packed::Script) -> Result<ParsedLockArgs, Error> {
     let mut rollup_type_hash = [0u8; 32];
     let args: Bytes = script.args().unpack();
     if args.len() < rollup_type_hash.len() {
@@ -52,48 +52,18 @@ fn parse_lock_args(script: &ckb_types::packed::Script) -> Result<ParsedWithdrawa
     }
 
     rollup_type_hash.copy_from_slice(&args[..32]);
-    let lock_args_end = 32 + WithdrawalLockArgs::TOTAL_SIZE;
-    let lock_args = match WithdrawalLockArgsReader::verify(&args.slice(32..lock_args_end), false) {
-        Ok(()) => WithdrawalLockArgs::new_unchecked(args.slice(32..lock_args_end)),
-        Err(_) => return Err(Error::InvalidArgs),
-    };
+    let parsed = gw_utils::withdrawal::parse_lock_args(&args)?;
 
-    let owner_lock_start = lock_args_end + 4;
-    let opt_owner_lock_hash = if args.len() > owner_lock_start {
-        let mut owner_lock_len_buf = [0u8; 4];
-        owner_lock_len_buf.copy_from_slice(&args.slice(lock_args_end..owner_lock_start));
-        let owner_lock_len = u32::from_be_bytes(owner_lock_len_buf) as usize;
-        let owner_lock_end = owner_lock_start + owner_lock_len;
-        if owner_lock_end != args.len() {
-            return Err(Error::InvalidArgs);
-        }
-
-        let owner_lock =
-            match ScriptReader::verify(&args.slice(owner_lock_start..owner_lock_end), false) {
-                Ok(()) => Script::new_unchecked(args.slice(owner_lock_start..owner_lock_end)),
-                Err(_) => return Err(Error::InvalidArgs),
-            };
-
-        let args_owner_lock_hash = lock_args.owner_lock_hash().unpack();
-        if owner_lock.hash() != args_owner_lock_hash {
-            return Err(Error::InvalidArgs);
-        }
-
-        Some(args_owner_lock_hash)
-    } else {
-        None
-    };
-
-    Ok(ParsedWithdrawalLockArgs {
+    Ok(ParsedLockArgs {
         rollup_type_hash,
-        lock_args,
-        opt_owner_lock_hash,
+        lock_args: parsed.lock_args,
+        opt_owner_lock_hash: parsed.opt_owner_lock.map(|l| l.hash()),
     })
 }
 
 pub fn main() -> Result<(), Error> {
     let script = load_script()?;
-    let ParsedWithdrawalLockArgs {
+    let ParsedLockArgs {
         rollup_type_hash,
         lock_args,
         opt_owner_lock_hash,
