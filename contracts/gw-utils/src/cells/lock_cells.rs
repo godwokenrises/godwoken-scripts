@@ -19,10 +19,7 @@ use gw_common::{CKB_SUDT_SCRIPT_ARGS, H256};
 use gw_types::{
     bytes::Bytes,
     core::ScriptHashType,
-    packed::{
-        Byte32, Byte32Reader, DepositLockArgs, RollupConfig, StakeLockArgs, WithdrawalLockArgs,
-        WithdrawalLockArgsReader,
-    },
+    packed::{Byte32, Byte32Reader, DepositLockArgs, RollupConfig, StakeLockArgs},
     prelude::*,
 };
 
@@ -216,13 +213,12 @@ pub fn collect_withdrawal_locks(
             if !is_withdrawal_lock {
                 return None;
             }
-            let raw_args = lock_args[32..].to_vec();
-            let args = match WithdrawalLockArgsReader::verify(&raw_args, false) {
-                Ok(_) => WithdrawalLockArgs::new_unchecked(raw_args.into()),
-                Err(_) => {
-                    return Some(Err(Error::Encoding));
-                }
+
+            let args = match crate::withdrawal::parse_lock_args(&lock_args) {
+                Ok(args) => args.lock_args,
+                Err(_) => return Some(Err(Error::Encoding)),
             };
+
             let value = match fetch_capacity_and_sudt_value(config, index, source) {
                 Ok(value) => value,
                 Err(err) => return Some(Err(err)),
