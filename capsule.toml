@@ -3,6 +3,7 @@ deployment = "deployment.toml"
 [rust]
 workspace_dir = "contracts"
 toolchain = "nightly-2021-08-16"
+docker_image = "thewawar/ckb-capsule:2021-08-16"
 
 [[contracts]]
 name = "state-validator"
