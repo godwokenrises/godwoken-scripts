@@ -208,7 +208,6 @@ fn test_unlock_withdrawal_via_finalize_by_switch_indexed_output_to_owner_lock() 
 
         let mut args = Vec::new();
         args.extend_from_slice(&lock_args.as_bytes());
-        assert!(owner_lock.as_bytes().len() <= u32::MAX as usize);
         args.extend_from_slice(&(owner_lock.as_bytes().len() as u32).to_be_bytes());
         args.extend_from_slice(&owner_lock.as_bytes());
 
@@ -401,7 +400,6 @@ fn test_unlock_withdrawal_via_finalize_fallback_to_input_owner_cell() {
 
         let mut args = Vec::new();
         args.extend_from_slice(&lock_args.as_bytes());
-        assert!(owner_lock.as_bytes().len() <= u32::MAX as usize);
         args.extend_from_slice(&(owner_lock.as_bytes().len() as u32).to_be_bytes());
         args.extend_from_slice(&owner_lock.as_bytes());
 
