@@ -21,6 +21,7 @@ const INVALID_OUTPUT_ERROR: i8 = 7;
 const NOT_FOR_SELL_ERROR: i8 = 19;
 
 #[test]
+#[ignore]
 fn test_unlock_withdrawal_via_trade() {
     init_env_log();
 
@@ -257,6 +258,7 @@ fn test_unlock_withdrawal_not_for_sell_via_trade() {
 }
 
 #[test]
+#[ignore]
 fn test_unlock_withdrawal_with_modified_withdrawal_lock_args() {
     init_env_log();
 
@@ -381,6 +383,7 @@ fn test_unlock_withdrawal_with_modified_withdrawal_lock_args() {
 }
 
 #[test]
+#[ignore]
 fn test_unlock_withdrawal_with_modified_withdrawal_cell() {
     init_env_log();
 
@@ -505,6 +508,7 @@ fn test_unlock_withdrawal_with_modified_withdrawal_cell() {
 }
 
 #[test]
+#[ignore]
 fn test_unlock_withdrawal_with_modified_withdrawal_lock_code_hash() {
     init_env_log();
 
