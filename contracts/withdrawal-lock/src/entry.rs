@@ -17,8 +17,6 @@ use gw_utils::{
         rollup::{
             load_rollup_config, parse_rollup_action, search_rollup_cell, search_rollup_state,
         },
-        token::fetch_token_amount_by_lock_hash,
-        token::TokenType,
         utils::search_lock_hash,
     },
     ckb_std::high_level::load_cell_lock,
@@ -176,71 +174,8 @@ pub fn main() -> Result<(), Error> {
             Ok(())
         }
 
-        UnlockWithdrawalWitnessUnion::UnlockWithdrawalViaTrade(unlock_args) => {
-            // rollup cell does not in this tx, which means this is a buying tx
-            // return success if tx has enough output send to owner
-            // make sure output >= input + sell_amount
-            let payment_lock_hash = lock_args.payment_lock_hash().unpack();
-            let sudt_script_hash: [u8; 32] = lock_args.sudt_script_hash().unpack();
-            let token_type: TokenType = sudt_script_hash.into();
-            let input_token =
-                fetch_token_amount_by_lock_hash(&payment_lock_hash, &token_type, Source::Input)?;
-            let output_token =
-                fetch_token_amount_by_lock_hash(&payment_lock_hash, &token_type, Source::Output)?;
-            let sell_amount: u128 = lock_args.sell_amount().unpack();
-            let sell_capacity: u64 = lock_args.sell_capacity().unpack();
-            // Withdrawal cell is not for sell
-            if sell_amount == 0 && sell_capacity == 0 {
-                return Err(Error::NotForSell);
-            }
-            let expected_output_amount = input_token
-                .total_token_amount
-                .checked_add(sell_amount)
-                .ok_or(Error::AmountOverflow)?;
-            let expected_output_capacity = input_token
-                .total_capacity
-                .checked_add(sell_capacity as u128)
-                .ok_or(Error::AmountOverflow)?;
-            if output_token.total_token_amount < expected_output_amount
-                || output_token.total_capacity < expected_output_capacity
-            {
-                return Err(Error::InsufficientAmount);
-            }
-
-            let new_lock_hash = unlock_args.owner_lock().hash();
-            let index = match search_lock_hash(&new_lock_hash, Source::Output) {
-                Some(i) => i,
-                None => return Err(Error::InvalidOutput),
-            };
-
-            // check new withdraw cell
-            check_output_cell_has_same_content(index)?;
-
-            // check new withdrawal lock
-            let output_lock = load_cell_lock(index, Source::Output)?;
-            if output_lock.code_hash().as_slice() != script.code_hash().as_slice()
-                || output_lock.hash_type() != script.hash_type()
-            {
-                return Err(Error::InvalidOutput);
-            }
-
-            // make sure the output should only change owner_lock_hash and payment_lock_hash fields
-            let (output_rollup_type_hash, output_lock_args) = parse_lock_args(&output_lock)?;
-            let expected_output_lock_args = lock_args
-                .as_builder()
-                .owner_lock_hash(output_lock_args.owner_lock_hash())
-                .payment_lock_hash(output_lock_args.payment_lock_hash())
-                .sudt_script_hash(output_lock_args.sudt_script_hash())
-                .sell_amount(output_lock_args.sell_amount())
-                .sell_capacity(output_lock_args.sell_capacity())
-                .build();
-            if output_rollup_type_hash != rollup_type_hash
-                || output_lock_args.as_slice() != expected_output_lock_args.as_slice()
-            {
-                return Err(Error::InvalidOutput);
-            }
-
-            Ok(())
+        UnlockWithdrawalWitnessUnion::UnlockWithdrawalViaTrade(_unlock_args) => {
+            Err(Error::NotForSell)
         }
     }
 }
