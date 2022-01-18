@@ -86,7 +86,7 @@ int sudt_get_balance(gw_context_t *ctx, const uint32_t sudt_id,
 }
 
 int _sudt_get_total_supply(gw_context_t *ctx, uint32_t sudt_id,
-                           uint128_t *total_supply) {
+                           uint8_t total_supply[32]) {
   int ret;
   uint8_t script_hash[32] = {0};
   ret = ctx->sys_get_script_hash_by_account_id(ctx, sudt_id, script_hash);
@@ -97,17 +97,11 @@ int _sudt_get_total_supply(gw_context_t *ctx, uint32_t sudt_id,
   uint8_t key[32 + 8] = {0};
   uint64_t key_len = 32 + 8;
   _sudt_build_key(SUDT_KEY_FLAG_TOTAL_SUPPLY, script_hash, (uint32_t)32, key);
-  uint8_t value[32] = {0};
-  ret = ctx->sys_load(ctx, sudt_id, key, key_len, value);
-  if (ret != 0) {
-    return ret;
-  }
-  *total_supply = *(uint128_t *)value;
-  return 0;
+  return ctx->sys_load(ctx, sudt_id, key, key_len, total_supply);
 }
 
 int sudt_get_total_supply(gw_context_t *ctx, uint32_t sudt_id,
-                          uint128_t *total_supply) {
+                          uint8_t total_supply[32]) {
   int ret = gw_verify_sudt_account(ctx, sudt_id);
   if (ret != 0) {
     return ret;
