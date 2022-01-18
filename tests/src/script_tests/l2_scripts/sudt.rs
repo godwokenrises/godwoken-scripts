@@ -887,12 +887,12 @@ fn check_balance<S: State + CodeStore>(
         )
         .build();
     let return_data = run_contract(
-        &rollup_config,
+        rollup_config,
         tree,
         sender_id,
         sudt_id,
         args.as_bytes(),
-        &block_info,
+        block_info,
     )
     .expect("execute");
     let balance = {
