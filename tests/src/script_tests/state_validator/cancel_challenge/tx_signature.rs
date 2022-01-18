@@ -1,6 +1,7 @@
 #![allow(clippy::mutable_key_type)]
 
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use crate::script_tests::utils::init_env_log;
 use crate::script_tests::utils::layer1::build_simple_tx_with_out_point;
@@ -20,7 +21,8 @@ use gw_common::merkle_utils::ckb_merkle_leaf_hash;
 use gw_common::{state::to_short_address, state::State, H256};
 use gw_generator::account_lock_manage::always_success::AlwaysSuccess;
 use gw_generator::account_lock_manage::AccountLockManage;
-use gw_store::state::mem_state_db::MemStateContext;
+use gw_store::mem_pool_state::MemPoolState;
+use gw_store::mem_pool_state::MemStore;
 use gw_store::state::state_db::StateContext;
 use gw_traits::CodeStore;
 use gw_types::packed::Byte32;
@@ -36,8 +38,8 @@ use gw_types::{
     },
 };
 
-#[test]
-fn test_cancel_tx_signature() {
+#[tokio::test]
+async fn test_cancel_tx_signature() {
     init_env_log();
     let input_out_point = random_out_point();
     let type_id = calculate_state_validator_type_id(input_out_point.clone());
@@ -73,8 +75,9 @@ fn test_cancel_tx_signature() {
         rollup_type_script.clone(),
         rollup_config.clone(),
         account_lock_manage,
-    );
-    chain.complete_initial_syncing().unwrap();
+    )
+    .await;
+    chain.complete_initial_syncing().await.unwrap();
     // create a rollup cell
     let capacity = 1000_00000000u64;
     let rollup_cell = build_always_success_cell(
@@ -115,8 +118,10 @@ fn test_cancel_tx_signature() {
         ];
         let produce_block_result = {
             let mem_pool = chain.mem_pool().as_ref().unwrap();
-            let mut mem_pool = smol::block_on(mem_pool.lock());
-            construct_block(&chain, &mut mem_pool, deposit_requests.clone()).unwrap()
+            let mut mem_pool = mem_pool.lock().await;
+            construct_block(&chain, &mut mem_pool, deposit_requests.clone())
+                .await
+                .unwrap()
         };
         let rollup_cell = gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes());
         let asset_scripts = HashSet::new();
@@ -126,7 +131,8 @@ fn test_cancel_tx_signature() {
             produce_block_result,
             deposit_requests,
             asset_scripts,
-        );
+        )
+        .await;
         let db = chain.store().begin_transaction();
         let tree = db.state_tree(StateContext::ReadOnly).unwrap();
         let sender_id = tree
@@ -165,9 +171,11 @@ fn test_cancel_tx_signature() {
             .build();
         let produce_block_result = {
             let mem_pool = chain.mem_pool().as_ref().unwrap();
-            let mut mem_pool = smol::block_on(mem_pool.lock());
-            mem_pool.push_transaction(tx).unwrap();
-            construct_block(&chain, &mut mem_pool, Vec::default()).unwrap()
+            let mut mem_pool = mem_pool.lock().await;
+            mem_pool.push_transaction(tx).await.unwrap();
+            construct_block(&chain, &mut mem_pool, Vec::default())
+                .await
+                .unwrap()
         };
         let asset_scripts = HashSet::new();
         apply_block_result(
@@ -176,7 +184,8 @@ fn test_cancel_tx_signature() {
             produce_block_result,
             vec![],
             asset_scripts,
-        );
+        )
+        .await;
         (sender_script, receiver_script, sudt_script)
     };
     // deploy scripts
@@ -245,12 +254,26 @@ fn test_cancel_tx_signature() {
             let tx_proof = super::build_merkle_proof(&leaves, &[challenge_target_index]);
             let challenged_block_number =
                 gw_types::prelude::Unpack::unpack(&challenged_block.raw().number());
+
+            // Detach block to get right state snapshot
             let db = chain.store().begin_transaction();
-            let mut tree = {
-                let smt_store = db.account_smt_store().unwrap();
-                let mem_ctx = MemStateContext::History(challenged_block_number - 1);
-                db.in_mem_state_tree(smt_store, mem_ctx).unwrap()
+            {
+                db.detach_block(&challenged_block).unwrap();
+                {
+                    let mut tree = db
+                        .state_tree(StateContext::DetachBlock(challenged_block_number))
+                        .unwrap();
+                    tree.detach_block_state().unwrap();
+                }
+            }
+            db.commit().unwrap();
+
+            let state = {
+                let mem_store = MemStore::new(chain.store().get_snapshot());
+                MemPoolState::new(Arc::new(mem_store))
             };
+            let snap = state.load();
+            let mut tree = snap.state().unwrap();
             tree.tracker_mut().enable();
             let sender_id = tree
                 .get_account_id_by_script_hash(&sender_script.hash().into())
@@ -266,14 +289,11 @@ fn test_cancel_tx_signature() {
             tree.get_nonce(receiver_id).unwrap();
             tree.get_script_hash(sudt_id).unwrap();
             let account_count = tree.get_account_count().unwrap();
-            let touched_keys: Vec<H256> = tree
-                .tracker_mut()
-                .touched_keys()
-                .unwrap()
-                .borrow()
-                .clone()
-                .into_iter()
-                .collect();
+            let touched_keys: Vec<H256> = {
+                let keys = tree.tracker_mut().touched_keys().unwrap();
+                let unlock = keys.lock().unwrap();
+                unlock.clone().into_iter().collect()
+            };
 
             let kv_state = touched_keys
                 .iter()
@@ -284,13 +304,6 @@ fn test_cancel_tx_signature() {
                 .collect::<Vec<(H256, H256)>>();
 
             let kv_state_proof: Bytes = {
-                db.detach_block(&challenged_block).unwrap();
-                {
-                    let mut tree = db
-                        .state_tree(StateContext::DetachBlock(challenged_block_number))
-                        .unwrap();
-                    tree.detach_block_state().unwrap();
-                }
                 let account_smt = db.account_smt().unwrap();
                 account_smt
                     .merkle_proof(touched_keys)

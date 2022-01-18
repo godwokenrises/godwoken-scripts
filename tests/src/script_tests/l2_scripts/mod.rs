@@ -1,11 +1,10 @@
 use gw_common::blake2b::new_blake2b;
 use gw_common::state::{to_short_address, State};
 use gw_common::H256;
-use gw_config::RPCConfig;
 use gw_generator::constants::L2TX_MAX_CYCLES;
 use gw_generator::{account_lock_manage::AccountLockManage, Generator};
 use gw_generator::{error::TransactionError, traits::StateExt};
-use gw_traits::{ChainStore, CodeStore};
+use gw_traits::{ChainView, CodeStore};
 use gw_types::offchain::RollupContext;
 use gw_types::{
     bytes::Bytes,
@@ -87,7 +86,7 @@ pub fn new_block_info(block_producer_id: u32, number: u64, timestamp: u64) -> Bl
 }
 
 struct DummyChainStore;
-impl ChainStore for DummyChainStore {
+impl ChainView for DummyChainStore {
     fn get_block_hash_by_number(&self, _number: u64) -> Result<Option<H256>, gw_db::error::Error> {
         Err("dummy chain store".to_string().into())
     }
@@ -209,7 +208,7 @@ pub fn run_contract_get_result<S: State + CodeStore>(
         backend_manage,
         account_lock_manage,
         rollup_ctx,
-        Some(RPCConfig::default()),
+        Default::default(),
     );
     let chain_view = DummyChainStore;
     let run_result =
