@@ -21,6 +21,8 @@ use gw_generator::account_lock_manage::{secp256k1::Secp256k1Eth, LockAlgorithm};
 use rand::{thread_rng, Rng};
 use sha3::{Digest, Keccak256};
 
+use std::sync::atomic::Ordering;
+
 const ERROR_WRONG_SIGNATURE: i8 = 43;
 
 fn gen_tx(dummy: &mut DummyDataLoader, lock_args: Bytes, message: Bytes) -> TransactionView {
@@ -40,7 +42,7 @@ fn gen_tx(dummy: &mut DummyDataLoader, lock_args: Bytes, message: Bytes) -> Tran
             rng.fill(&mut buf);
             buf.pack()
         };
-        OutPoint::new(tx_hash.clone(), 0)
+        OutPoint::new(tx_hash, 0)
     };
     // dep contract code
     // eth account lock
@@ -221,8 +223,8 @@ fn test_sign_tron_message() {
             .as_bytes()
             .pack()])
         .build();
-    let hardfork_switch = smol::block_on(async {
-        let switch = &*GLOBAL_HARDFORK_SWITCH.lock().await;
+    let hardfork_switch = {
+        let switch = GLOBAL_HARDFORK_SWITCH.load();
         HardForkSwitch::new_without_any_enabled()
             .as_builder()
             .rfc_0028(switch.rfc_0028())
@@ -234,11 +236,11 @@ fn test_sign_tron_message() {
             .rfc_0038(switch.rfc_0038())
             .build()
             .unwrap()
-    });
+    };
     let consensus = ConsensusBuilder::default()
         .hardfork_switch(hardfork_switch)
         .build();
-    let current_epoch_number = smol::block_on(async { *GLOBAL_CURRENT_EPOCH_NUMBER.lock().await });
+    let current_epoch_number = GLOBAL_CURRENT_EPOCH_NUMBER.load(Ordering::SeqCst);
     let tx_verify_env = TxVerifyEnv::new_submit(
         &HeaderView::new_advanced_builder()
             .epoch(current_epoch_number.pack())
@@ -293,8 +295,8 @@ fn test_submit_signing_tron_message() {
             .as_bytes()
             .pack()])
         .build();
-    let hardfork_switch = smol::block_on(async {
-        let switch = &*GLOBAL_HARDFORK_SWITCH.lock().await;
+    let hardfork_switch = {
+        let switch = GLOBAL_HARDFORK_SWITCH.load();
         HardForkSwitch::new_without_any_enabled()
             .as_builder()
             .rfc_0028(switch.rfc_0028())
@@ -306,11 +308,11 @@ fn test_submit_signing_tron_message() {
             .rfc_0038(switch.rfc_0038())
             .build()
             .unwrap()
-    });
+    };
     let consensus = ConsensusBuilder::default()
         .hardfork_switch(hardfork_switch)
         .build();
-    let current_epoch_number = smol::block_on(async { *GLOBAL_CURRENT_EPOCH_NUMBER.lock().await });
+    let current_epoch_number = GLOBAL_CURRENT_EPOCH_NUMBER.load(Ordering::SeqCst);
     let tx_verify_env = TxVerifyEnv::new_submit(
         &HeaderView::new_advanced_builder()
             .epoch(current_epoch_number.pack())
@@ -359,8 +361,8 @@ fn test_wrong_signature() {
             .as_bytes()
             .pack()])
         .build();
-    let hardfork_switch = smol::block_on(async {
-        let switch = &*GLOBAL_HARDFORK_SWITCH.lock().await;
+    let hardfork_switch = {
+        let switch = GLOBAL_HARDFORK_SWITCH.load();
         HardForkSwitch::new_without_any_enabled()
             .as_builder()
             .rfc_0028(switch.rfc_0028())
@@ -372,11 +374,11 @@ fn test_wrong_signature() {
             .rfc_0038(switch.rfc_0038())
             .build()
             .unwrap()
-    });
+    };
     let consensus = ConsensusBuilder::default()
         .hardfork_switch(hardfork_switch)
         .build();
-    let current_epoch_number = smol::block_on(async { *GLOBAL_CURRENT_EPOCH_NUMBER.lock().await });
+    let current_epoch_number = GLOBAL_CURRENT_EPOCH_NUMBER.load(Ordering::SeqCst);
     let tx_verify_env = TxVerifyEnv::new_submit(
         &HeaderView::new_advanced_builder()
             .epoch(current_epoch_number.pack())

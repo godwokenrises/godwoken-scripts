@@ -20,6 +20,7 @@ use gw_common::{
     sparse_merkle_tree::default_store::DefaultStore, state::State, H256,
 };
 use gw_store::state::state_db::StateContext;
+use gw_store::traits::chain_store::ChainStore;
 use gw_types::{
     bytes::Bytes,
     core::{ChallengeTargetType, ScriptHashType, Status},
@@ -31,8 +32,8 @@ use gw_types::{
 };
 use gw_types::{packed::StakeLockArgs, prelude::*};
 
-#[test]
-fn test_revert() {
+#[tokio::test]
+async fn test_revert() {
     init_env_log();
     let input_out_point = random_out_point();
     let type_id = calculate_state_validator_type_id(input_out_point.clone());
@@ -67,7 +68,7 @@ fn test_revert() {
         .allowed_eoa_type_hashes(vec![*ALWAYS_SUCCESS_CODE_HASH].pack())
         .build();
     // setup chain
-    let mut chain = setup_chain(rollup_type_script.clone(), rollup_config.clone());
+    let mut chain = setup_chain(rollup_type_script.clone(), rollup_config.clone()).await;
     // create a rollup cell
     let capacity = 1000_00000000u64;
     let rollup_cell = build_always_success_cell(
@@ -106,8 +107,10 @@ fn test_revert() {
         ];
         let produce_block_result = {
             let mem_pool = chain.mem_pool().as_ref().unwrap();
-            let mut mem_pool = smol::block_on(mem_pool.lock());
-            construct_block(&chain, &mut mem_pool, deposit_requests.clone()).unwrap()
+            let mut mem_pool = mem_pool.lock().await;
+            construct_block(&chain, &mut mem_pool, deposit_requests.clone())
+                .await
+                .unwrap()
         };
         let rollup_cell = gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes());
         let asset_scripts = HashSet::new();
@@ -117,7 +120,8 @@ fn test_revert() {
             produce_block_result,
             deposit_requests,
             asset_scripts,
-        );
+        )
+        .await;
         let db = chain.store().begin_transaction();
         let tree = db.state_tree(StateContext::ReadOnly).unwrap();
         let sender_id = tree
@@ -147,9 +151,11 @@ fn test_revert() {
                 )
                 .build();
             let mem_pool = chain.mem_pool().as_ref().unwrap();
-            let mut mem_pool = smol::block_on(mem_pool.lock());
-            mem_pool.push_transaction(tx).unwrap();
-            construct_block(&chain, &mut mem_pool, Vec::default()).unwrap()
+            let mut mem_pool = mem_pool.lock().await;
+            mem_pool.push_transaction(tx).await.unwrap();
+            construct_block(&chain, &mut mem_pool, Vec::default())
+                .await
+                .unwrap()
         };
         let prev_block_merkle = chain.local_state().last_global_state().block();
         let asset_scripts = HashSet::new();
@@ -159,7 +165,8 @@ fn test_revert() {
             produce_block_result,
             vec![],
             asset_scripts,
-        );
+        )
+        .await;
         prev_block_merkle
     };
     // deploy scripts

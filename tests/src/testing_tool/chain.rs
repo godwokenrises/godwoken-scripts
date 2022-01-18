@@ -1,9 +1,11 @@
 use crate::testing_tool::programs::ALWAYS_SUCCESS_CODE_HASH;
 use anyhow::Result;
-use gw_block_producer::produce_block::{produce_block, ProduceBlockParam, ProduceBlockResult};
+use gw_block_producer::produce_block::{
+    generate_produce_block_param, produce_block, ProduceBlockParam, ProduceBlockResult,
+};
 use gw_chain::chain::{Chain, L1Action, L1ActionContext, SyncParam};
 use gw_common::H256;
-use gw_config::{BackendConfig, BackendType, ChainConfig, GenesisConfig, MemPoolConfig, RPCConfig};
+use gw_config::{BackendConfig, BackendType, ChainConfig, GenesisConfig, MemPoolConfig, NodeMode};
 use gw_generator::{
     account_lock_manage::{always_success::AlwaysSuccess, AccountLockManage},
     backend_manage::BackendManage,
@@ -11,11 +13,12 @@ use gw_generator::{
     Generator,
 };
 use gw_mem_pool::{
+    async_trait,
     custodian::AvailableCustodians,
-    pool::{MemPool, OutputParam},
+    pool::{MemPool, MemPoolCreateArgs, OutputParam},
     traits::MemPoolProvider,
 };
-use gw_store::Store;
+use gw_store::{traits::chain_store::ChainStore, Store};
 use gw_types::{
     core::ScriptHashType,
     offchain::{CellInfo, CollectedCustodianCells, DepositInfo, RollupContext},
@@ -26,12 +29,12 @@ use gw_types::{
     },
     prelude::*,
 };
-use smol::{lock::Mutex, Task};
 use std::{
     collections::HashSet,
     sync::Arc,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
+use tokio::sync::Mutex;
 
 // meta contract
 pub const META_VALIDATOR_PATH: &str = "../c/build/meta-contract-validator";
@@ -49,41 +52,35 @@ pub struct DummyMemPoolProvider {
     pub available_custodians: AvailableCustodians,
 }
 
+#[async_trait]
 impl MemPoolProvider for DummyMemPoolProvider {
-    fn estimate_next_blocktime(&self) -> Task<Result<Duration>> {
+    async fn estimate_next_blocktime(&self) -> Result<Duration> {
         let fake_blocktime = self.fake_blocktime;
-        smol::spawn(async move { Ok(fake_blocktime) })
+        Ok(fake_blocktime)
     }
-    fn collect_deposit_cells(&self) -> Task<Result<Vec<DepositInfo>>> {
+    async fn collect_deposit_cells(&self) -> Result<Vec<DepositInfo>> {
         let deposit_cells = self.deposit_cells.clone();
-        smol::spawn(async move { Ok(deposit_cells) })
+        Ok(deposit_cells)
     }
-    fn get_cell(
+    async fn get_cell(
         &self,
         _out_point: gw_types::packed::OutPoint,
-    ) -> Task<Result<Option<gw_types::offchain::CellWithStatus>>> {
-        smol::spawn(async { Ok(None) })
+    ) -> Result<Option<gw_types::offchain::CellWithStatus>> {
+        Ok(None)
     }
-    fn query_available_custodians(
+    async fn query_available_custodians(
         &self,
         _withdrawals: Vec<WithdrawalRequest>,
         _last_finalized_block_number: u64,
         _rollup_context: RollupContext,
-    ) -> Task<Result<CollectedCustodianCells>> {
+    ) -> Result<CollectedCustodianCells> {
         let available_custodians = self.available_custodians.clone();
         let collected_custodian_cells = CollectedCustodianCells {
             cells_info: Vec::default(),
             capacity: available_custodians.capacity,
             sudt: available_custodians.sudt,
         };
-        smol::spawn(async move { Ok(collected_custodian_cells) })
-    }
-    fn query_mergeable_custodians(
-        &self,
-        collected_custodians: CollectedCustodianCells,
-        _last_finalized_block_number: u64,
-    ) -> Task<Result<CollectedCustodianCells>> {
-        smol::spawn(async move { Ok(collected_custodians) })
+        Ok(collected_custodian_cells)
     }
 }
 
@@ -107,22 +104,21 @@ pub fn build_backend_manage(rollup_config: &RollupConfig) -> BackendManage {
     BackendManage::from_config(configs).expect("default backend")
 }
 
-pub fn setup_chain(rollup_type_script: Script, rollup_config: RollupConfig) -> Chain {
+pub async fn setup_chain(rollup_type_script: Script, rollup_config: RollupConfig) -> Chain {
     let mut account_lock_manage = AccountLockManage::default();
-    account_lock_manage.register_lock_algorithm(
-        ALWAYS_SUCCESS_CODE_HASH.clone().into(),
-        Box::new(AlwaysSuccess),
-    );
+    account_lock_manage
+        .register_lock_algorithm((*ALWAYS_SUCCESS_CODE_HASH).into(), Box::new(AlwaysSuccess));
     let mut chain = setup_chain_with_account_lock_manage(
         rollup_type_script,
         rollup_config,
         account_lock_manage,
-    );
-    chain.complete_initial_syncing().unwrap();
+    )
+    .await;
+    chain.complete_initial_syncing().await.unwrap();
     chain
 }
 
-pub fn setup_chain_with_account_lock_manage(
+pub async fn setup_chain_with_account_lock_manage(
     rollup_type_script: Script,
     rollup_config: RollupConfig,
     account_lock_manage: AccountLockManage,
@@ -146,7 +142,6 @@ pub fn setup_chain_with_account_lock_manage(
         backend_manage,
         account_lock_manage,
         rollup_context,
-        Some(RPCConfig::default()),
     ));
     init_genesis(
         &store,
@@ -160,15 +155,18 @@ pub fn setup_chain_with_account_lock_manage(
         restore_path: tempfile::TempDir::new().unwrap().path().to_path_buf(),
         ..Default::default()
     };
-    let mem_pool = MemPool::create(
-        0,
-        store.clone(),
-        Arc::clone(&generator),
+    let args = MemPoolCreateArgs {
+        block_producer_id: 0,
+        store: store.clone(),
+        generator: Arc::clone(&generator),
         provider,
-        None,
-        mem_pool_config,
-    )
-    .unwrap();
+        error_tx_handler: None,
+        error_tx_receipt_notifier: None,
+        config: mem_pool_config,
+        node_mode: NodeMode::FullNode,
+        dynamic_config_manager: Default::default(),
+    };
+    let mem_pool = MemPool::create(args).await.unwrap();
     Chain::create(
         &rollup_config,
         &rollup_type_script,
@@ -187,6 +185,7 @@ pub fn build_sync_tx(
     let ProduceBlockResult {
         block,
         global_state,
+        withdrawal_extras: _,
     } = produce_block_result;
     let action = RollupAction::new_builder()
         .set(RollupActionUnion::RollupSubmitBlock(
@@ -206,7 +205,7 @@ pub fn build_sync_tx(
         .build()
 }
 
-pub fn apply_block_result(
+pub async fn apply_block_result(
     chain: &mut Chain,
     rollup_cell: CellOutput,
     block_result: ProduceBlockResult,
@@ -229,11 +228,11 @@ pub fn apply_block_result(
         updates: vec![update],
         reverts: Default::default(),
     };
-    chain.sync(param).unwrap();
+    chain.sync(param).await.unwrap();
     assert!(chain.last_sync_event().is_success());
 }
 
-pub fn construct_block(
+pub async fn construct_block(
     chain: &Chain,
     mem_pool: &mut MemPool,
     deposit_requests: Vec<DepositRequest>,
@@ -243,10 +242,10 @@ pub fn construct_block(
         .expect("timestamp")
         .as_millis() as u64;
 
-    construct_block_from_timestamp(chain, mem_pool, deposit_requests, timestamp)
+    construct_block_from_timestamp(chain, mem_pool, deposit_requests, timestamp).await
 }
 
-pub fn construct_block_from_timestamp(
+pub async fn construct_block_from_timestamp(
     chain: &Chain,
     mem_pool: &mut MemPool,
     deposit_requests: Vec<DepositRequest>,
@@ -319,10 +318,11 @@ pub fn construct_block_from_timestamp(
     };
     mem_pool.set_provider(Box::new(provider));
     // refresh mem block
-    mem_pool.reset_mem_block()?;
+    mem_pool.reset_mem_block().await?;
 
+    let (mem_block, post_block_state) = mem_pool.output_mem_block(&OutputParam::default());
     let (_collected_custodian, block_param) =
-        mem_pool.output_mem_block(&OutputParam::default()).unwrap();
+        generate_produce_block_param(chain.store(), mem_block, post_block_state).unwrap();
     let param = ProduceBlockParam {
         stake_cell_owner_lock_hash,
         rollup_config_hash,

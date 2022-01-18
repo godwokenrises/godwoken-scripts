@@ -26,12 +26,12 @@ pub struct DummyDataLoader {
 impl CellDataProvider for DummyDataLoader {
     fn get_cell_data_hash(&self, out_point: &OutPoint) -> Option<Byte32> {
         self.cells
-            .get(&out_point)
-            .map(|(_, data)| CellOutput::calc_data_hash(&data))
+            .get(out_point)
+            .map(|(_, data)| CellOutput::calc_data_hash(data))
     }
 
     fn get_cell_data(&self, out_point: &OutPoint) -> Option<Bytes> {
-        self.cells.get(&out_point).map(|(_, data)| data.clone())
+        self.cells.get(out_point).map(|(_, data)| data.clone())
     }
 }
 
