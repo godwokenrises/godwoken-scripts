@@ -6,7 +6,7 @@ use super::{
     SUM_PROGRAM, SUM_PROGRAM_CODE_HASH,
 };
 use gw_common::{h256_ext::H256Ext, H256};
-use gw_config::{BackendType, RPCConfig};
+use gw_config::BackendType;
 use gw_generator::{
     account_lock_manage::{always_success::AlwaysSuccess, secp256k1::Secp256k1, AccountLockManage},
     backend_manage::Backend,
@@ -64,7 +64,7 @@ fn test_example_sum() {
             backend_manage,
             account_lock_manage,
             rollup_context,
-            Some(RPCConfig::default()),
+            Default::default(),
         );
         let mut sum_value = init_value;
         for (number, add_value) in &[(1u64, 7u64), (2u64, 16u64)] {
@@ -185,7 +185,7 @@ fn test_example_account_operation() {
         backend_manage,
         account_lock_manage,
         rollup_context,
-        Some(RPCConfig::default()),
+        Default::default(),
     );
     let block_info = new_block_info(0, 2, 0);
 
@@ -388,7 +388,7 @@ fn test_example_recover_account() {
         backend_manage,
         account_lock_manage,
         rollup_context,
-        Some(RPCConfig::default()),
+        Default::default(),
     );
     let block_info = new_block_info(0, 2, 0);
 
