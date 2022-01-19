@@ -76,7 +76,7 @@ void gw_build_data_hash_key(uint8_t data_hash[GW_KEY_BYTES],
 }
 
 int gw_build_short_script_hash_to_script_hash_key(
-    uint8_t *short_script_hash, uint32_t short_script_hash_len,
+    const uint8_t *short_script_hash, uint32_t short_script_hash_len,
     uint8_t raw_key[GW_KEY_BYTES]) {
   if (short_script_hash_len > 32 || short_script_hash == NULL) {
     return GW_FATAL_INVALID_DATA;
@@ -267,7 +267,7 @@ int _check_data_hash_exist(gw_context_t *ctx, uint8_t data_hash[32],
 }
 
 int _load_script_hash_by_short_script_hash(gw_context_t *ctx,
-                                           uint8_t *short_script_hash,
+                                           const uint8_t *short_script_hash,
                                            uint32_t short_script_hash_len,
                                            uint8_t script_hash[32]) {
   if (ctx == NULL) {
