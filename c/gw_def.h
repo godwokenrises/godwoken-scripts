@@ -204,7 +204,7 @@ typedef int (*gw_get_block_hash_fn)(struct gw_context_t *ctx, uint64_t number,
  * @return            The status code, 0 is success
  */
 typedef int (*gw_get_script_hash_by_prefix_fn)(struct gw_context_t *ctx,
-                                               uint8_t *prefix,
+                                               const uint8_t *prefix,
                                                uint64_t prefix_len,
                                                uint8_t script_hash[32]);
 /**

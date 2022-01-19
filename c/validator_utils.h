@@ -452,7 +452,7 @@ int sys_get_block_hash(gw_context_t *ctx, uint64_t number,
   return 0;
 }
 
-int sys_get_script_hash_by_prefix(gw_context_t *ctx, uint8_t *prefix,
+int sys_get_script_hash_by_prefix(gw_context_t *ctx, const uint8_t *prefix,
                                   uint64_t prefix_len,
                                   uint8_t script_hash[32]) {
   if (ctx == NULL) {
