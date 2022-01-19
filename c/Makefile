@@ -16,8 +16,8 @@ PROTOCOL_SCHEMA_URL := https://raw.githubusercontent.com/nervosnetwork/godwoken/
 # docker pull nervos/ckb-riscv-gnu-toolchain:gnu-bionic-20191012
 BUILDER_DOCKER := nervos/ckb-riscv-gnu-toolchain@sha256:aae8a3f79705f67d505d1f1d5ddc694a4fd537ed1c7e9622420a470d59ba2ec3
 
-GENERATORS := build/meta-contract-generator build/sudt-generator build/examples/sum-generator build/examples/account-operation-generator build/examples/recover-account-generator
-VALIDATORS := build/meta-contract-validator build/sudt-validator build/examples/sum-validator build/examples/account-operation-validator build/examples/recover-account-validator
+GENERATORS := build/meta-contract-generator build/sudt-generator build/examples/sum-generator build/examples/account-operation-generator build/examples/recover-account-generator build/examples/sudt-total-supply-generator
+VALIDATORS := build/meta-contract-validator build/sudt-validator build/examples/sum-validator build/examples/account-operation-validator build/examples/recover-account-validator build/examples/sudt-total-supply-validator
 SECP256K1_HELPER := deps/ckb-production-scripts/build/secp256k1_data_info.h
 
 BINS := $(GENERATORS) $(VALIDATORS)
@@ -97,6 +97,16 @@ build/examples/recover-account-generator: examples/recover_account.c gw_def.h ge
 	$(OBJCOPY) --strip-debug --strip-all $@
 
 build/examples/recover-account-validator: examples/recover_account.c gw_def.h validator_utils.h
+	$(CC) $(CFLAGS) $(VALIDATOR_FLAGS) $(LDFLAGS) -o $@ $<
+	$(OBJCOPY) --only-keep-debug $@ $@.debug
+	$(OBJCOPY) --strip-debug --strip-all $@
+
+build/examples/sudt-total-supply-generator: examples/sudt_total_supply.c gw_def.h generator_utils.h
+	$(CC) $(CFLAGS) $(GENERATOR_FLAGS) $(LDFLAGS) -o $@ $<
+	$(OBJCOPY) --only-keep-debug $@ $@.debug
+	$(OBJCOPY) --strip-debug --strip-all $@
+
+build/examples/sudt-total-supply-validator: examples/sudt_total_supply.c gw_def.h validator_utils.h
 	$(CC) $(CFLAGS) $(VALIDATOR_FLAGS) $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
