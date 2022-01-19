@@ -60,12 +60,7 @@ fn test_example_sum() {
             rollup_config: Default::default(),
             rollup_script_hash: [42u8; 32].into(),
         };
-        let generator = Generator::new(
-            backend_manage,
-            account_lock_manage,
-            rollup_context,
-            Default::default(),
-        );
+        let generator = Generator::new(backend_manage, account_lock_manage, rollup_context);
         let mut sum_value = init_value;
         for (number, add_value) in &[(1u64, 7u64), (2u64, 16u64)] {
             let block_info = new_block_info(0, *number, 0);
@@ -75,7 +70,14 @@ fn test_example_sum() {
                 .args(Bytes::from(add_value.to_le_bytes().to_vec()).pack())
                 .build();
             let run_result = generator
-                .execute_transaction(&chain_view, &tree, &block_info, &raw_tx, L2TX_MAX_CYCLES)
+                .execute_transaction(
+                    &chain_view,
+                    &tree,
+                    &block_info,
+                    &raw_tx,
+                    L2TX_MAX_CYCLES,
+                    None,
+                )
                 .expect("construct");
             let return_value = {
                 let mut buf = [0u8; 8];
@@ -181,12 +183,7 @@ fn test_example_account_operation() {
         rollup_config: Default::default(),
         rollup_script_hash: [42u8; 32].into(),
     };
-    let generator = Generator::new(
-        backend_manage,
-        account_lock_manage,
-        rollup_context,
-        Default::default(),
-    );
+    let generator = Generator::new(backend_manage, account_lock_manage, rollup_context);
     let block_info = new_block_info(0, 2, 0);
 
     // Load: success
@@ -201,7 +198,14 @@ fn test_example_account_operation() {
             .args(Bytes::from(args.to_vec()).pack())
             .build();
         let run_result = generator
-            .execute_transaction(&chain_view, &tree, &block_info, &raw_tx, L2TX_MAX_CYCLES)
+            .execute_transaction(
+                &chain_view,
+                &tree,
+                &block_info,
+                &raw_tx,
+                L2TX_MAX_CYCLES,
+                None,
+            )
             .expect("result");
         assert_eq!(run_result.return_data, vec![0u8; 32]);
     }
@@ -217,7 +221,14 @@ fn test_example_account_operation() {
             .args(Bytes::from(args.to_vec()).pack())
             .build();
         let err = generator
-            .execute_transaction(&chain_view, &tree, &block_info, &raw_tx, L2TX_MAX_CYCLES)
+            .execute_transaction(
+                &chain_view,
+                &tree,
+                &block_info,
+                &raw_tx,
+                L2TX_MAX_CYCLES,
+                None,
+            )
             .expect_err("err");
         let err_code = match err {
             TransactionError::InvalidExitCode(code) => code,
@@ -239,7 +250,14 @@ fn test_example_account_operation() {
             .args(Bytes::from(args.to_vec()).pack())
             .build();
         let run_result = generator
-            .execute_transaction(&chain_view, &tree, &block_info, &raw_tx, L2TX_MAX_CYCLES)
+            .execute_transaction(
+                &chain_view,
+                &tree,
+                &block_info,
+                &raw_tx,
+                L2TX_MAX_CYCLES,
+                None,
+            )
             .expect("result");
         assert_eq!(run_result.return_data, Vec::<u8>::new());
     }
@@ -256,7 +274,14 @@ fn test_example_account_operation() {
             .args(Bytes::from(args.to_vec()).pack())
             .build();
         let err = generator
-            .execute_transaction(&chain_view, &tree, &block_info, &raw_tx, L2TX_MAX_CYCLES)
+            .execute_transaction(
+                &chain_view,
+                &tree,
+                &block_info,
+                &raw_tx,
+                L2TX_MAX_CYCLES,
+                None,
+            )
             .expect_err("err");
         let err_code = match err {
             TransactionError::InvalidExitCode(code) => code,
@@ -274,7 +299,14 @@ fn test_example_account_operation() {
             .args(Bytes::from(args.to_vec()).pack())
             .build();
         let run_result = generator
-            .execute_transaction(&chain_view, &tree, &block_info, &raw_tx, L2TX_MAX_CYCLES)
+            .execute_transaction(
+                &chain_view,
+                &tree,
+                &block_info,
+                &raw_tx,
+                L2TX_MAX_CYCLES,
+                None,
+            )
             .expect("result");
         assert_eq!(run_result.return_data, 0u32.to_le_bytes().to_vec());
     }
@@ -287,7 +319,14 @@ fn test_example_account_operation() {
             .args(Bytes::from(args.to_vec()).pack())
             .build();
         let err = generator
-            .execute_transaction(&chain_view, &tree, &block_info, &raw_tx, L2TX_MAX_CYCLES)
+            .execute_transaction(
+                &chain_view,
+                &tree,
+                &block_info,
+                &raw_tx,
+                L2TX_MAX_CYCLES,
+                None,
+            )
             .expect_err("err");
         let err_code = match err {
             TransactionError::InvalidExitCode(code) => code,
@@ -318,7 +357,14 @@ fn test_example_account_operation() {
             .args(Bytes::from(args.to_vec()).pack())
             .build();
         let run_result = generator
-            .execute_transaction(&chain_view, &tree, &block_info, &raw_tx, L2TX_MAX_CYCLES)
+            .execute_transaction(
+                &chain_view,
+                &tree,
+                &block_info,
+                &raw_tx,
+                L2TX_MAX_CYCLES,
+                None,
+            )
             .expect("result");
         let log = SudtLog::from_log_item(&run_result.logs[0]).unwrap();
         assert_eq!(log.sudt_id, account_id);
@@ -341,7 +387,14 @@ fn test_example_account_operation() {
             .args(Bytes::from(args.to_vec()).pack())
             .build();
         let err = generator
-            .execute_transaction(&chain_view, &tree, &block_info, &raw_tx, L2TX_MAX_CYCLES)
+            .execute_transaction(
+                &chain_view,
+                &tree,
+                &block_info,
+                &raw_tx,
+                L2TX_MAX_CYCLES,
+                None,
+            )
             .expect_err("err");
         let err_code = match err {
             TransactionError::InvalidExitCode(code) => code,
@@ -384,12 +437,7 @@ fn test_example_recover_account() {
         rollup_config: Default::default(),
         rollup_script_hash,
     };
-    let generator = Generator::new(
-        backend_manage,
-        account_lock_manage,
-        rollup_context,
-        Default::default(),
-    );
+    let generator = Generator::new(backend_manage, account_lock_manage, rollup_context);
     let block_info = new_block_info(0, 2, 0);
 
     let lock_args_hex = "404f90829ec0e5821aeba9bce7d5e841ce9f7fa5";
@@ -409,7 +457,14 @@ fn test_example_recover_account() {
             .args(Bytes::from(args).pack())
             .build();
         let run_result = generator
-            .execute_transaction(&chain_view, &tree, &block_info, &raw_tx, L2TX_MAX_CYCLES)
+            .execute_transaction(
+                &chain_view,
+                &tree,
+                &block_info,
+                &raw_tx,
+                L2TX_MAX_CYCLES,
+                None,
+            )
             .expect("result");
         let mut script_args = vec![0u8; 32 + 20];
         script_args[0..32].copy_from_slice(rollup_script_hash.as_slice());
@@ -436,7 +491,14 @@ fn test_example_recover_account() {
             .args(Bytes::from(args).pack())
             .build();
         let err = generator
-            .execute_transaction(&chain_view, &tree, &block_info, &raw_tx, L2TX_MAX_CYCLES)
+            .execute_transaction(
+                &chain_view,
+                &tree,
+                &block_info,
+                &raw_tx,
+                L2TX_MAX_CYCLES,
+                None,
+            )
             .expect_err("err");
         let err_code = match err {
             TransactionError::InvalidExitCode(code) => code,
@@ -460,7 +522,14 @@ fn test_example_recover_account() {
             .args(Bytes::from(args).pack())
             .build();
         let err = generator
-            .execute_transaction(&chain_view, &tree, &block_info, &raw_tx, L2TX_MAX_CYCLES)
+            .execute_transaction(
+                &chain_view,
+                &tree,
+                &block_info,
+                &raw_tx,
+                L2TX_MAX_CYCLES,
+                None,
+            )
             .expect_err("err");
         let err_code = match err {
             TransactionError::InvalidExitCode(code) => code,

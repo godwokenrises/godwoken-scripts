@@ -142,7 +142,6 @@ pub async fn setup_chain_with_account_lock_manage(
         backend_manage,
         account_lock_manage,
         rollup_context,
-        Default::default(),
     ));
     init_genesis(
         &store,
@@ -165,6 +164,7 @@ pub async fn setup_chain_with_account_lock_manage(
         error_tx_receipt_notifier: None,
         config: mem_pool_config,
         node_mode: NodeMode::FullNode,
+        dynamic_config_manager: Default::default(),
     };
     let mem_pool = MemPool::create(args).await.unwrap();
     Chain::create(
