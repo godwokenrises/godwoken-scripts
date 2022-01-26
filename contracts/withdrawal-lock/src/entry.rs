@@ -40,7 +40,7 @@ const FINALIZED_BLOCK_HASH: [u8; 32] = [0u8; 32];
 struct ParsedLockArgs {
     rollup_type_hash: [u8; 32],
     lock_args: WithdrawalLockArgs,
-    opt_owner_lock_hash: Option<[u8; 32]>,
+    owner_lock_hash: [u8; 32],
 }
 
 /// args: rollup_type_hash | withdrawal lock args | owner lock len (optional) | owner lock (optional)
@@ -57,7 +57,7 @@ fn parse_lock_args(script: &ckb_types::packed::Script) -> Result<ParsedLockArgs,
     Ok(ParsedLockArgs {
         rollup_type_hash,
         lock_args: parsed.lock_args,
-        opt_owner_lock_hash: parsed.opt_owner_lock.map(|l| l.hash()),
+        owner_lock_hash: parsed.owner_lock.hash(),
     })
 }
 
@@ -66,7 +66,7 @@ pub fn main() -> Result<(), Error> {
     let ParsedLockArgs {
         rollup_type_hash,
         lock_args,
-        opt_owner_lock_hash,
+        owner_lock_hash,
     } = parse_lock_args(&script)?;
 
     // load unlock arguments from witness
@@ -173,7 +173,7 @@ pub fn main() -> Result<(), Error> {
             }
 
             // withdrawal lock is finalized, unlock for owner
-            if let Some(owner_lock_hash) = opt_owner_lock_hash {
+            {
                 // check whether output cell at same index only change lock script
                 let withdrawal_lock_hash = load_cell_lock_hash(0, Source::GroupInput)?;
 
@@ -210,6 +210,7 @@ pub fn main() -> Result<(), Error> {
         }
 
         UnlockWithdrawalWitnessUnion::UnlockWithdrawalViaTrade(_unlock_args) => {
+            // This feature is disabled for now
             Err(Error::NotForSell)
         }
     }

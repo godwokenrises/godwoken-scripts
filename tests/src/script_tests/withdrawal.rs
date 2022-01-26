@@ -92,12 +92,16 @@ fn test_unlock_withdrawal_via_finalize_by_input_owner_cell() {
             .owner_lock_hash(owner_lock.hash().pack())
             .payment_lock_hash(owner_lock.hash().pack())
             .build();
+        let mut args = Vec::new();
+        args.extend_from_slice(&lock_args.as_bytes());
+        args.extend_from_slice(&(owner_lock.as_bytes().len() as u32).to_be_bytes());
+        args.extend_from_slice(&owner_lock.as_bytes());
 
         let output = build_rollup_locked_cell(
             &rollup_type_hash,
             &script_ctx.withdrawal.script.hash(),
             DEFAULT_CAPACITY,
-            lock_args.as_bytes(),
+            args.into(),
         );
 
         (output, 0u128.pack().as_bytes())
@@ -407,7 +411,7 @@ fn test_unlock_withdrawal_via_finalize_fallback_to_input_owner_cell() {
             &rollup_type_hash,
             &script_ctx.withdrawal.script.hash(),
             DEFAULT_CAPACITY,
-            lock_args.as_bytes(),
+            args.into(),
         );
 
         (output, 0u128.pack().as_bytes())

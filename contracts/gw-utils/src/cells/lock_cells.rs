@@ -60,7 +60,10 @@ fn extract_args_from_lock<ArgsType: Entity>(
 
     // parse the remaining lock_args
     let raw_args = lock_args[32..].to_vec();
-    Some(ArgsType::from_slice(&raw_args).map_err(|_err| Error::Encoding))
+    Some(ArgsType::from_slice(&raw_args).map_err(|_err| {
+        debug!("Fail to extract args, lock args parsing err");
+        Error::Encoding
+    }))
 }
 
 /// fetch capacity and SUDT value of a cell
@@ -213,10 +216,12 @@ pub fn collect_withdrawal_locks(
             if !is_withdrawal_lock {
                 return None;
             }
-
             let args = match crate::withdrawal::parse_lock_args(&lock_args) {
-                Ok(args) => args.lock_args,
-                Err(_) => return Some(Err(Error::Encoding)),
+                Ok(r) => r.lock_args,
+                Err(_) => {
+                    debug!("Fail to parsing withdrawal lock args");
+                    return Some(Err(Error::Encoding));
+                }
             };
 
             let value = match fetch_capacity_and_sudt_value(config, index, source) {
