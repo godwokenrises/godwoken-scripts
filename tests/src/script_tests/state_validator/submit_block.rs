@@ -22,6 +22,7 @@ use ckb_types::{
 use gw_chain::chain::{L1Action, L1ActionContext, SyncParam};
 use gw_types::packed::{
     DepositRequest, L2BlockCommittedInfo, RawWithdrawalRequest, WithdrawalRequest,
+    WithdrawalRequestExtra,
 };
 use gw_types::prelude::{Pack as GWPack, Unpack as GWUnpack, *};
 use gw_types::{
@@ -956,15 +957,21 @@ async fn test_check_reverted_cells_in_submit_block() {
     // build reverted withdrawal cell
     let reverted_withdrawal_capacity: u64 = 130_00000000u64;
     let input_reverted_withdrawal_cell = {
-        let args = WithdrawalLockArgs::new_builder()
+        let owner_lock = Script::default();
+        let lock_args = WithdrawalLockArgs::new_builder()
             .withdrawal_block_hash(Pack::pack(&revert_block_hash))
             .withdrawal_block_number(Pack::pack(&revert_block_number))
+            .owner_lock_hash(Pack::pack(&owner_lock.hash()))
             .build();
+        let mut args = Vec::new();
+        args.extend_from_slice(&lock_args.as_bytes());
+        args.extend_from_slice(&(owner_lock.as_bytes().len() as u32).to_be_bytes());
+        args.extend_from_slice(&owner_lock.as_bytes());
         let cell = build_rollup_locked_cell(
             &rollup_type_script.hash(),
             &withdrawal_script_type_hash,
             reverted_withdrawal_capacity,
-            args.as_bytes(),
+            args.into(),
         );
         let out_point = ctx.insert_cell(cell, Bytes::new());
         CellInput::new_builder().previous_output(out_point).build()
@@ -1157,6 +1164,7 @@ async fn test_withdrawal_cell_lock_args_with_owner_lock_in_submit_block() {
             l2block: block_result.block.clone(),
             deposit_requests: vec![deposit],
             deposit_asset_scripts: Default::default(),
+            withdrawals: Default::default(),
         },
         transaction: build_sync_tx(
             gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes()),
@@ -1174,23 +1182,24 @@ async fn test_withdrawal_cell_lock_args_with_owner_lock_in_submit_block() {
     assert!(chain.last_sync_event().is_success());
 
     // Withdraw
-    let withdrawal_request = {
+    let withdrawal = {
         let raw = RawWithdrawalRequest::new_builder()
             .capacity(Pack::pack(&deposit_capacity))
             .account_script_hash(Pack::pack(&account_script.hash()))
             .owner_lock_hash(Pack::pack(&account_script.hash()))
             .build();
-        WithdrawalRequest::new_builder().raw(raw).build()
+        let request = WithdrawalRequest::new_builder().raw(raw).build();
+        WithdrawalRequestExtra::new_builder()
+            .request(request)
+            .owner_lock(account_script.clone())
+            .build()
     };
 
     // submit a new block
     let block_result = {
         let mem_pool = chain.mem_pool().as_ref().unwrap();
         let mut mem_pool = mem_pool.lock().await;
-        mem_pool
-            .push_withdrawal_request(withdrawal_request.into())
-            .await
-            .unwrap();
+        mem_pool.push_withdrawal_request(withdrawal).await.unwrap();
         mem_pool.reset_mem_block().await.unwrap();
         construct_block(&chain, &mut mem_pool, Vec::default())
             .await

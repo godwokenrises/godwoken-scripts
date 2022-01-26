@@ -20,6 +20,7 @@ use ckb_types::{
 };
 use gw_common::H256;
 use gw_generator::account_lock_manage::{always_success::AlwaysSuccess, AccountLockManage};
+use gw_types::packed::WithdrawalRequestExtra;
 use gw_types::prelude::*;
 use gw_types::{
     bytes::Bytes,
@@ -119,17 +120,26 @@ async fn test_cancel_withdrawal() {
             asset_scripts,
         )
         .await;
-        let withdrawal_capacity = 300_00000000u64;
-        let withdrawal = WithdrawalRequest::new_builder()
-            .raw(
-                RawWithdrawalRequest::new_builder()
-                    .nonce(Pack::pack(&0u32))
-                    .capacity(Pack::pack(&withdrawal_capacity))
-                    .account_script_hash(Pack::pack(&sender_script.hash()))
-                    .sell_capacity(Pack::pack(&withdrawal_capacity))
-                    .build(),
-            )
-            .build();
+        let withdrawal_capacity = 400_00000000u64;
+        let withdrawal = {
+            let owner_lock = Script::default();
+            WithdrawalRequestExtra::new_builder()
+                .request(
+                    WithdrawalRequest::new_builder()
+                        .raw(
+                            RawWithdrawalRequest::new_builder()
+                                .nonce(Pack::pack(&0u32))
+                                .capacity(Pack::pack(&withdrawal_capacity))
+                                .account_script_hash(Pack::pack(&sender_script.hash()))
+                                .sell_capacity(Pack::pack(&withdrawal_capacity))
+                                .owner_lock_hash(Pack::pack(&owner_lock.hash()))
+                                .build(),
+                        )
+                        .build(),
+                )
+                .owner_lock(owner_lock)
+                .build()
+        };
         let produce_block_result = {
             let mem_pool = chain.mem_pool().as_ref().unwrap();
             let mut mem_pool = mem_pool.lock().await;

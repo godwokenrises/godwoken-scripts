@@ -40,7 +40,10 @@ pub fn parse_global_state(source: Source) -> Result<GlobalState, Error> {
             let global_state_v0 = GlobalStateV0::new_unchecked(data.into());
             Ok(GlobalState::from(global_state_v0))
         }
-        Err(_) => Err(Error::Encoding),
+        Err(_) => {
+            debug!("Fail to parsing global state");
+            Err(Error::Encoding)
+        }
     }
 }
 
