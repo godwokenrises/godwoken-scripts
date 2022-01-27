@@ -102,7 +102,11 @@ pub fn main() -> Result<(), Error> {
         }
         ChallengeTargetType::Withdrawal => {
             debug!("[challenge-lock] target: withdrawal");
-            crate::verifications::withdrawal::verify_withdrawal(&rollup_script_hash, &lock_args)?;
+            crate::verifications::withdrawal::verify_withdrawal(
+                &rollup_script_hash,
+                &rollup_config,
+                &lock_args,
+            )?;
         }
     }
 

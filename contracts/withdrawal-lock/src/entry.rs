@@ -208,11 +208,6 @@ pub fn main() -> Result<(), Error> {
 
             Ok(())
         }
-
-        UnlockWithdrawalWitnessUnion::UnlockWithdrawalViaTrade(_unlock_args) => {
-            // This feature is disabled for now
-            Err(Error::NotForSell)
-        }
     }
 }
 

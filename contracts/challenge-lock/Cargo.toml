@@ -8,3 +8,5 @@ edition = "2018"
 [dependencies]
 gw-utils = { path = "../gw-utils" }
 gw-state = { path = "../gw-state" }
+sha3 = { version = "0.10", default-features = false }
+ethabi = { version = "16", default-features = false }

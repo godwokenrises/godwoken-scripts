@@ -25,7 +25,6 @@ pub enum Error {
     InsufficientAmount,
     InsufficientInputFinalizedAssets,
     InsufficientOutputFinalizedAssets,
-    NotForSell,
     SMTKeyMissing,
     InvalidStateCheckpoint,
     InvalidBlock,
