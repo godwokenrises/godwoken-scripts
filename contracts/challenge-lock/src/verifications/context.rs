@@ -6,7 +6,7 @@ use gw_types::{
     packed::{ChallengeTarget, L2Transaction, RawL2Block, RollupConfig, ScriptVec},
     prelude::*,
 };
-use gw_utils::{ckb_std::debug, error::Error};
+use gw_utils::{ckb_std::debug, error::Error, gw_types::packed::Script};
 use gw_utils::{gw_common::merkle_utils::ckb_merkle_leaf_hash, gw_types};
 use gw_utils::{
     gw_common::{self, merkle_utils::CBMTMerkleProof},
@@ -26,6 +26,8 @@ pub struct TxContextInput<'a> {
 pub struct TxContext {
     pub sender_script_hash: H256,
     pub receiver_script_hash: H256,
+    pub sender: Script,
+    pub receiver: Script,
 }
 
 pub fn verify_tx_context(input: TxContextInput) -> Result<TxContext, Error> {
@@ -164,6 +166,8 @@ pub fn verify_tx_context(input: TxContextInput) -> Result<TxContext, Error> {
     let tx_ctx = TxContext {
         sender_script_hash,
         receiver_script_hash,
+        sender: sender_script,
+        receiver: receiver_script,
     };
     Ok(tx_ctx)
 }
