@@ -1,9 +1,9 @@
 use crate::verifications::eip712::traits::EIP712Encode;
 use alloc::string::ToString;
 use core::result::Result;
-use gw_common::{blake2b::new_blake2b, H256};
+use gw_common::{H256};
 use gw_types::{
-    packed::{ChallengeLockArgs, RawWithdrawalRequest},
+    packed::{ChallengeLockArgs, },
     prelude::*,
 };
 use gw_utils::gw_types::{
@@ -104,7 +104,7 @@ fn verify_withdrawal_proof(lock_args: &ChallengeLockArgs) -> Result<WithdrawalCo
 
 /// Verify withdrawal signature
 pub fn verify_withdrawal(
-    rollup_script_hash: &[u8; 32],
+    _rollup_script_hash: &[u8; 32],
     rollup_config: &RollupConfig,
     lock_args: &ChallengeLockArgs,
 ) -> Result<(), Error> {
