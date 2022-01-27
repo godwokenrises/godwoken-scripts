@@ -2,14 +2,14 @@ use crate::verifications::context::{verify_tx_context, TxContext, TxContextInput
 use core::result::Result;
 use gw_state::{ckb_smt::smt::Pair, constants::GW_MAX_KV_PAIRS, kv_state::KVState};
 use gw_types::{
-    packed::{ChallengeLockArgs, RollupConfig, VerifyTransactionWitnessReader},
+    packed::{ChallengeLockArgs, RollupConfig},
     prelude::*,
 };
 use gw_utils::{
     cells::{rollup::MAX_ROLLUP_WITNESS_SIZE, utils::search_lock_hash},
     ckb_std::{ckb_constants::Source, ckb_types::bytes::Bytes, debug},
     error::Error,
-    gw_types::packed::{BytesReader, WitnessArgsReader},
+    gw_types::packed::{BytesReader, CCTransactionWitnessReader, WitnessArgsReader},
 };
 use gw_utils::{ckb_std::syscalls::load_witness, gw_types};
 
@@ -31,23 +31,22 @@ pub fn verify_tx_execution(
         reader.lock().to_opt().ok_or(Error::InvalidArgs)?
     };
 
-    let unlock_args = match VerifyTransactionWitnessReader::verify(witness_args.raw_data(), false) {
-        Ok(_) => VerifyTransactionWitnessReader::new_unchecked(witness_args.raw_data()),
+    let unlock_args = match CCTransactionWitnessReader::verify(witness_args.raw_data(), false) {
+        Ok(_) => CCTransactionWitnessReader::new_unchecked(witness_args.raw_data()),
         Err(_) => return Err(Error::InvalidArgs),
     };
 
-    let ctx = unlock_args.context();
     let tx = unlock_args.l2tx().to_entity();
     let mut tree_buffer = [Pair::default(); GW_MAX_KV_PAIRS];
     let kv_state_proof: Bytes = unlock_args.kv_state_proof().unpack();
     let kv_state = KVState::build(
         &mut tree_buffer,
-        ctx.kv_state(),
+        unlock_args.kv_state(),
         &kv_state_proof,
-        ctx.account_count().unpack(),
+        unlock_args.account_count().unpack(),
         None,
     )?;
-    let scripts = ctx.scripts().to_entity();
+    let scripts = unlock_args.scripts().to_entity();
     let raw_block = unlock_args.raw_l2block().to_entity();
     let target = lock_args.target();
     let tx_proof = unlock_args.tx_proof().to_entity();

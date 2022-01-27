@@ -2,10 +2,7 @@ use crate::verifications::context::{verify_tx_context, TxContext, TxContextInput
 use core::result::Result;
 use gw_state::{ckb_smt::smt::Pair, constants::GW_MAX_KV_PAIRS, kv_state::KVState};
 use gw_types::{
-    packed::{
-        ChallengeLockArgs, RollupConfig, VerifyTransactionSignatureWitness,
-        VerifyTransactionSignatureWitnessReader,
-    },
+    packed::{ChallengeLockArgs, RollupConfig},
     prelude::*,
 };
 use gw_utils::{
@@ -15,6 +12,9 @@ use gw_utils::{
         high_level::load_witness_args,
     },
     error::Error,
+    gw_types::packed::{
+        CCTransactionSignatureWitness, CCTransactionSignatureWitnessReader, ScriptVec,
+    },
     signature::check_l2_account_signature_cell,
 };
 use gw_utils::{
@@ -28,12 +28,6 @@ fn calc_tx_message(
     sender_script_hash: &H256,
     receiver_script_hash: &H256,
 ) -> H256 {
-    gw_utils::ckb_std::debug!(
-        "rollup: {:?} sender: {:?} receiver: {:?}",
-        rollup_type_script_hash,
-        sender_script_hash,
-        receiver_script_hash
-    );
     let mut hasher = new_blake2b();
     hasher.update(rollup_type_script_hash);
     hasher.update(sender_script_hash.as_slice());
@@ -55,23 +49,25 @@ pub fn verify_tx_signature(
         .to_opt()
         .ok_or(Error::InvalidArgs)?
         .unpack();
-    let unlock_args = match VerifyTransactionSignatureWitnessReader::verify(&witness_args, false) {
-        Ok(_) => VerifyTransactionSignatureWitness::new_unchecked(witness_args),
+    let unlock_args = match CCTransactionSignatureWitnessReader::verify(&witness_args, false) {
+        Ok(_) => CCTransactionSignatureWitness::new_unchecked(witness_args),
         Err(_) => return Err(Error::InvalidArgs),
     };
-    let ctx = unlock_args.context();
     let tx = unlock_args.l2tx();
-    let account_count: u32 = ctx.account_count().unpack();
+    let account_count: u32 = unlock_args.account_count().unpack();
     let mut tree_buffer = [Pair::default(); GW_MAX_KV_PAIRS];
     let kv_state_proof: Bytes = unlock_args.kv_state_proof().unpack();
     let kv_state = KVState::build(
         &mut tree_buffer,
-        ctx.kv_state().as_reader(),
+        unlock_args.kv_state().as_reader(),
         &kv_state_proof,
         account_count,
         None,
     )?;
-    let scripts = ctx.scripts();
+    let scripts = ScriptVec::new_builder()
+        .push(unlock_args.sender())
+        .push(unlock_args.receiver())
+        .build();
     let target = lock_args.target();
     let raw_block = unlock_args.raw_l2block();
     let tx_proof = unlock_args.tx_proof();

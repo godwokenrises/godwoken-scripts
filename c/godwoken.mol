@@ -118,6 +118,8 @@ vector DepositRequestVec <DepositRequest>;
 
 struct RawWithdrawalRequest {
     nonce: Uint32,
+    // chain id
+    chain_id: Uint64,
     // CKB amount
     capacity: Uint64,
     // SUDT amount
@@ -125,13 +127,8 @@ struct RawWithdrawalRequest {
     sudt_script_hash: Byte32,
     // layer2 account_script_hash
     account_script_hash: Byte32,
-    // buyer can pay sell_amount and sell_capacity to unlock
-    sell_amount: Uint128,
-    sell_capacity: Uint64,
     // layer1 lock to withdraw after challenge period
     owner_lock_hash: Byte32,
-    // layer1 lock to receive the payment, must exists on the chain
-    payment_lock_hash: Byte32,
     // withdrawal fee, paid to block producer
     fee: Fee,
 }
@@ -188,28 +185,18 @@ struct WithdrawalLockArgs {
     account_script_hash: Byte32,
     withdrawal_block_hash: Byte32,
     withdrawal_block_number: Uint64,
-    // buyer can pay sell_amount token to unlock
-    sudt_script_hash: Byte32,
-    sell_amount: Uint128,
-    sell_capacity: Uint64,
     // layer1 lock to withdraw after challenge period
     owner_lock_hash: Byte32,
-    // layer1 lock to receive the payment, must exists on the chain
-    payment_lock_hash: Byte32,
 }
 
 union UnlockWithdrawalWitness {
     UnlockWithdrawalViaFinalize,
     UnlockWithdrawalViaRevert,
-    UnlockWithdrawalViaTrade,
 }
 table UnlockWithdrawalViaFinalize {
 }
 struct UnlockWithdrawalViaRevert {
     custodian_lock_hash: Byte32,
-}
-table UnlockWithdrawalViaTrade {
-    owner_lock: Script,
 }
 // --- end of withdrawal lock ---
 
@@ -288,7 +275,19 @@ struct BlockHashEntry {
 
 vector BlockHashEntryVec <BlockHashEntry>;
 
-table VerifyTransactionContext {
+// CKB merkle proof
+table CKBMerkleProof {
+    indices:                Uint32Vec,
+    lemmas:                 Byte32Vec,
+}
+
+// cancel challenge by execute the transaction
+table CCTransactionWitness {
+    l2tx: L2Transaction,
+    raw_l2block: RawL2Block,
+    tx_proof: CKBMerkleProof,
+    kv_state_proof: Bytes,
+    block_hashes_proof: Bytes,
     account_count: Uint32,
     kv_state: KVPairVec,
     load_data: BytesVec,
@@ -297,40 +296,24 @@ table VerifyTransactionContext {
     block_hashes: BlockHashEntryVec,
 }
 
-// CKB merkle proof
-table CKBMerkleProof {
-    indices:                Uint32Vec,
-    lemmas:                 Byte32Vec,
-}
-
-// cancel challenge by execute the transaction
-table VerifyTransactionWitness {
-    l2tx: L2Transaction,
-    raw_l2block: RawL2Block,
-    tx_proof: CKBMerkleProof,
-    kv_state_proof: Bytes,
-    block_hashes_proof: Bytes,
-    context: VerifyTransactionContext,
-}
-
-table VerifyTransactionSignatureContext {
-    account_count: Uint32,
-    kv_state: KVPairVec,
-    scripts: ScriptVec,
-}
-
 // cancel challenge by verify tx signature
-table VerifyTransactionSignatureWitness {
+table CCTransactionSignatureWitness {
     raw_l2block: RawL2Block,
     l2tx: L2Transaction,
     tx_proof: CKBMerkleProof,
+    kv_state: KVPairVec,
     kv_state_proof: Bytes,
-    context: VerifyTransactionSignatureContext,
+    account_count: Uint32,
+    sender: Script,
+    receiver: Script,
 }
 
-table VerifyWithdrawalWitness {
+// cancel challenge by verify witness signature
+table CCWithdrawalWitness {
     raw_l2block: RawL2Block,
-    withdrawal_request: WithdrawalRequest,
+    withdrawal: WithdrawalRequest,
+    sender: Script,
+    owner_lock: Script,
     withdrawal_proof: CKBMerkleProof,
 }
 
