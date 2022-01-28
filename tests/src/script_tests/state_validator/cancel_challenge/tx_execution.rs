@@ -26,6 +26,7 @@ use gw_store::mem_pool_state::MemPoolState;
 use gw_store::mem_pool_state::MemStore;
 use gw_store::state::state_db::StateContext;
 use gw_traits::CodeStore;
+use gw_types::packed::CCTransactionWitness;
 use gw_types::prelude::*;
 use gw_types::{
     bytes::Bytes,
@@ -33,8 +34,7 @@ use gw_types::{
     packed::{
         BlockHashEntry, BlockHashEntryVec, ChallengeLockArgs, ChallengeTarget, DepositRequest,
         L2Transaction, RawL2Transaction, RollupAction, RollupActionUnion, RollupCancelChallenge,
-        RollupConfig, SUDTArgs, SUDTTransfer, Script, ScriptVec, VerifyTransactionContext,
-        VerifyTransactionWitness,
+        RollupConfig, SUDTArgs, SUDTTransfer, Script, ScriptVec,
     },
 };
 
@@ -138,7 +138,7 @@ async fn test_cancel_tx_execute() {
         let sudt_script_hash = tree.get_script_hash(sudt_id).unwrap();
         let sudt_script = tree.get_script(&sudt_script_hash).unwrap();
         let transfer_capacity = 150_00000000u128;
-        let fee_capacity = 1_00000000u128;
+        let fee_capacity = 1_00000000u64;
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
@@ -322,7 +322,12 @@ async fn test_cancel_tx_execute() {
                     .into()
             };
             let return_data_hash = [42u8; 32];
-            let context = VerifyTransactionContext::new_builder()
+            CCTransactionWitness::new_builder()
+                .l2tx(tx)
+                .raw_l2block(challenged_block.raw())
+                .kv_state_proof(Pack::pack(&kv_state_proof))
+                .tx_proof(tx_proof)
+                .block_hashes_proof(Pack::pack(&block_hashes_proof))
                 .scripts(
                     ScriptVec::new_builder()
                         .push(sender_script)
@@ -333,14 +338,6 @@ async fn test_cancel_tx_execute() {
                 .kv_state(kv_state.pack())
                 .return_data_hash(Pack::pack(&return_data_hash))
                 .block_hashes(block_hashes)
-                .build();
-            VerifyTransactionWitness::new_builder()
-                .l2tx(tx)
-                .raw_l2block(challenged_block.raw())
-                .kv_state_proof(Pack::pack(&kv_state_proof))
-                .tx_proof(tx_proof)
-                .block_hashes_proof(Pack::pack(&block_hashes_proof))
-                .context(context)
                 .build()
         };
         ckb_types::packed::WitnessArgs::new_builder()

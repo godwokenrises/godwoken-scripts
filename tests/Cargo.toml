@@ -7,7 +7,6 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-<<<<<<< HEAD
 gw-types = { git = "https://github.com/jjyr/godwoken.git", rev = "d4ab263c3262009364fb7c96d42a0cc19a7ba46b" }
 gw-common = { git = "https://github.com/jjyr/godwoken.git", rev = "d4ab263c3262009364fb7c96d42a0cc19a7ba46b"}
 gw-config = { git = "https://github.com/jjyr/godwoken.git", rev = "d4ab263c3262009364fb7c96d42a0cc19a7ba46b" }
@@ -19,19 +18,6 @@ gw-chain = { git = "https://github.com/jjyr/godwoken.git", rev = "d4ab263c326200
 gw-mem-pool = { git = "https://github.com/jjyr/godwoken.git", rev = "d4ab263c3262009364fb7c96d42a0cc19a7ba46b" }
 gw-block-producer = { git = "https://github.com/jjyr/godwoken.git", rev = "d4ab263c3262009364fb7c96d42a0cc19a7ba46b" }
 gw-ckb-hardfork = { git = "https://github.com/jjyr/godwoken.git", rev = "d4ab263c3262009364fb7c96d42a0cc19a7ba46b" }
-=======
-gw-types = { git = "https://github.com/jjyr/godwoken.git", rev = "8dbfafed09c17ed4c43fd3079a856eae7b050c54" }
-gw-common = { git = "https://github.com/jjyr/godwoken.git", rev = "8dbfafed09c17ed4c43fd3079a856eae7b050c54"}
-gw-config = { git = "https://github.com/jjyr/godwoken.git", rev = "8dbfafed09c17ed4c43fd3079a856eae7b050c54" }
-gw-db = { git = "https://github.com/jjyr/godwoken.git", rev = "8dbfafed09c17ed4c43fd3079a856eae7b050c54" }
-gw-store = { git = "https://github.com/jjyr/godwoken.git", rev = "8dbfafed09c17ed4c43fd3079a856eae7b050c54" }
-gw-traits = { git = "https://github.com/jjyr/godwoken.git", rev = "8dbfafed09c17ed4c43fd3079a856eae7b050c54" }
-gw-generator = { git = "https://github.com/jjyr/godwoken.git", rev = "8dbfafed09c17ed4c43fd3079a856eae7b050c54" }
-gw-chain = { git = "https://github.com/jjyr/godwoken.git", rev = "8dbfafed09c17ed4c43fd3079a856eae7b050c54" }
-gw-mem-pool = { git = "https://github.com/jjyr/godwoken.git", rev = "8dbfafed09c17ed4c43fd3079a856eae7b050c54" }
-gw-block-producer = { git = "https://github.com/jjyr/godwoken.git", rev = "8dbfafed09c17ed4c43fd3079a856eae7b050c54" }
-gw-ckb-hardfork = { git = "https://github.com/jjyr/godwoken.git", rev = "8dbfafed09c17ed4c43fd3079a856eae7b050c54" }
->>>>>>> feat: withdrawal support EIP-712
 parking_lot = "0.11"
 anyhow = "1.0"
 blake2b-rs = "0.2"

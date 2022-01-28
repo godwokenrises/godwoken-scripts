@@ -32,7 +32,7 @@ use gw_types::{
     },
 };
 
-const INVALID_CHALLENGE_TARGET_ERROR: i8 = 34;
+const INVALID_CHALLENGE_TARGET_ERROR: i8 = 33;
 
 #[tokio::test]
 async fn test_enter_challenge() {

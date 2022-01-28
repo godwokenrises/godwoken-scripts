@@ -134,7 +134,7 @@ async fn test_revert() {
                 .set(SUDTArgsUnion::SUDTTransfer(
                     SUDTTransfer::new_builder()
                         .amount(Pack::pack(&150_00000000u128))
-                        .fee(Pack::pack(&1_00000000u128))
+                        .fee(Pack::pack(&1_00000000u64))
                         .to(Pack::pack(&receiver_address))
                         .build(),
                 ))

@@ -20,7 +20,13 @@ use gw_common::merkle_utils::ckb_merkle_leaf_hash;
 use gw_common::merkle_utils::CBMT;
 use gw_common::H256;
 use gw_generator::account_lock_manage::always_success::AlwaysSuccess;
+use gw_generator::account_lock_manage::eip712::{
+    traits::EIP712Encode,
+    types::{EIP712Domain, Withdrawal},
+};
 use gw_generator::account_lock_manage::AccountLockManage;
+use gw_types::core::SigningType;
+use gw_types::packed::CCWithdrawalWitness;
 use gw_types::packed::WithdrawalRequestExtra;
 use gw_types::prelude::Pack as GWPack;
 use gw_types::prelude::*;
@@ -30,7 +36,7 @@ use gw_types::{
     packed::{
         Byte32, CKBMerkleProof, ChallengeLockArgs, ChallengeTarget, DepositRequest,
         RawWithdrawalRequest, RollupAction, RollupActionUnion, RollupCancelChallenge, RollupConfig,
-        Script, VerifyWithdrawalWitness, WithdrawalRequest,
+        Script, WithdrawalRequest,
     },
 };
 
@@ -97,6 +103,7 @@ async fn test_burn_challenge_capacity() {
             rollup_type_script.as_bytes(),
         )),
     );
+    let withdrawal_extra;
     // produce a block so we can challenge it
     let sender_script = {
         // deposit two account
@@ -143,7 +150,7 @@ async fn test_burn_challenge_capacity() {
         .await;
 
         let withdrawal_capacity = 365_00000000u64;
-        let withdrawal = {
+        withdrawal_extra = {
             let owner_lock = Script::default();
             WithdrawalRequestExtra::new_builder()
                 .request(
@@ -153,7 +160,6 @@ async fn test_burn_challenge_capacity() {
                                 .nonce(Pack::pack(&0u32))
                                 .capacity(Pack::pack(&withdrawal_capacity))
                                 .account_script_hash(Pack::pack(&sender_script.hash()))
-                                .sell_capacity(Pack::pack(&withdrawal_capacity))
                                 .owner_lock_hash(Pack::pack(&owner_lock.hash()))
                                 .build(),
                         )
@@ -166,7 +172,7 @@ async fn test_burn_challenge_capacity() {
             let mem_pool = chain.mem_pool().as_ref().unwrap();
             let mut mem_pool = mem_pool.lock().await;
             mem_pool
-                .push_withdrawal_request(withdrawal.into())
+                .push_withdrawal_request(withdrawal_extra.clone())
                 .await
                 .unwrap();
             construct_block(&chain, &mut mem_pool, Vec::default())
@@ -259,10 +265,12 @@ async fn test_burn_challenge_capacity() {
 
             let proof = build_merkle_proof(&leaves, &[challenge_target_index]);
             // we do not actually execute the signature verification in this test
-            VerifyWithdrawalWitness::new_builder()
+            CCWithdrawalWitness::new_builder()
                 .raw_l2block(challenged_block.raw())
-                .withdrawal_request(withdrawal.clone())
+                .withdrawal(withdrawal.clone())
                 .withdrawal_proof(proof)
+                .owner_lock(withdrawal_extra.owner_lock())
+                .sender(sender_script.clone())
                 .build()
         };
         ckb_types::packed::WitnessArgs::new_builder()
@@ -277,11 +285,24 @@ async fn test_burn_challenge_capacity() {
             .capacity(CKBPack::pack(&42u64))
             .build();
         let owner_lock_hash = vec![42u8; 32];
-        let message = withdrawal
-            .raw()
-            .calc_message(&rollup_type_script.hash().into());
+        let message = {
+            let withdrawal = Withdrawal::from_withdrawal_request(
+                withdrawal.raw(),
+                withdrawal_extra.owner_lock(),
+            )
+            .unwrap();
+            let domain = EIP712Domain {
+                name: "Godwoken".to_string(),
+                version: "1".to_string(),
+                chain_id: withdrawal_extra.raw().chain_id().unpack(),
+                verifying_contract: None,
+                salt: None,
+            };
+            withdrawal.eip712_message(domain.hash_struct())
+        };
         let mut buf = owner_lock_hash;
-        buf.extend_from_slice(message.as_slice());
+        buf.push(SigningType::Raw.into());
+        buf.extend_from_slice(&message);
         let out_point = ctx.insert_cell(cell, Bytes::from(buf));
         CellInput::new_builder().previous_output(out_point).build()
     };

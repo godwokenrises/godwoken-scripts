@@ -34,8 +34,8 @@ use gw_types::{
     },
 };
 
-const INVALID_BLOCK_ERROR: i8 = 22;
-const INVALID_POST_GLOBAL_STATE: i8 = 25;
+const INVALID_BLOCK_ERROR: i8 = 21;
+const INVALID_POST_GLOBAL_STATE: i8 = 24;
 
 #[tokio::test]
 async fn test_submit_block() {

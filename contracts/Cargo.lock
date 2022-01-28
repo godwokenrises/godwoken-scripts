@@ -280,11 +280,7 @@ dependencies = [
 [[package]]
 name = "gw-common"
 version = "0.1.0"
-<<<<<<< HEAD
 source = "git+https://github.com/jjyr/godwoken.git?rev=d4ab263c3262009364fb7c96d42a0cc19a7ba46b#d4ab263c3262009364fb7c96d42a0cc19a7ba46b"
-=======
-source = "git+https://github.com/jjyr/godwoken.git?rev=10f47c1ec5b3b9f0ddc62728322ff5700de480fb#10f47c1ec5b3b9f0ddc62728322ff5700de480fb"
->>>>>>> feat: withdrawal support EIP-712
 dependencies = [
  "cfg-if 0.1.10",
  "gw-hash",
@@ -296,11 +292,7 @@ dependencies = [
 [[package]]
 name = "gw-hash"
 version = "0.1.0"
-<<<<<<< HEAD
 source = "git+https://github.com/jjyr/godwoken.git?rev=d4ab263c3262009364fb7c96d42a0cc19a7ba46b#d4ab263c3262009364fb7c96d42a0cc19a7ba46b"
-=======
-source = "git+https://github.com/jjyr/godwoken.git?rev=10f47c1ec5b3b9f0ddc62728322ff5700de480fb#10f47c1ec5b3b9f0ddc62728322ff5700de480fb"
->>>>>>> feat: withdrawal support EIP-712
 dependencies = [
  "blake2b-ref",
 ]
@@ -316,11 +308,7 @@ dependencies = [
 [[package]]
 name = "gw-types"
 version = "0.1.0"
-<<<<<<< HEAD
 source = "git+https://github.com/jjyr/godwoken.git?rev=d4ab263c3262009364fb7c96d42a0cc19a7ba46b#d4ab263c3262009364fb7c96d42a0cc19a7ba46b"
-=======
-source = "git+https://github.com/jjyr/godwoken.git?rev=10f47c1ec5b3b9f0ddc62728322ff5700de480fb#10f47c1ec5b3b9f0ddc62728322ff5700de480fb"
->>>>>>> feat: withdrawal support EIP-712
 dependencies = [
  "cfg-if 0.1.10",
  "gw-hash",

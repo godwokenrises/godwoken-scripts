@@ -14,8 +14,9 @@
 #define MSG_CREATE_ACCOUNT 0
 /* Currently, we only support 20 length short script hash length */
 #define DEFAULT_SHORT_SCRIPT_HASH_LEN 20
+#define CKB_SUDT_ACCOUNT_ID 1
 
-int handle_fee(gw_context_t *ctx, mol_seg_t fee_seg) {
+int handle_fee(gw_context_t *ctx, uint64_t fee) {
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
   }
@@ -27,15 +28,12 @@ int handle_fee(gw_context_t *ctx, mol_seg_t fee_seg) {
   if (ret != 0) {
     return ret;
   }
-  uint64_t short_script_hash_len = DEFAULT_SHORT_SCRIPT_HASH_LEN;
-  /* sudt */
-  mol_seg_t sudt_id_seg = MolReader_Fee_get_sudt_id(&fee_seg);
-  uint32_t sudt_id = *(uint32_t *)sudt_id_seg.ptr;
-  /* amount */
-  mol_seg_t amount_seg = MolReader_Fee_get_amount(&fee_seg);
-  uint128_t amount = *(uint128_t *)amount_seg.ptr;
+  uint64_t short_script_hash_len = DEFAULT_SHORT_ADDRESS_LEN;
+  /* pay fee */
+  uint32_t sudt_id = CKB_SUDT_ACCOUNT_ID;
+  uint128_t fee_amount = fee;
   return sudt_pay_fee(ctx, sudt_id, short_script_hash_len,
-                      payer_short_script_hash, amount);
+                      payer_short_script_hash, fee_amount);
 }
 
 int main() {
@@ -64,7 +62,8 @@ int main() {
   if (msg.item_id == MSG_CREATE_ACCOUNT) {
     /* Charge fee */
     mol_seg_t fee_seg = MolReader_CreateAccount_get_fee(&msg.seg);
-    int ret = handle_fee(&ctx, fee_seg);
+    uint64_t fee = *(uint64_t *)fee_seg.ptr;
+    int ret = handle_fee(&ctx, fee);
     if (ret != 0) {
       return ret;
     }

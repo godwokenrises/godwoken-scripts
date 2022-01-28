@@ -15,6 +15,7 @@
 
 #define SUDT_KEY_FLAG_BALANCE 1
 #define SUDT_KEY_FLAG_TOTAL_SUPPLY 2
+#define CKB_SUDT_ACCOUNT_ID 1
 
 void _sudt_build_key(uint32_t key_flag, const uint8_t *short_script_hash,
                      uint32_t short_script_hash_len, uint8_t *key) {
@@ -216,8 +217,10 @@ int sudt_pay_fee(gw_context_t *ctx, const uint32_t sudt_id,
     printf("pay fee transfer failed");
     return ret;
   }
-  ret =
-      ctx->sys_pay_fee(ctx, from_addr, short_script_hash_len, sudt_id, amount);
+
+  const uint32_t ckb_sudt_id = CKB_SUDT_ACCOUNT_ID;
+  ret = ctx->sys_pay_fee(ctx, from_addr, short_script_hash_len, ckb_sudt_id,
+                         amount);
   if (ret != 0) {
     printf("sys pay fee failed");
   }

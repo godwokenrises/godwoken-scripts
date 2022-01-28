@@ -106,7 +106,7 @@ fn test_sudt() {
     // transfer from A to B
     {
         let value = 4000u128;
-        let fee = 42u128;
+        let fee = 42u64;
         let sender_nonce = tree.get_nonce(a_id).unwrap();
         let args = SUDTArgs::new_builder()
             .set(
@@ -148,7 +148,7 @@ fn test_sudt() {
                 a_id,
                 sudt_id,
                 &a_address,
-                init_a_balance - value - fee,
+                init_a_balance - value - fee as u128,
             );
 
             check_balance(
@@ -168,7 +168,7 @@ fn test_sudt() {
                 a_id,
                 sudt_id,
                 &block_producer_address,
-                fee,
+                fee as u128,
             );
         }
     }
@@ -377,7 +377,7 @@ fn test_transfer_to_self() {
     // transfer from A to A, zero value
     {
         let value: u128 = 0;
-        let fee: u128 = 0;
+        let fee: u64 = 0;
         let sender_nonce = tree.get_nonce(a_id).unwrap();
         let args = SUDTArgs::new_builder()
             .set(
@@ -430,7 +430,7 @@ fn test_transfer_to_self() {
     }
 
     // transfer from A to A, normal value
-    let fee: u128 = 20;
+    let fee: u64 = 20;
     {
         let value: u128 = 1000;
         let args = SUDTArgs::new_builder()
@@ -468,7 +468,7 @@ fn test_transfer_to_self() {
             a_id,
             sudt_id,
             &a_address,
-            init_a_balance - fee,
+            init_a_balance - fee as u128,
         );
         check_balance(
             &rollup_config,
@@ -477,7 +477,7 @@ fn test_transfer_to_self() {
             a_id,
             sudt_id,
             &block_producer_address,
-            block_producer_balance + fee,
+            block_producer_balance + fee as u128,
         );
     }
 
@@ -513,7 +513,7 @@ fn test_transfer_to_self() {
             a_id,
             sudt_id,
             &a_address,
-            init_a_balance - fee,
+            init_a_balance - fee as u128,
         );
         check_balance(
             &rollup_config,
@@ -522,7 +522,7 @@ fn test_transfer_to_self() {
             a_id,
             sudt_id,
             &block_producer_address,
-            block_producer_balance + fee,
+            block_producer_balance + fee as u128,
         );
     }
 }
@@ -586,7 +586,7 @@ fn test_transfer_to_self_overflow() {
     // transfer from A to A, zero value
     {
         let value: u128 = 0;
-        let fee: u128 = 0;
+        let fee: u64 = 0;
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
@@ -610,7 +610,7 @@ fn test_transfer_to_self_overflow() {
             &run_result.logs,
             sudt_id,
             block_producer_script_hash,
-            fee,
+            fee.into(),
             a_script_hash,
             a_script_hash,
             value,
@@ -639,7 +639,7 @@ fn test_transfer_to_self_overflow() {
     // transfer from A to A, 1 value
     {
         let value: u128 = 1;
-        let fee: u128 = 0;
+        let fee: u64 = 0;
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
@@ -663,7 +663,7 @@ fn test_transfer_to_self_overflow() {
             &run_result.logs,
             sudt_id,
             block_producer_script_hash,
-            fee,
+            fee.into(),
             a_script_hash,
             a_script_hash,
             value,
