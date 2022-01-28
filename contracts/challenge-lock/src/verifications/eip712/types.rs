@@ -71,37 +71,17 @@ impl EIP712Encode for WithdrawalAsset {
     }
 }
 
-pub struct Fee {
-    udt_id: u32,
-    udt_amount: u128,
-}
-
-impl EIP712Encode for Fee {
-    fn type_name() -> &'static str {
-        "Fee"
-    }
-
-    fn encode_type(&self, buf: &mut Vec<u8>) {
-        buf.extend(b"Fee(uint256 UDTId,uint256 UDTAmount)");
-    }
-
-    fn encode_data(&self, buf: &mut Vec<u8>) {
-        use ethabi::Token;
-        buf.extend(ethabi::encode(&[Token::Uint(self.udt_id.into())]));
-        buf.extend(ethabi::encode(&[Token::Uint(self.udt_amount.into())]));
-    }
-}
-
 // RawWithdrawalRequest
 pub struct Withdrawal {
     account_script_hash: [u8; 32],
     nonce: u32,
+    chain_id: u64,
+    // withdrawal fee, paid to block producer
+    fee: u64,
     // layer1 lock to withdraw after challenge period
     layer1_owner_lock: Script,
     // CKB amount
     withdraw: WithdrawalAsset,
-    // withdrawal fee, paid to block producer
-    fee: Fee,
 }
 
 impl EIP712Encode for Withdrawal {
@@ -110,8 +90,7 @@ impl EIP712Encode for Withdrawal {
     }
 
     fn encode_type(&self, buf: &mut Vec<u8>) {
-        buf.extend(b"Withdrawal(bytes32 accountScriptHash,uint256 nonce,Script layer1OwnerLock,WithdrawalAsset withdraw,Fee fee)");
-        self.fee.encode_type(buf);
+        buf.extend(b"Withdrawal(bytes32 accountScriptHash,uint256 nonce,uint256 chainId,uint256 fee,Script layer1OwnerLock,WithdrawalAsset withdraw)");
         self.layer1_owner_lock.encode_type(buf);
         self.withdraw.encode_type(buf);
     }
@@ -122,14 +101,13 @@ impl EIP712Encode for Withdrawal {
             self.account_script_hash.into(),
         )]));
         buf.extend(ethabi::encode(&[Token::Uint(self.nonce.into())]));
+        buf.extend(ethabi::encode(&[Token::Uint(self.chain_id.into())]));
+        buf.extend(ethabi::encode(&[Token::Uint(self.fee.into())]));
         buf.extend(ethabi::encode(&[Token::Uint(
             self.layer1_owner_lock.hash_struct().into(),
         )]));
         buf.extend(ethabi::encode(&[Token::Uint(
             self.withdraw.hash_struct().into(),
-        )]));
-        buf.extend(ethabi::encode(&[Token::Uint(
-            self.fee.hash_struct().into(),
         )]));
     }
 }
@@ -160,10 +138,8 @@ impl Withdrawal {
                 hash_type: hash_type.to_string(),
                 args: owner_lock.args().unpack(),
             },
-            fee: Fee {
-                udt_id: data.fee().sudt_id().unpack(),
-                udt_amount: data.fee().amount().unpack(),
-            },
+            fee: data.fee().unpack(),
+            chain_id: data.chain_id().unpack(),
         };
         Ok(withdrawal)
     }

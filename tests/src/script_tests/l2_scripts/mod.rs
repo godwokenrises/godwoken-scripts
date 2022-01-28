@@ -177,7 +177,7 @@ pub fn check_transfer_logs(
     logs: &[LogItem],
     sudt_id: u32,
     block_producer_script_hash: H256,
-    fee: u128,
+    fee: u64,
     from_script_hash: H256,
     to_script_hash: H256,
     amount: u128,
@@ -193,7 +193,7 @@ pub fn check_transfer_logs(
         sudt_fee_log.to_addr,
         to_short_script_hash(&block_producer_script_hash),
     );
-    assert_eq!(sudt_fee_log.amount, fee);
+    assert_eq!(sudt_fee_log.amount, fee as u128);
     assert_eq!(sudt_fee_log.log_type, SudtLogType::PayFee);
     // transfer to `to_id`
     let sudt_transfer_log = SudtLog::from_log_item(&logs[1]).unwrap();

@@ -25,7 +25,9 @@ use gw_store::mem_pool_state::MemPoolState;
 use gw_store::mem_pool_state::MemStore;
 use gw_store::state::state_db::StateContext;
 use gw_traits::CodeStore;
+use gw_types::core::SigningType;
 use gw_types::packed::Byte32;
+use gw_types::packed::CCTransactionSignatureWitness;
 use gw_types::prelude::*;
 use gw_types::{
     bytes::Bytes,
@@ -33,8 +35,7 @@ use gw_types::{
     packed::{
         ChallengeLockArgs, ChallengeTarget, DepositRequest, L2Transaction, RawL2Transaction,
         RollupAction, RollupActionUnion, RollupCancelChallenge, RollupConfig, SUDTArgs,
-        SUDTTransfer, Script, ScriptVec, VerifyTransactionSignatureContext,
-        VerifyTransactionSignatureWitness,
+        SUDTTransfer, Script,
     },
 };
 
@@ -148,7 +149,7 @@ async fn test_cancel_tx_signature() {
         let sudt_script_hash = tree.get_script_hash(sudt_id).unwrap();
         let sudt_script = tree.get_script(&sudt_script_hash).unwrap();
         let transfer_capacity = 2_00000000u128;
-        let fee_capacity = 1_00000000u128;
+        let fee_capacity = 1_00000000u64;
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
@@ -313,22 +314,15 @@ async fn test_cancel_tx_signature() {
                     .0
                     .into()
             };
-            let context = VerifyTransactionSignatureContext::new_builder()
-                .scripts(
-                    ScriptVec::new_builder()
-                        .push(sender_script.clone())
-                        .push(sudt_script.clone())
-                        .build(),
-                )
-                .account_count(Pack::pack(&account_count))
-                .kv_state(kv_state.pack())
-                .build();
-            VerifyTransactionSignatureWitness::new_builder()
+            CCTransactionSignatureWitness::new_builder()
                 .l2tx(tx.clone())
                 .raw_l2block(challenged_block.raw())
                 .kv_state_proof(Pack::pack(&kv_state_proof))
                 .tx_proof(tx_proof)
-                .context(context)
+                .sender(sender_script.clone())
+                .receiver(sudt_script.clone())
+                .account_count(Pack::pack(&account_count))
+                .kv_state(kv_state.pack())
                 .build()
         };
         ckb_types::packed::WitnessArgs::new_builder()
@@ -351,6 +345,7 @@ async fn test_cancel_tx_signature() {
         );
         let data: Bytes = {
             let mut buf = owner_lock_hash.to_vec();
+            buf.push(SigningType::WithPrefix.into());
             buf.extend_from_slice(message.as_slice());
             buf.into()
         };

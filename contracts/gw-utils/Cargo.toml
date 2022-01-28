@@ -8,10 +8,5 @@ edition = "2018"
 
 [dependencies]
 ckb-std = "0.9.0"
-<<<<<<< HEAD
 gw-types = { git = "https://github.com/jjyr/godwoken.git", rev = "d4ab263c3262009364fb7c96d42a0cc19a7ba46b", default-features = false }
 gw-common = { git = "https://github.com/jjyr/godwoken.git", rev = "d4ab263c3262009364fb7c96d42a0cc19a7ba46b", default-features = false }
-=======
-gw-types = { git = "https://github.com/jjyr/godwoken.git", rev = "10f47c1ec5b3b9f0ddc62728322ff5700de480fb", default-features = false }
-gw-common = { git = "https://github.com/jjyr/godwoken.git", rev = "10f47c1ec5b3b9f0ddc62728322ff5700de480fb", default-features = false }
->>>>>>> feat: withdrawal support EIP-712
