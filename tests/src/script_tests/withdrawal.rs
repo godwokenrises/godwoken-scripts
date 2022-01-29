@@ -10,16 +10,16 @@ use crate::testing_tool::programs::{
 use ckb_error::assert_error_eq;
 use ckb_script::ScriptError;
 use ckb_types::core::TransactionView;
-use ckb_types::prelude::{Builder, Entity, Reader};
+use ckb_types::prelude::{Builder, Entity};
 use gw_common::blake2b::new_blake2b;
 use gw_types::bytes::Bytes;
 use gw_types::core::ScriptHashType;
 use gw_types::packed::{
     CellDep, CellInput, CellOutput, GlobalState, OutPoint, RollupConfig, Script,
     UnlockWithdrawalViaFinalize, UnlockWithdrawalWitness, UnlockWithdrawalWitnessUnion,
-    WithdrawalLockArgs, WithdrawalLockArgsReader, WitnessArgs,
+    WithdrawalLockArgs, WitnessArgs,
 };
-use gw_types::prelude::{Pack, Unpack};
+use gw_types::prelude::Pack;
 use secp256k1::rand::rngs::OsRng;
 use secp256k1::{Message, Secp256k1, SecretKey};
 
@@ -573,14 +573,6 @@ fn random_always_success_script() -> Script {
         .code_hash(ALWAYS_SUCCESS_CODE_HASH.clone().pack())
         .args(Bytes::from(random_bytes.to_vec()).pack())
         .build()
-}
-
-fn extract_withdrawal_lock(cell: &CellOutput) -> WithdrawalLockArgs {
-    let args: Bytes = cell.lock().args().unpack();
-    match WithdrawalLockArgsReader::verify(&args.slice(32..), false) {
-        Ok(()) => WithdrawalLockArgs::new_unchecked(args.slice(32..)),
-        Err(_) => panic!("invalid withdrawal lock args"),
-    }
 }
 
 fn sign_tx(tx: TransactionView, witness_idx: usize, sk: &SecretKey) -> TransactionView {
