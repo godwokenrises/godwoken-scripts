@@ -26,7 +26,7 @@ use gw_utils::{
 use sha3::{Digest, Keccak256};
 
 fn calc_tx_message(
-    raw_tx: RawL2Transaction,
+    raw_tx: &RawL2Transaction,
     rollup_type_script_hash: &[u8; 32],
     sender_script_hash: &H256,
     receiver_script_hash: &H256,
@@ -77,7 +77,7 @@ pub fn verify_tx_signature(
     let raw_tx = tx.raw();
 
     let input = TxContextInput {
-        tx: tx.clone(),
+        tx,
         kv_state,
         scripts,
         raw_block,
@@ -95,7 +95,7 @@ pub fn verify_tx_signature(
 
     let (message, signing_type) = match try_assemble_polyjuice_args(
         rollup_config.compatible_chain_id().unpack(),
-        tx.raw(),
+        &raw_tx,
         receiver.clone(),
     ) {
         Some(rlp_data) => {
@@ -108,7 +108,7 @@ pub fn verify_tx_signature(
         }
         None => {
             let message = calc_tx_message(
-                raw_tx,
+                &raw_tx,
                 rollup_script_hash,
                 &sender_script_hash,
                 &receiver_script_hash,
@@ -128,7 +128,7 @@ pub fn verify_tx_signature(
 
 fn try_assemble_polyjuice_args(
     rollup_chain_id: u32,
-    raw_tx: RawL2Transaction,
+    raw_tx: &RawL2Transaction,
     receiver_script: Script,
 ) -> Option<Bytes> {
     let args: Bytes = raw_tx.args().unpack();
