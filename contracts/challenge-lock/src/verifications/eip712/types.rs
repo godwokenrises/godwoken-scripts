@@ -80,7 +80,7 @@ pub struct Withdrawal {
     fee: u64,
     // layer1 lock to withdraw after challenge period
     layer1_owner_lock: Script,
-    // CKB amount
+    // Withdrawal asset including CKB_capacity and sUDT_amount
     withdraw: WithdrawalAsset,
 }
 
