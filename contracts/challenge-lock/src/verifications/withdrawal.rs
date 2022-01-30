@@ -1,11 +1,8 @@
 use crate::verifications::eip712::traits::EIP712Encode;
 use alloc::string::ToString;
 use core::result::Result;
-use gw_common::{H256};
-use gw_types::{
-    packed::{ChallengeLockArgs, },
-    prelude::*,
-};
+use gw_common::H256;
+use gw_types::{packed::ChallengeLockArgs, prelude::*};
 use gw_utils::gw_types::{
     self,
     packed::{RollupConfig, Script, WithdrawalRequest},
