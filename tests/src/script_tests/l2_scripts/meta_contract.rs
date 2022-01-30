@@ -76,15 +76,11 @@ fn test_meta_contract() {
         .hash_type(ScriptHashType::Type.into())
         .args([42u8; 33].pack())
         .build();
-    let fee_struct = gw_types::packed::Fee::new_builder()
-        .sudt_id(CKB_SUDT_ACCOUNT_ID.pack())
-        .amount(1000u128.pack())
-        .build();
     let args = MetaContractArgs::new_builder()
         .set(
             CreateAccount::new_builder()
                 .script(contract_script.clone())
-                .fee(fee_struct)
+                .fee(1000u64.pack())
                 .build(),
         )
         .build();
@@ -148,15 +144,11 @@ fn test_duplicated_script_hash() {
         .expect("create account");
 
     // should return duplicated script hash
-    let fee_struct = gw_types::packed::Fee::new_builder()
-        .sudt_id(CKB_SUDT_ACCOUNT_ID.pack())
-        .amount(1000u128.pack())
-        .build();
     let args = MetaContractArgs::new_builder()
         .set(
             CreateAccount::new_builder()
                 .script(contract_script.clone())
-                .fee(fee_struct)
+                .fee(1000u64.pack())
                 .build(),
         )
         .build();
@@ -201,15 +193,11 @@ fn test_insufficient_balance_to_pay_fee() {
         .hash_type(ScriptHashType::Type.into())
         .args([42u8; 52].pack())
         .build();
-    let fee_struct = gw_types::packed::Fee::new_builder()
-        .sudt_id(CKB_SUDT_ACCOUNT_ID.pack())
-        .amount(1000u128.pack())
-        .build();
     let args = MetaContractArgs::new_builder()
         .set(
             CreateAccount::new_builder()
                 .script(contract_script.clone())
-                .fee(fee_struct)
+                .fee(1000u64.pack())
                 .build(),
         )
         .build();
