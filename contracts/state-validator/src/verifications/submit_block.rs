@@ -298,8 +298,16 @@ fn check_layer2_withdrawal(
         amount: u64,
     ) -> Result<(), Error> {
         kv_state.burn_sudt(CKB_SUDT_ACCOUNT_ID, payer_short_address, amount.into())?;
+<<<<<<< HEAD
         kv_state.mint_sudt(CKB_SUDT_ACCOUNT_ID, block_producer_short_address, amount.into())?;
 >>>>>>> refactor: remove sudt pay fee; fix tests
+=======
+        kv_state.mint_sudt(
+            CKB_SUDT_ACCOUNT_ID,
+            block_producer_short_address,
+            amount.into(),
+        )?;
+>>>>>>> chore: format
         Ok(())
     }
 

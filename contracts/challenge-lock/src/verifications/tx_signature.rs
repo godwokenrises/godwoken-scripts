@@ -15,7 +15,9 @@ use gw_utils::{
     error::Error,
     gw_types::{
         core::SigningType,
-        packed::{CCTransactionSignatureWitness, CCTransactionSignatureWitnessReader, ScriptVec, Script},
+        packed::{
+            CCTransactionSignatureWitness, CCTransactionSignatureWitnessReader, Script, ScriptVec,
+        },
     },
     signature::check_l2_account_signature_cell,
 };
@@ -96,7 +98,7 @@ pub fn verify_tx_signature(
     let (message, signing_type) = match try_assemble_polyjuice_args(
         rollup_config.compatible_chain_id().unpack(),
         &raw_tx,
-        receiver.clone(),
+        receiver,
     ) {
         Some(rlp_data) => {
             let mut hasher = Keccak256::new();
@@ -118,11 +120,7 @@ pub fn verify_tx_signature(
     };
 
     // verify sender's script is in the input
-    check_l2_account_signature_cell(
-        &sender_script_hash,
-        signing_type,
-        message,
-    )?;
+    check_l2_account_signature_cell(&sender_script_hash, signing_type, message)?;
     Ok(())
 }
 
