@@ -195,7 +195,7 @@ typedef int (*gw_get_block_hash_fn)(struct gw_context_t *ctx, uint64_t number,
                                     uint8_t block_hash[32]);
 
 /**
- * Get account script hash by prefix (short address)
+ * Get account script hash by prefix (short script hash)
  *
  * @param ctx         The godwoken context
  * @param prefix      The pointer of prefix data
@@ -244,16 +244,16 @@ typedef int (*gw_log_fn)(struct gw_context_t *ctx, uint32_t account_id,
 /**
  * Record fee payment
  *
- * @param payer_addr     Memory addr of payer short address
- * @param short_addr_len Length of payer short address
- * @param sudt_id        Account id of sUDT
- * @param amount         The amount of fee
- * @return               The status code, 0 is success
+ * @param payer_short_script_hash     Memory addr of payer short script hash
+ * @param short_script_hash_len       Length of payer short script hash
+ * @param sudt_id                     Account id of sUDT
+ * @param amount                      The amount of fee
+ * @return                            The status code, 0 is success
  */
 typedef int (*gw_pay_fee_fn)(struct gw_context_t *ctx,
-                             const uint8_t *payer_addr,
-                             const uint64_t short_addr_len, uint32_t sudt_id,
-                             uint128_t amount);
+                             const uint8_t *payer_short_script_hash,
+                             const uint64_t short_script_hash_len,
+                             uint32_t sudt_id, uint128_t amount);
 
 /**
  * Load value by raw key from state tree

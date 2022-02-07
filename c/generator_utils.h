@@ -375,8 +375,8 @@ int sys_log(gw_context_t *ctx, uint32_t account_id, uint8_t service_flag,
   return syscall(GW_SYS_LOG, account_id, service_flag, data_length, data, 0, 0);
 }
 
-int sys_pay_fee(gw_context_t *ctx, const uint8_t *payer_addr,
-                const uint64_t short_addr_len, uint32_t sudt_id,
+int sys_pay_fee(gw_context_t *ctx, const uint8_t *payer_short_script_hash,
+                const uint64_t short_script_hash_len, uint32_t sudt_id,
                 uint128_t amount) {
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
@@ -386,8 +386,8 @@ int sys_pay_fee(gw_context_t *ctx, const uint8_t *payer_addr,
     return ret;
   }
 
-  return syscall(GW_SYS_PAY_FEE, payer_addr, short_addr_len, sudt_id, &amount,
-                 0, 0);
+  return syscall(GW_SYS_PAY_FEE, payer_short_script_hash, short_script_hash_len,
+                 sudt_id, &amount, 0, 0);
 }
 
 int _sys_load_rollup_config(uint8_t *addr, uint64_t *len) {

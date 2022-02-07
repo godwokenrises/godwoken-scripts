@@ -57,11 +57,15 @@ int main() {
   /* Handle messages */
   if (msg.item_id == MSG_QUERY) {
     /* Query */
-    mol_seg_t short_address_seg = MolReader_SUDTQuery_get_short_address(&msg.seg);
-    uint64_t short_addr_len = (uint64_t)MolReader_Bytes_length(&short_address_seg);
-    mol_seg_t raw_short_address_seg = MolReader_Bytes_raw_bytes(&short_address_seg);
+    mol_seg_t short_script_hash_seg =
+        MolReader_SUDTQuery_get_short_script_hash(&msg.seg);
+    uint64_t short_script_hash_len =
+        (uint64_t)MolReader_Bytes_length(&short_script_hash_seg);
+    mol_seg_t raw_short_script_hash_seg =
+        MolReader_Bytes_raw_bytes(&short_script_hash_seg);
     uint128_t balance = 0;
-    ret = sudt_get_balance(&ctx, sudt_id, short_addr_len, raw_short_address_seg.ptr, &balance);
+    ret = sudt_get_balance(&ctx, sudt_id, short_script_hash_len,
+                           raw_short_script_hash_seg.ptr, &balance);
     if (ret != 0) {
       return ret;
     }
@@ -73,14 +77,15 @@ int main() {
   } else if (msg.item_id == MSG_TRANSFER) {
     /* Transfer */
     mol_seg_t to_seg = MolReader_SUDTTransfer_get_to(&msg.seg);
-    uint64_t short_addr_len = (uint64_t)MolReader_Bytes_length(&to_seg);
+    uint64_t short_script_hash_len = (uint64_t)MolReader_Bytes_length(&to_seg);
     mol_seg_t raw_to_seg = MolReader_Bytes_raw_bytes(&to_seg);
 
     mol_seg_t amount_seg = MolReader_SUDTTransfer_get_amount(&msg.seg);
     mol_seg_t fee_seg = MolReader_SUDTTransfer_get_fee(&msg.seg);
     uint32_t from_id = ctx.transaction_context.from_id;
     uint8_t from_script_hash[32] = {0};
-    ret = ctx.sys_get_script_hash_by_account_id(&ctx, from_id, from_script_hash);
+    ret =
+        ctx.sys_get_script_hash_by_account_id(&ctx, from_id, from_script_hash);
     if (ret != 0) {
       return ret;
     }
@@ -91,13 +96,14 @@ int main() {
     uint128_t amount = *(uint128_t *)amount_seg.ptr;
     uint128_t fee = *(uint128_t *)fee_seg.ptr;
     /* pay fee */
-    ret = sudt_pay_fee(&ctx, sudt_id, short_addr_len, from_addr, fee);
+    ret = sudt_pay_fee(&ctx, sudt_id, short_script_hash_len, from_addr, fee);
     if (ret != 0) {
       printf("pay fee failed");
       return ret;
     }
     /* transfer */
-    ret = sudt_transfer(&ctx, sudt_id, short_addr_len, from_addr, to_addr, amount);
+    ret = sudt_transfer(&ctx, sudt_id, short_script_hash_len, from_addr,
+                        to_addr, amount);
     if (ret != 0) {
       printf("transfer token failed");
       return ret;

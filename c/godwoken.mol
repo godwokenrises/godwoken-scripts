@@ -243,12 +243,12 @@ union SUDTArgs {
 }
 
 table SUDTQuery {
-    // godwoken short address (script_hash[0..n])
-    short_address: Bytes,
+    // godwoken short script hash (script_hash[0..n])
+    short_script_hash: Bytes,
 }
 
 table SUDTTransfer {
-    // godwoken short address (script_hash[0..n])
+    // godwoken short script hash (script_hash[0..n])
     to: Bytes,
     amount: Uint128,
     fee: Uint128,
@@ -362,3 +362,34 @@ union RollupAction {
     RollupRevert,
 }
 // --- end of Rollup ---
+
+
+// --- ETH Address Registry ---
+array Byte20 [byte; 20];
+
+union ETHAddrRegArgs {
+    EthToGw,
+    GwToEth,
+    SetMapping,
+    BatchSetMapping,
+}
+
+struct EthToGw {
+    eth_address: Byte20,
+}
+
+struct GwToEth {
+    gw_script_hash: Byte32,
+}
+
+struct SetMapping {
+    gw_script_hash: Byte32,
+    fee: Uint64,
+}
+
+table BatchSetMapping {
+    gw_script_hashes: Byte32Vec,
+    fee: Uint64,
+}
+
+// --- end of ETH Address Registry ---

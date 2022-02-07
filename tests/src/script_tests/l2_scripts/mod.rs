@@ -1,5 +1,5 @@
 use gw_common::blake2b::new_blake2b;
-use gw_common::state::{to_short_address, State};
+use gw_common::state::{to_short_script_hash, State};
 use gw_common::H256;
 use gw_generator::constants::L2TX_MAX_CYCLES;
 use gw_generator::{account_lock_manage::AccountLockManage, Generator};
@@ -154,12 +154,14 @@ impl SudtLog {
         if data.len() > (1 + 32 + 32 + 16) {
             return Err(format!("Invalid data length: {}", data.len()));
         }
-        let short_addr_len: usize = data[0] as usize;
-        let from_addr = data[1..1 + short_addr_len].to_vec();
-        let to_addr = data[1 + short_addr_len..1 + short_addr_len * 2].to_vec();
+        let short_script_hash_len: usize = data[0] as usize;
+        let from_addr = data[1..1 + short_script_hash_len].to_vec();
+        let to_addr = data[1 + short_script_hash_len..1 + short_script_hash_len * 2].to_vec();
 
         let mut u128_bytes = [0u8; 16];
-        u128_bytes.copy_from_slice(&data[1 + short_addr_len * 2..1 + short_addr_len * 2 + 16]);
+        u128_bytes.copy_from_slice(
+            &data[1 + short_script_hash_len * 2..1 + short_script_hash_len * 2 + 16],
+        );
         let amount = u128::from_le_bytes(u128_bytes);
         Ok(SudtLog {
             sudt_id,
@@ -183,10 +185,13 @@ pub fn check_transfer_logs(
     // pay fee log
     let sudt_fee_log = SudtLog::from_log_item(&logs[0]).unwrap();
     assert_eq!(sudt_fee_log.sudt_id, sudt_id);
-    assert_eq!(sudt_fee_log.from_addr, to_short_address(&from_script_hash));
+    assert_eq!(
+        sudt_fee_log.from_addr,
+        to_short_script_hash(&from_script_hash)
+    );
     assert_eq!(
         sudt_fee_log.to_addr,
-        to_short_address(&block_producer_script_hash),
+        to_short_script_hash(&block_producer_script_hash),
     );
     assert_eq!(sudt_fee_log.amount, fee);
     assert_eq!(sudt_fee_log.log_type, SudtLogType::PayFee);
@@ -195,9 +200,12 @@ pub fn check_transfer_logs(
     assert_eq!(sudt_transfer_log.sudt_id, sudt_id);
     assert_eq!(
         sudt_transfer_log.from_addr,
-        to_short_address(&from_script_hash),
+        to_short_script_hash(&from_script_hash),
     );
-    assert_eq!(sudt_transfer_log.to_addr, to_short_address(&to_script_hash));
+    assert_eq!(
+        sudt_transfer_log.to_addr,
+        to_short_script_hash(&to_script_hash)
+    );
     assert_eq!(sudt_transfer_log.amount, amount);
     assert_eq!(sudt_transfer_log.log_type, SudtLogType::Transfer);
 }
