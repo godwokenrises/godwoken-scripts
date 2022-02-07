@@ -218,9 +218,8 @@ int sudt_pay_fee(gw_context_t *ctx, const uint32_t sudt_id,
     return ret;
   }
 
-  const uint32_t ckb_sudt_id = CKB_SUDT_ACCOUNT_ID;
-  ret = ctx->sys_pay_fee(ctx, from_addr, short_script_hash_len, ckb_sudt_id,
-                         amount);
+  ret =
+      ctx->sys_pay_fee(ctx, from_addr, short_script_hash_len, sudt_id, amount);
   if (ret != 0) {
     printf("sys pay fee failed");
   }

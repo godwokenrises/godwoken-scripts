@@ -94,9 +94,11 @@ int main() {
     uint8_t *to_addr = raw_to_seg.ptr;
 
     uint128_t amount = *(uint128_t *)amount_seg.ptr;
-    uint128_t fee = *(uint128_t *)fee_seg.ptr;
+    uint128_t fee = *(uint64_t *)fee_seg.ptr;
     /* pay fee */
-    ret = sudt_pay_fee(&ctx, sudt_id, short_script_hash_len, from_addr, fee);
+    uint32_t ckb_sudt_id = CKB_SUDT_ACCOUNT_ID;
+    ret =
+        sudt_pay_fee(&ctx, ckb_sudt_id, short_script_hash_len, from_addr, fee);
     if (ret != 0) {
       printf("pay fee failed");
       return ret;
