@@ -8,7 +8,7 @@ use super::{
 };
 use gw_common::{
     h256_ext::H256Ext,
-    state::{to_short_address, State},
+    state::{to_short_script_hash, State},
     H256, U256,
 };
 use gw_config::BackendType;
@@ -572,7 +572,7 @@ fn test_sudt_total_supply() {
     let alice_id = tree
         .create_account_from_script(alice)
         .expect("create alice account");
-    tree.mint_sudt(sudt_id, to_short_address(&alice_hash), u128::MAX)
+    tree.mint_sudt(sudt_id, to_short_script_hash(&alice_hash), u128::MAX)
         .expect("alice mint sudt");
 
     let bob = Script::new_builder()
@@ -583,7 +583,7 @@ fn test_sudt_total_supply() {
     let bob_hash: H256 = bob.hash().into();
     tree.create_account_from_script(bob)
         .expect("create bob account");
-    tree.mint_sudt(sudt_id, to_short_address(&bob_hash), u128::MAX)
+    tree.mint_sudt(sudt_id, to_short_script_hash(&bob_hash), u128::MAX)
         .expect("bob mint sudt");
 
     let contract_id = tree
