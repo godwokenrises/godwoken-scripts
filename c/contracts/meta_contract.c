@@ -28,7 +28,7 @@ int handle_fee(gw_context_t *ctx, uint64_t fee) {
   if (ret != 0) {
     return ret;
   }
-  uint64_t short_script_hash_len = DEFAULT_SHORT_ADDRESS_LEN;
+  uint64_t short_script_hash_len = DEFAULT_SHORT_SCRIPT_HASH_LEN;
   /* pay fee */
   uint32_t sudt_id = CKB_SUDT_ACCOUNT_ID;
   uint128_t fee_amount = fee;

@@ -284,30 +284,16 @@ fn check_layer2_withdrawal(
     /// Pay fee to block producer
     fn pay_fee(
         kv_state: &mut KVState,
-<<<<<<< HEAD
         payer_short_script_hash: &[u8],
         block_producer_short_script_hash: &[u8],
-        sudt_id: u32,
-        amount: u128,
-    ) -> Result<(), Error> {
-        kv_state.burn_sudt(sudt_id, payer_short_script_hash, amount)?;
-        kv_state.mint_sudt(sudt_id, block_producer_short_script_hash, amount)?;
-=======
-        payer_short_address: &[u8],
-        block_producer_short_address: &[u8],
         amount: u64,
     ) -> Result<(), Error> {
-        kv_state.burn_sudt(CKB_SUDT_ACCOUNT_ID, payer_short_address, amount.into())?;
-<<<<<<< HEAD
-        kv_state.mint_sudt(CKB_SUDT_ACCOUNT_ID, block_producer_short_address, amount.into())?;
->>>>>>> refactor: remove sudt pay fee; fix tests
-=======
+        kv_state.burn_sudt(CKB_SUDT_ACCOUNT_ID, payer_short_script_hash, amount.into())?;
         kv_state.mint_sudt(
             CKB_SUDT_ACCOUNT_ID,
-            block_producer_short_address,
+            block_producer_short_script_hash,
             amount.into(),
         )?;
->>>>>>> chore: format
         Ok(())
     }
 
