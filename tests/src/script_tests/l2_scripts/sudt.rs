@@ -26,6 +26,15 @@ fn test_sudt() {
     let init_a_balance: u128 = 10000;
 
     // init accounts
+    let _meta = tree
+        .create_account_from_script(
+            Script::new_builder()
+                .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
+                .args([0u8; 64].to_vec().pack())
+                .hash_type(ScriptHashType::Type.into())
+                .build(),
+        )
+        .expect("create account");
     let sudt_id = tree
         .create_account_from_script(
             Script::new_builder()
@@ -184,6 +193,15 @@ fn test_insufficient_balance() {
         .build();
 
     // init accounts
+    let _meta = tree
+        .create_account_from_script(
+            Script::new_builder()
+                .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
+                .args([0u8; 20].to_vec().pack())
+                .hash_type(ScriptHashType::Type.into())
+                .build(),
+        )
+        .expect("create account");
     let sudt_id = tree
         .create_account_from_script(
             Script::new_builder()
@@ -193,6 +211,7 @@ fn test_insufficient_balance() {
                 .build(),
         )
         .expect("create account");
+    assert_eq!(sudt_id, 1);
     let a_id = tree
         .create_account_from_script(
             Script::new_builder()
@@ -263,6 +282,15 @@ fn test_transfer_to_non_exist_account() {
         .build();
 
     // init accounts
+    let _meta = tree
+        .create_account_from_script(
+            Script::new_builder()
+                .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
+                .args([0u8; 20].to_vec().pack())
+                .hash_type(ScriptHashType::Type.into())
+                .build(),
+        )
+        .expect("create account");
     let sudt_id = tree
         .create_account_from_script(
             Script::new_builder()
@@ -328,6 +356,15 @@ fn test_transfer_to_self() {
         .build();
 
     // init accounts
+    let _meta = tree
+        .create_account_from_script(
+            Script::new_builder()
+                .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
+                .args([0u8; 20].to_vec().pack())
+                .hash_type(ScriptHashType::Type.into())
+                .build(),
+        )
+        .expect("create account");
     let sudt_id = tree
         .create_account_from_script(
             Script::new_builder()
@@ -537,6 +574,15 @@ fn test_transfer_to_self_overflow() {
         .build();
 
     // init accounts
+    let _meta = tree
+        .create_account_from_script(
+            Script::new_builder()
+                .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
+                .args([0u8; 20].to_vec().pack())
+                .hash_type(ScriptHashType::Type.into())
+                .build(),
+        )
+        .expect("create account");
     let sudt_id = tree
         .create_account_from_script(
             Script::new_builder()
@@ -800,6 +846,15 @@ fn test_transfer_overflow() {
         .build();
 
     // init accounts
+    let _meta = tree
+        .create_account_from_script(
+            Script::new_builder()
+                .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
+                .args([0u8; 20].to_vec().pack())
+                .hash_type(ScriptHashType::Type.into())
+                .build(),
+        )
+        .expect("create account");
     let sudt_id = tree
         .create_account_from_script(
             Script::new_builder()
