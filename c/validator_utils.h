@@ -1432,18 +1432,25 @@ int _gw_check_account_script_is_allowed(uint8_t rollup_script_hash[32],
   /* check allowed EOA list */
   mol_seg_t allowed_eoa_list_seg =
       MolReader_RollupConfig_get_allowed_eoa_type_hashes(rollup_config_seg);
-  uint32_t len = MolReader_Byte32Vec_length(&allowed_eoa_list_seg);
+  uint32_t len = MolReader_AllowedTypeHashVec_length(&allowed_eoa_list_seg);
   for (uint32_t i = 0; i < len; i++) {
-    mol_seg_res_t code_hash_res =
-        MolReader_Byte32Vec_get(&allowed_eoa_list_seg, i);
+    mol_seg_res_t allowed_type_hash_res =
+        MolReader_AllowedTypeHashVec_get(&allowed_eoa_list_seg, i);
 
-    if (code_hash_res.errno != MOL_OK ||
-        code_hash_res.seg.size != script_code_hash_seg.size) {
-      printf("[check account script] failed to get EOA code_hash");
+    if (allowed_type_hash_res.errno != MOL_OK) {
+      printf("[check account script] failed to get EOA code hash");
       return GW_FATAL_INVALID_DATA;
     }
 
-    if (memcmp(code_hash_res.seg.ptr, script_code_hash_seg.ptr,
+    mol_seg_t code_hash_seg =
+        MolReader_AllowedTypeHash_get_hash(&allowed_type_hash_res.seg);
+    if (code_hash_seg.size != script_code_hash_seg.size) {
+      printf(
+          "[check account script] failed to get EOA code hash, size mismatch");
+      return GW_FATAL_INVALID_DATA;
+    }
+
+    if (memcmp(code_hash_seg.ptr, script_code_hash_seg.ptr,
                script_code_hash_seg.size) == 0) {
       /* found a valid code_hash */
       printf("[check account script] script is EOA");
@@ -1455,16 +1462,26 @@ int _gw_check_account_script_is_allowed(uint8_t rollup_script_hash[32],
   mol_seg_t allowed_contract_list_seg =
       MolReader_RollupConfig_get_allowed_contract_type_hashes(
           rollup_config_seg);
-  len = MolReader_Byte32Vec_length(&allowed_contract_list_seg);
+  len = MolReader_AllowedTypeHashVec_length(&allowed_contract_list_seg);
   for (uint32_t i = 0; i < len; i++) {
-    mol_seg_res_t code_hash_res =
-        MolReader_Byte32Vec_get(&allowed_contract_list_seg, i);
-    if (code_hash_res.errno != MOL_OK ||
-        code_hash_res.seg.size != script_code_hash_seg.size) {
-      printf("[check account script] failed to get contract code_hash");
+    mol_seg_res_t allowed_type_hash_res =
+        MolReader_AllowedTypeHashVec_get(&allowed_contract_list_seg, i);
+    // code_hash_res.seg.size != script_code_hash_seg.size) {
+    if (allowed_type_hash_res.errno != MOL_OK) {
+      printf("[check account script] failed to get contract code hash");
       return GW_FATAL_INVALID_DATA;
     }
-    if (memcmp(code_hash_res.seg.ptr, script_code_hash_seg.ptr,
+
+    mol_seg_t code_hash_seg =
+        MolReader_AllowedTypeHash_get_hash(&allowed_type_hash_res.seg);
+    if (code_hash_seg.size != script_code_hash_seg.size) {
+      printf(
+          "[check account script] failed to get contract code hash, size "
+          "mismatch");
+      return GW_FATAL_INVALID_DATA;
+    }
+
+    if (memcmp(code_hash_seg.ptr, script_code_hash_seg.ptr,
                script_code_hash_seg.size) == 0) {
       /* found a valid code_hash */
       printf("[check account script] script is contract");
@@ -1514,7 +1531,8 @@ int _check_owner_lock_hash() {
 
     if (ret != 0) {
       printf(
-          "check owner lock hash failed: failed to load cell lock_hash ret: %d",
+          "check owner lock hash failed: failed to load cell lock_hash ret: "
+          "%d",
           ret);
       return GW_FATAL_INVALID_CONTEXT;
     }

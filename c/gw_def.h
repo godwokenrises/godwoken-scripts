@@ -42,6 +42,16 @@ typedef unsigned __int128 uint128_t;
 
 #define GW_DEFAULT_SHORT_SCRIPT_HASH_LEN 20
 
+#define GW_ALLOWED_EOA_UNKNOWN 0
+#define GW_ALLOWED_EOA_ETH 1
+#define GW_ALLOWED_EOA_TRON 2
+
+#define GW_ALLOWED_CONTRACT_UNKNOWN 0
+#define GW_ALLOWED_CONTRACT_META 1
+#define GW_ALLOWED_CONTRACT_SUDT 2
+#define GW_ALLOWED_CONTRACT_POLYJUICE 3
+#define GW_ALLOWED_CONTRACT_ETH_ADDR_REG 4
+
 /* Godwoken context */
 typedef struct {
   uint32_t from_id;

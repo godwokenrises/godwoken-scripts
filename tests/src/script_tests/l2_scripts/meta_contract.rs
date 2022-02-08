@@ -15,7 +15,7 @@ use gw_generator::{
 use gw_types::{
     core::ScriptHashType,
     offchain::RollupContext,
-    packed::{CreateAccount, MetaContractArgs, RollupConfig, Script},
+    packed::{AllowedTypeHash, CreateAccount, MetaContractArgs, RollupConfig, Script},
     prelude::*,
 };
 
@@ -52,7 +52,7 @@ fn test_meta_contract() {
     let mut tree = DummyState::default();
     let dummy_eoa_type_hash = [4u8; 32];
     let rollup_config = RollupConfig::new_builder()
-        .allowed_eoa_type_hashes(vec![dummy_eoa_type_hash].pack())
+        .allowed_eoa_type_hashes(vec![AllowedTypeHash::from_unknown(dummy_eoa_type_hash)].pack())
         .build();
     init_accounts(&mut tree, &rollup_config);
 
@@ -173,7 +173,7 @@ fn test_insufficient_balance_to_pay_fee() {
     let mut state = DummyState::default();
     let dummy_eoa_type_hash = [4u8; 32];
     let rollup_config = RollupConfig::new_builder()
-        .allowed_eoa_type_hashes(vec![dummy_eoa_type_hash].pack())
+        .allowed_eoa_type_hashes(vec![AllowedTypeHash::from_unknown(dummy_eoa_type_hash)].pack())
         .build();
     init_accounts(&mut state, &rollup_config);
 

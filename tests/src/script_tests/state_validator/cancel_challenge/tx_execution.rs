@@ -26,6 +26,7 @@ use gw_store::mem_pool_state::MemPoolState;
 use gw_store::mem_pool_state::MemStore;
 use gw_store::state::state_db::StateContext;
 use gw_traits::CodeStore;
+use gw_types::packed::AllowedTypeHash;
 use gw_types::packed::CCTransactionWitness;
 use gw_types::prelude::*;
 use gw_types::{
@@ -62,9 +63,11 @@ async fn test_cancel_tx_execute() {
     let rollup_config = RollupConfig::new_builder()
         .challenge_script_type_hash(Pack::pack(&challenge_script_type_hash))
         .l2_sudt_validator_script_type_hash(Pack::pack(&l2_sudt_type_hash))
-        .allowed_contract_type_hashes(PackVec::pack(vec![Pack::pack(&l2_sudt_type_hash)]))
+        .allowed_contract_type_hashes(vec![AllowedTypeHash::from_unknown(l2_sudt_type_hash)].pack())
         .finality_blocks(Pack::pack(&finality_blocks))
-        .allowed_eoa_type_hashes(vec![*ALWAYS_SUCCESS_CODE_HASH].pack())
+        .allowed_eoa_type_hashes(
+            vec![AllowedTypeHash::from_unknown(*ALWAYS_SUCCESS_CODE_HASH)].pack(),
+        )
         .build();
     // setup chain
     let mut chain = setup_chain(rollup_type_script.clone(), rollup_config.clone()).await;

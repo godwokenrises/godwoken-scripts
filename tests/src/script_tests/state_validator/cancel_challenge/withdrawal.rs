@@ -27,6 +27,7 @@ use gw_generator::account_lock_manage::{
     {always_success::AlwaysSuccess, AccountLockManage},
 };
 use gw_types::core::SigningType;
+use gw_types::packed::AllowedTypeHash;
 use gw_types::packed::CCWithdrawalWitness;
 use gw_types::packed::WithdrawalRequestExtra;
 use gw_types::prelude::*;
@@ -34,9 +35,8 @@ use gw_types::{
     bytes::Bytes,
     core::{ChallengeTargetType, ScriptHashType, Status},
     packed::{
-        Byte32, ChallengeLockArgs, ChallengeTarget, DepositRequest, RawWithdrawalRequest,
-        RollupAction, RollupActionUnion, RollupCancelChallenge, RollupConfig, Script,
-        WithdrawalRequest,
+        ChallengeLockArgs, ChallengeTarget, DepositRequest, RawWithdrawalRequest, RollupAction,
+        RollupActionUnion, RollupCancelChallenge, RollupConfig, Script, WithdrawalRequest,
     },
 };
 
@@ -58,7 +58,8 @@ async fn test_cancel_withdrawal() {
     let eoa_lock_type = build_type_id_script(b"eoa_lock_type_id");
     let challenge_script_type_hash: [u8; 32] = challenge_lock_type.calc_script_hash().unpack();
     let eoa_lock_type_hash: [u8; 32] = eoa_lock_type.calc_script_hash().unpack();
-    let allowed_eoa_type_hashes: Vec<Byte32> = vec![Pack::pack(&eoa_lock_type_hash)];
+    let allowed_eoa_type_hashes: Vec<AllowedTypeHash> =
+        vec![AllowedTypeHash::from_unknown(eoa_lock_type_hash)];
     let finality_blocks = 10;
     let rollup_config = RollupConfig::new_builder()
         .challenge_script_type_hash(Pack::pack(&challenge_script_type_hash))

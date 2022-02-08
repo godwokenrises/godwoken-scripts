@@ -231,7 +231,7 @@ fn check_layer2_deposit(
         if !config
             .allowed_eoa_type_hashes()
             .into_iter()
-            .any(|code_hash| code_hash == request.account_script.code_hash())
+            .any(|type_hash| type_hash.hash() == request.account_script.code_hash())
         {
             return Err(Error::UnknownEOAScript);
         }

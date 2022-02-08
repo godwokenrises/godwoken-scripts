@@ -21,7 +21,7 @@ use ckb_types::{
 };
 use gw_chain::chain::{L1Action, L1ActionContext, SyncParam};
 use gw_types::packed::{
-    DepositRequest, L2BlockCommittedInfo, RawWithdrawalRequest, WithdrawalRequest,
+    AllowedTypeHash, DepositRequest, L2BlockCommittedInfo, RawWithdrawalRequest, WithdrawalRequest,
     WithdrawalRequestExtra,
 };
 use gw_types::prelude::{Pack as GWPack, Unpack as GWUnpack, *};
@@ -1121,7 +1121,9 @@ async fn test_withdrawal_cell_lock_args_with_owner_lock_in_submit_block() {
         .stake_script_type_hash(Pack::pack(&stake_script_type_hash))
         .custodian_script_type_hash(Pack::pack(&custodian_script_type_hash))
         .withdrawal_script_type_hash(Pack::pack(&withdrawal_script_type_hash))
-        .allowed_eoa_type_hashes(PackVec::pack(vec![Pack::pack(&*ALWAYS_SUCCESS_CODE_HASH)]))
+        .allowed_eoa_type_hashes(PackVec::pack(vec![AllowedTypeHash::from_unknown(
+            *ALWAYS_SUCCESS_CODE_HASH,
+        )]))
         .build();
 
     // setup chain
