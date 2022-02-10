@@ -1466,7 +1466,6 @@ int _gw_check_account_script_is_allowed(uint8_t rollup_script_hash[32],
   for (uint32_t i = 0; i < len; i++) {
     mol_seg_res_t allowed_type_hash_res =
         MolReader_AllowedTypeHashVec_get(&allowed_contract_list_seg, i);
-    // code_hash_res.seg.size != script_code_hash_seg.size) {
     if (allowed_type_hash_res.errno != MOL_OK) {
       printf("[check account script] failed to get contract code hash");
       return GW_FATAL_INVALID_DATA;
