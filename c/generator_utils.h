@@ -173,18 +173,13 @@ int sys_get_account_id_by_script_hash(gw_context_t *ctx,
     return ret;
   }
   *account_id = *((uint32_t *)value);
-
-  /* if account_id is greater than 0, it is exist */
-  if (*account_id > 0) {
+  /* check exists flag */
+  int exists = value[4] == 1;
+  if (exists) {
     return 0;
   }
 
-  ret = _ensure_account_exists(ctx, *account_id);
-  if (ret != 0) {
-    return ret;
-  }
-
-  return 0;
+  return GW_ERROR_ACCOUNT_NOT_EXISTS;
 }
 
 /* Get account script_hash by account id */
