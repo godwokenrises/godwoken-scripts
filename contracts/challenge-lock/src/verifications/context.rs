@@ -85,7 +85,7 @@ pub fn verify_tx_context(input: TxContextInput) -> Result<TxContext, Error> {
     if !rollup_config
         .allowed_eoa_type_hashes()
         .into_iter()
-        .any(|code_hash| code_hash == sender_script.code_hash())
+        .any(|type_hash| type_hash.hash() == sender_script.code_hash())
     {
         debug!(
             "sender script has unknown code_hash: {}",
@@ -102,7 +102,7 @@ pub fn verify_tx_context(input: TxContextInput) -> Result<TxContext, Error> {
     if !rollup_config
         .allowed_contract_type_hashes()
         .into_iter()
-        .any(|code_hash| code_hash == receiver_script.code_hash())
+        .any(|type_hash| type_hash.hash() == receiver_script.code_hash())
     {
         debug!(
             "receiver script has unknown code_hash: {}",

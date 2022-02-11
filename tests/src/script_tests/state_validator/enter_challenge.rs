@@ -21,6 +21,7 @@ use gw_common::{
     state::{to_short_script_hash, State},
 };
 use gw_store::state::state_db::StateContext;
+use gw_types::packed::AllowedTypeHash;
 use gw_types::prelude::*;
 use gw_types::{
     bytes::Bytes,
@@ -54,7 +55,9 @@ async fn test_enter_challenge() {
     let rollup_config = RollupConfig::new_builder()
         .challenge_script_type_hash(Pack::pack(&challenge_script_type_hash))
         .finality_blocks(Pack::pack(&finality_blocks))
-        .allowed_eoa_type_hashes(vec![*ALWAYS_SUCCESS_CODE_HASH].pack())
+        .allowed_eoa_type_hashes(
+            vec![AllowedTypeHash::from_unknown(*ALWAYS_SUCCESS_CODE_HASH)].pack(),
+        )
         .build();
     // setup chain
     let mut chain = setup_chain(rollup_type_script.clone(), rollup_config.clone()).await;
@@ -262,7 +265,9 @@ async fn test_enter_challenge_finalized_block() {
     let rollup_config = RollupConfig::new_builder()
         .challenge_script_type_hash(Pack::pack(&challenge_script_type_hash))
         .finality_blocks(Pack::pack(&finality_blocks))
-        .allowed_eoa_type_hashes(vec![*ALWAYS_SUCCESS_CODE_HASH].pack())
+        .allowed_eoa_type_hashes(
+            vec![AllowedTypeHash::from_unknown(*ALWAYS_SUCCESS_CODE_HASH)].pack(),
+        )
         .build();
     // setup chain
     let mut chain = setup_chain(rollup_type_script.clone(), rollup_config.clone()).await;

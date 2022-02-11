@@ -26,7 +26,7 @@ use gw_store::mem_pool_state::MemStore;
 use gw_store::state::state_db::StateContext;
 use gw_traits::CodeStore;
 use gw_types::core::SigningType;
-use gw_types::packed::Byte32;
+use gw_types::packed::AllowedTypeHash;
 use gw_types::packed::CCTransactionSignatureWitness;
 use gw_types::prelude::*;
 use gw_types::{
@@ -60,13 +60,16 @@ async fn test_cancel_tx_signature() {
     let eoa_lock_type_hash: [u8; 32] = eoa_lock_type.calc_script_hash().unpack();
     let l2_sudt_type_hash: [u8; 32] = l2_sudt_type.calc_script_hash().unpack();
 
-    let allowed_eoa_type_hashes: Vec<Byte32> = vec![Pack::pack(&eoa_lock_type_hash)];
+    let allowed_eoa_type_hashes: Vec<AllowedTypeHash> =
+        vec![AllowedTypeHash::from_unknown(eoa_lock_type_hash)];
     let finality_blocks = 10;
     let rollup_config = RollupConfig::new_builder()
         .challenge_script_type_hash(Pack::pack(&challenge_script_type_hash))
         .allowed_eoa_type_hashes(PackVec::pack(allowed_eoa_type_hashes))
         .l2_sudt_validator_script_type_hash(Pack::pack(&l2_sudt_type_hash))
-        .allowed_contract_type_hashes(PackVec::pack(vec![Pack::pack(&l2_sudt_type_hash)]))
+        .allowed_contract_type_hashes(PackVec::pack(vec![AllowedTypeHash::from_unknown(
+            l2_sudt_type_hash,
+        )]))
         .finality_blocks(Pack::pack(&finality_blocks))
         .build();
     // setup chain

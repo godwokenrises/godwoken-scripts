@@ -21,6 +21,7 @@ use gw_common::{
 };
 use gw_store::state::state_db::StateContext;
 use gw_store::traits::chain_store::ChainStore;
+use gw_types::packed::AllowedTypeHash;
 use gw_types::{
     bytes::Bytes,
     core::{ChallengeTargetType, ScriptHashType, Status},
@@ -65,7 +66,9 @@ async fn test_revert() {
         .reward_burn_rate(50u8.into())
         .burn_lock_hash(Pack::pack(&reward_burn_lock_hash))
         .finality_blocks(Pack::pack(&finality_blocks))
-        .allowed_eoa_type_hashes(vec![*ALWAYS_SUCCESS_CODE_HASH].pack())
+        .allowed_eoa_type_hashes(
+            vec![AllowedTypeHash::from_unknown(*ALWAYS_SUCCESS_CODE_HASH)].pack(),
+        )
         .build();
     // setup chain
     let mut chain = setup_chain(rollup_type_script.clone(), rollup_config.clone()).await;
