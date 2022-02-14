@@ -205,18 +205,13 @@ int sys_get_account_id_by_script_hash(gw_context_t *ctx,
     return ret;
   }
   *account_id = *((uint32_t *)value);
-
-  /* if account_id is greater than 0, it is exist */
-  if (*account_id > 0) {
+  /* check exists flag */
+  int exists = value[4] == 1;
+  if (exists) {
     return 0;
   }
 
-  ret = _ensure_account_exists(ctx, *account_id);
-  if (ret != 0) {
-    return ret;
-  }
-
-  return 0;
+  return GW_ERROR_ACCOUNT_NOT_EXISTS;
 }
 
 /* Get account script_hash by account id */
@@ -631,7 +626,10 @@ int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
   uint8_t script_hash_to_id_key[32] = {0};
   uint8_t script_hash_to_id_value[32] = {0};
   gw_build_script_hash_to_account_id_key(script_hash, script_hash_to_id_key);
+  /* set id */
   _gw_fast_memcpy(script_hash_to_id_value, (uint8_t *)(&id), 4);
+  /* set exists flag */
+  script_hash_to_id_value[4] = 1;
   ret =
       _internal_store_raw(ctx, script_hash_to_id_key, script_hash_to_id_value);
   if (ret != 0) {

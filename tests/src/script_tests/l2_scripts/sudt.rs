@@ -30,7 +30,7 @@ fn test_sudt() {
         .create_account_from_script(
             Script::new_builder()
                 .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
-                .args([0u8; 64].to_vec().pack())
+                .args([1u8; 64].to_vec().pack())
                 .hash_type(ScriptHashType::Type.into())
                 .build(),
         )
@@ -197,7 +197,7 @@ fn test_insufficient_balance() {
         .create_account_from_script(
             Script::new_builder()
                 .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
-                .args([0u8; 20].to_vec().pack())
+                .args([1u8; 20].to_vec().pack())
                 .hash_type(ScriptHashType::Type.into())
                 .build(),
         )
@@ -286,7 +286,7 @@ fn test_transfer_to_non_exist_account() {
         .create_account_from_script(
             Script::new_builder()
                 .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
-                .args([0u8; 20].to_vec().pack())
+                .args([1u8; 20].to_vec().pack())
                 .hash_type(ScriptHashType::Type.into())
                 .build(),
         )
@@ -360,7 +360,7 @@ fn test_transfer_to_self() {
         .create_account_from_script(
             Script::new_builder()
                 .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
-                .args([0u8; 20].to_vec().pack())
+                .args([1u8; 20].to_vec().pack())
                 .hash_type(ScriptHashType::Type.into())
                 .build(),
         )
@@ -578,7 +578,7 @@ fn test_transfer_to_self_overflow() {
         .create_account_from_script(
             Script::new_builder()
                 .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
-                .args([0u8; 20].to_vec().pack())
+                .args([1u8; 20].to_vec().pack())
                 .hash_type(ScriptHashType::Type.into())
                 .build(),
         )
@@ -850,7 +850,7 @@ fn test_transfer_overflow() {
         .create_account_from_script(
             Script::new_builder()
                 .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
-                .args([0u8; 20].to_vec().pack())
+                .args([1u8; 20].to_vec().pack())
                 .hash_type(ScriptHashType::Type.into())
                 .build(),
         )

@@ -50,6 +50,7 @@ pub enum Error {
     UnexpectedTxNonce,
     // raise from signature verification script
     WrongSignature,
+    DuplicatedScriptHash,
 }
 
 impl From<SysError> for Error {
@@ -73,6 +74,7 @@ impl From<CommonError> for Error {
             MerkleProof => Self::MerkleProof,
             AmountOverflow => Self::AmountOverflow,
             InvalidShortScriptHash => Self::InvalidShortScriptHash,
+            DuplicatedScriptHash => Self::DuplicatedScriptHash,
         }
     }
 }
