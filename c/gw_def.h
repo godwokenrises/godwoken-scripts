@@ -1,6 +1,7 @@
 #ifndef GW_DEF_H_
 #define GW_DEF_H_
 
+#include "gw_registry_addr.h"
 #include "stddef.h"
 
 typedef unsigned __int128 uint128_t;
@@ -16,6 +17,9 @@ typedef unsigned __int128 uint128_t;
 #define GW_ACCOUNT_SCRIPT_HASH_TO_ID 3
 #define GW_DATA_HASH_PREFIX 4
 #define GW_SHORT_ACCOUNT_SCRIPT_HASH_TO_SCRIPT_HASH 5
+/* Godwoken Registry key type */
+#define GW_REGISTRY_KEY_FLAG_SCRIPT_HASH_TO_NATIVE 1
+#define GW_REGISTRY_KEY_FLAG_NATIVE_TO_SCRIPT_HASH 2
 
 /* Limitations */
 /* 25KB (ethereum max contract code size) */
@@ -63,7 +67,7 @@ typedef struct {
 typedef struct {
   uint64_t number;
   uint64_t timestamp;
-  uint32_t block_producer_id;
+  gw_reg_addr_t block_producer;
 } gw_block_info_t;
 
 struct gw_context_t;
@@ -254,16 +258,35 @@ typedef int (*gw_log_fn)(struct gw_context_t *ctx, uint32_t account_id,
 /**
  * Record fee payment
  *
- * @param payer_short_script_hash     Memory addr of payer short script hash
- * @param short_script_hash_len       Length of payer short script hash
+ * @param payer_addr                  Registry address
  * @param sudt_id                     Account id of sUDT
  * @param amount                      The amount of fee
  * @return                            The status code, 0 is success
  */
-typedef int (*gw_pay_fee_fn)(struct gw_context_t *ctx,
-                             const uint8_t *payer_short_script_hash,
-                             const uint64_t short_script_hash_len,
+typedef int (*gw_pay_fee_fn)(struct gw_context_t *ctx, gw_reg_addr_t payer_addr,
                              uint32_t sudt_id, uint128_t amount);
+
+/**
+ * Get registry address by script_hash
+ *
+ * @param script_hash
+ * @param reg_id registry_id
+ * @param returned registry address
+ * @return       The status code, 0 is success
+ */
+typedef int (*gw_get_registry_address_by_script_hash_fn)(
+    struct gw_context_t *ctx, uint8_t script_hash[32], uint32_t reg_id,
+    gw_reg_addr_t *address);
+
+/**
+ * Get script hash by address
+ *
+ * @param address
+ * @param script_hash
+ * @return       The status code, 0 is success
+ */
+typedef int (*gw_get_script_hash_by_registry_address_fn)(
+    struct gw_context_t *ctx, gw_reg_addr_t *address, uint8_t script_hash[32]);
 
 /**
  * Load value by raw key from state tree

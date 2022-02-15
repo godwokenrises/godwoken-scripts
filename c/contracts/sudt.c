@@ -57,15 +57,16 @@ int main() {
   /* Handle messages */
   if (msg.item_id == MSG_QUERY) {
     /* Query */
-    mol_seg_t short_script_hash_seg =
-        MolReader_SUDTQuery_get_short_script_hash(&msg.seg);
-    uint64_t short_script_hash_len =
-        (uint64_t)MolReader_Bytes_length(&short_script_hash_seg);
-    mol_seg_t raw_short_script_hash_seg =
-        MolReader_Bytes_raw_bytes(&short_script_hash_seg);
+    mol_seg_t address_seg = MolReader_SUDTQuery_get_address(&msg.seg);
+    mol_seg_t raw_address_seg = MolReader_Bytes_raw_bytes(&address_seg);
+    gw_reg_addr_t addr;
+    ret = _gw_parse_addr((uint8_t *)raw_address_seg.ptr, raw_address_seg.size,
+                         &addr);
+    if (ret != 0) {
+      return ret;
+    }
     uint128_t balance = 0;
-    ret = sudt_get_balance(&ctx, sudt_id, short_script_hash_len,
-                           raw_short_script_hash_seg.ptr, &balance);
+    ret = sudt_get_balance(&ctx, sudt_id, addr, &balance);
     if (ret != 0) {
       return ret;
     }
@@ -76,12 +77,16 @@ int main() {
     }
   } else if (msg.item_id == MSG_TRANSFER) {
     /* Transfer */
-    mol_seg_t to_seg = MolReader_SUDTTransfer_get_to(&msg.seg);
-    uint64_t short_script_hash_len = (uint64_t)MolReader_Bytes_length(&to_seg);
+    mol_seg_t to_seg = MolReader_SUDTTransfer_get_to_address(&msg.seg);
     mol_seg_t raw_to_seg = MolReader_Bytes_raw_bytes(&to_seg);
 
     mol_seg_t amount_seg = MolReader_SUDTTransfer_get_amount(&msg.seg);
     mol_seg_t fee_seg = MolReader_SUDTTransfer_get_fee(&msg.seg);
+    mol_seg_t fee_amount_seg = MolReader_Fee_get_amount(&fee_seg);
+    mol_seg_t fee_reg_seg = MolReader_Fee_get_registry_id(&fee_seg);
+    uint32_t reg_id = *(uint32_t *)fee_reg_seg.ptr;
+    uint64_t fee_amount = *(uint64_t *)fee_amount_seg.ptr;
+
     uint32_t from_id = ctx.transaction_context.from_id;
     uint8_t from_script_hash[32] = {0};
     ret =
@@ -89,23 +94,30 @@ int main() {
     if (ret != 0) {
       return ret;
     }
-    /* The prefix */
-    uint8_t *from_addr = from_script_hash;
-    uint8_t *to_addr = raw_to_seg.ptr;
+    /* Address */
+    gw_reg_addr_t from_addr;
+    ret = ctx.sys_get_registry_address_by_script_hash(&ctx, from_script_hash,
+                                                      reg_id, &from_addr);
+    if (ret != 0) {
+      return ret;
+    }
+
+    gw_reg_addr_t to_addr;
+    ret = _gw_parse_addr(raw_to_seg.ptr, raw_to_seg.size, &to_addr);
+    if (ret != 0) {
+      return ret;
+    }
 
     uint128_t amount = *(uint128_t *)amount_seg.ptr;
-    uint128_t fee = *(uint64_t *)fee_seg.ptr;
     /* pay fee */
     uint32_t ckb_sudt_id = CKB_SUDT_ACCOUNT_ID;
-    ret =
-        sudt_pay_fee(&ctx, ckb_sudt_id, short_script_hash_len, from_addr, fee);
+    ret = sudt_pay_fee(&ctx, ckb_sudt_id, from_addr, fee_amount);
     if (ret != 0) {
       printf("pay fee failed");
       return ret;
     }
     /* transfer */
-    ret = sudt_transfer(&ctx, sudt_id, short_script_hash_len, from_addr,
-                        to_addr, amount);
+    ret = sudt_transfer(&ctx, sudt_id, from_addr, to_addr, amount);
     if (ret != 0) {
       printf("transfer token failed");
       return ret;

@@ -59,6 +59,10 @@ typedef struct gw_context_t {
   gw_recover_account_fn sys_recover_account;
   gw_log_fn sys_log;
   gw_pay_fee_fn sys_pay_fee;
+  gw_get_registry_address_by_script_hash_fn
+      sys_get_registry_address_by_script_hash;
+  gw_get_script_hash_by_registry_address_fn
+      sys_get_script_hash_by_registry_address;
   _gw_load_raw_fn _internal_load_raw;
   _gw_store_raw_fn _internal_store_raw;
 } gw_context_t;
@@ -370,8 +374,7 @@ int sys_log(gw_context_t *ctx, uint32_t account_id, uint8_t service_flag,
   return syscall(GW_SYS_LOG, account_id, service_flag, data_length, data, 0, 0);
 }
 
-int sys_pay_fee(gw_context_t *ctx, const uint8_t *payer_short_script_hash,
-                const uint64_t short_script_hash_len, uint32_t sudt_id,
+int sys_pay_fee(gw_context_t *ctx, gw_reg_addr_t addr, uint32_t sudt_id,
                 uint128_t amount) {
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
@@ -380,9 +383,14 @@ int sys_pay_fee(gw_context_t *ctx, const uint8_t *payer_short_script_hash,
   if (ret != 0) {
     return ret;
   }
+  uint8_t buf[32] = {0};
+  int len = GW_REG_ADDR_SIZE(addr);
+  if (len > 32) {
+    return GW_FATAL_BUFFER_OVERFLOW;
+  }
+  _gw_cpy_addr(buf, addr);
 
-  return syscall(GW_SYS_PAY_FEE, payer_short_script_hash, short_script_hash_len,
-                 sudt_id, &amount, 0, 0);
+  return syscall(GW_SYS_PAY_FEE, buf, len, sudt_id, &amount, 0, 0);
 }
 
 int _sys_load_rollup_config(uint8_t *addr, uint64_t *len) {
@@ -422,6 +430,10 @@ int gw_context_init(gw_context_t *ctx) {
   ctx->sys_recover_account = sys_recover_account;
   ctx->sys_pay_fee = sys_pay_fee;
   ctx->sys_log = sys_log;
+  ctx->sys_get_registry_address_by_script_hash =
+      _gw_get_registry_address_by_script_hash;
+  ctx->sys_get_script_hash_by_registry_address =
+      _gw_get_script_hash_by_registry_address;
   ctx->_internal_load_raw = _internal_load_raw;
   ctx->_internal_store_raw = _internal_store_raw;
 

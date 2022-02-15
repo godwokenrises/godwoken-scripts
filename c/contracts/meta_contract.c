@@ -13,27 +13,31 @@
 /* MSG_TYPE */
 #define MSG_CREATE_ACCOUNT 0
 /* Currently, we only support 20 length short script hash length */
-#define DEFAULT_SHORT_SCRIPT_HASH_LEN 20
 #define CKB_SUDT_ACCOUNT_ID 1
 
-int handle_fee(gw_context_t *ctx, uint64_t fee) {
+int handle_fee(gw_context_t *ctx, uint32_t registry_id, uint64_t fee) {
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
   }
 
-  /* payer's short script hash */
-  uint8_t payer_short_script_hash[32] = {0};
+  /* payer's registry address */
+  uint8_t payer_script_hash[32] = {0};
   int ret = ctx->sys_get_script_hash_by_account_id(
-      ctx, ctx->transaction_context.from_id, payer_short_script_hash);
+      ctx, ctx->transaction_context.from_id, payer_script_hash);
   if (ret != 0) {
     return ret;
   }
-  uint64_t short_script_hash_len = DEFAULT_SHORT_SCRIPT_HASH_LEN;
+  gw_reg_addr_t payer_addr;
+  ret = ctx->sys_get_registry_address_by_script_hash(ctx, payer_script_hash,
+                                                     registry_id, &payer_addr);
+  if (ret != 0) {
+    return ret;
+  }
+
   /* pay fee */
   uint32_t sudt_id = CKB_SUDT_ACCOUNT_ID;
   uint128_t fee_amount = fee;
-  return sudt_pay_fee(ctx, sudt_id, short_script_hash_len,
-                      payer_short_script_hash, fee_amount);
+  return sudt_pay_fee(ctx, sudt_id, payer_addr, fee_amount);
 }
 
 int main() {
@@ -62,8 +66,11 @@ int main() {
   if (msg.item_id == MSG_CREATE_ACCOUNT) {
     /* Charge fee */
     mol_seg_t fee_seg = MolReader_CreateAccount_get_fee(&msg.seg);
-    uint64_t fee = *(uint64_t *)fee_seg.ptr;
-    int ret = handle_fee(&ctx, fee);
+    mol_seg_t amount_seg = MolReader_Fee_get_amount(&fee_seg);
+    mol_seg_t reg_id_seg = MolReader_Fee_get_registry_id(&fee_seg);
+    uint64_t fee_amount = *(uint64_t *)amount_seg.ptr;
+    uint32_t reg_id = *(uint32_t *)reg_id_seg.ptr;
+    int ret = handle_fee(&ctx, reg_id, fee_amount);
     if (ret != 0) {
       return ret;
     }

@@ -51,6 +51,7 @@ pub enum Error {
     // raise from signature verification script
     WrongSignature,
     DuplicatedScriptHash,
+    RegistryAddressNotFound,
 }
 
 impl From<SysError> for Error {

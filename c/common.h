@@ -126,11 +126,14 @@ int gw_parse_block_info(gw_block_info_t *block_info, mol_seg_t *src) {
   }
   mol_seg_t number_seg = MolReader_BlockInfo_get_number(src);
   mol_seg_t timestamp_seg = MolReader_BlockInfo_get_timestamp(src);
-  mol_seg_t block_producer_id_seg =
-      MolReader_BlockInfo_get_block_producer_id(src);
+  mol_seg_t block_producer_seg = MolReader_BlockInfo_get_block_producer(src);
+  int ret = _gw_parse_addr(block_producer_seg.ptr, block_producer_seg.size,
+                           &block_info->block_producer);
+  if (ret != 0) {
+    return ret;
+  }
   _gw_fast_memcpy(&block_info->number, number_seg.ptr, sizeof(uint64_t));
   _gw_fast_memcpy(&block_info->timestamp, timestamp_seg.ptr, sizeof(uint64_t));
-  block_info->block_producer_id = *(uint32_t *)block_producer_id_seg.ptr;
   return 0;
 }
 
@@ -278,6 +281,82 @@ int _load_script_hash_by_short_script_hash(gw_context_t *ctx,
     return GW_ERROR_NOT_FOUND;
   }
 
+  return 0;
+}
+
+void _gw_build_script_hash_to_registry_address_key(uint8_t key[36],
+                                                   uint8_t script_hash[32]) {
+  /* format: "reg" | flag(1 bytes) | script_hash(32 bytes) */
+  memcpy(key, (uint8_t *)"reg", 3);
+  key[3] = GW_REGISTRY_KEY_FLAG_SCRIPT_HASH_TO_NATIVE;
+  memcpy(key + 4, script_hash, 32);
+}
+
+int _gw_build_registry_address_to_script_hash_key(uint8_t key[32],
+                                                  gw_reg_addr_t *addr) {
+  /* format: "reg" | flag(1 byte) | registry_address
+  registry_address: registry_id(4 bytes) | address_len(4 bytes) | address(n
+  bytes) */
+  if (GW_REG_ADDR_SIZE((*addr)) != 20) {
+    /* raw_key 32 bytes = 3 + 1 + 4 + 4 + 20 */
+    return GW_FATAL_BUFFER_OVERFLOW;
+  }
+  memcpy(key, (uint8_t *)"reg", 3);
+  key[3] = GW_REGISTRY_KEY_FLAG_NATIVE_TO_SCRIPT_HASH;
+  memcpy(key + 4, (uint8_t *)&addr->reg_id, 4);
+  memcpy(key + 8, (uint8_t *)&addr->addr_len, 4);
+  memcpy(key + 12, (uint8_t *)&addr->addr, addr->addr_len);
+  return 0;
+}
+
+int _gw_get_registry_address_by_script_hash(struct gw_context_t *ctx,
+                                            uint8_t script_hash[32],
+                                            uint32_t reg_id,
+                                            gw_reg_addr_t *addr) {
+  uint8_t key[36] = {0};
+  _gw_build_script_hash_to_registry_address_key(key, script_hash);
+
+  /* get value */
+  uint8_t buf[32] = {0};
+  int ret = ctx->sys_load(ctx, reg_id, key, 36, buf);
+  if (ret != 0) {
+    return ret;
+  }
+  if (_is_zero_hash(buf)) {
+    return GW_ERROR_NOT_FOUND;
+  }
+  memcpy((uint8_t *)&(addr->reg_id), buf, 4);
+  memcpy((uint8_t *)&(addr->addr_len), buf + 4, 4);
+  if (addr->addr_len > 20) {
+    /* we suppose in current version the max address len is 20 (an ETH address
+     * actually takes 20 bytes), but the value is overflowed */
+    return GW_FATAL_BUFFER_OVERFLOW;
+  }
+  memcpy((uint8_t *)&(addr->addr), buf + 8, addr->addr_len);
+  return 0;
+}
+
+int _gw_get_script_hash_by_registry_address(struct gw_context_t *ctx,
+                                            gw_reg_addr_t *addr,
+                                            uint8_t script_hash[32]) {
+  if (addr == NULL || addr->addr_len > 20) {
+    /* we suppose in current version the max address len is 20 (an ETH address
+     * actually takes 20 bytes), but the value is overflowed */
+    return GW_FATAL_BUFFER_OVERFLOW;
+  }
+
+  uint8_t key[32] = {0};
+  int ret = _gw_build_registry_address_to_script_hash_key(key, addr);
+  if(ret != 0) {return ret;}
+
+  /* get value */
+  ret = ctx->sys_load(ctx, addr->reg_id, key, 32, script_hash);
+  if (ret != 0) {
+    return ret;
+  }
+  if (_is_zero_hash(script_hash)) {
+    return GW_ERROR_NOT_FOUND;
+  }
   return 0;
 }
 

@@ -10,14 +10,14 @@ VALIDATOR_FLAGS := -DGW_VALIDATOR
 LDFLAGS := -Wl,-static -fdata-sections -ffunction-sections -Wl,--gc-sections
 MOLC := moleculec
 MOLC_VERSION := 0.7.2
-PROTOCOL_VERSION := f594d42548b0a91cbf02e85b8cf1a2d06ba2fbcb
+PROTOCOL_VERSION := 018c07dae06a71284bdd1d6ccacf515fdf135b98
 PROTOCOL_SCHEMA_URL := https://raw.githubusercontent.com/nervosnetwork/godwoken/${PROTOCOL_VERSION}/crates/types/schemas
 
 # docker pull nervos/ckb-riscv-gnu-toolchain:gnu-bionic-20191012
 BUILDER_DOCKER := nervos/ckb-riscv-gnu-toolchain@sha256:aae8a3f79705f67d505d1f1d5ddc694a4fd537ed1c7e9622420a470d59ba2ec3
 
-GENERATORS := build/meta-contract-generator build/sudt-generator build/examples/sum-generator build/examples/account-operation-generator build/examples/recover-account-generator build/examples/sudt-total-supply-generator
-VALIDATORS := build/meta-contract-validator build/sudt-validator build/examples/sum-validator build/examples/account-operation-validator build/examples/recover-account-validator build/examples/sudt-total-supply-validator
+GENERATORS := build/meta-contract-generator build/sudt-generator build/eth-addr-reg-generator build/examples/sum-generator build/examples/account-operation-generator build/examples/recover-account-generator build/examples/sudt-total-supply-generator
+VALIDATORS := build/meta-contract-validator build/sudt-validator build/eth-addr-reg-validator build/examples/sum-validator build/examples/account-operation-validator build/examples/recover-account-validator build/examples/sudt-total-supply-validator
 SECP256K1_HELPER := deps/ckb-production-scripts/build/secp256k1_data_info.h
 
 BINS := $(GENERATORS) $(VALIDATORS)
@@ -67,6 +67,16 @@ build/sudt-generator: contracts/sudt.c sudt_utils.h gw_def.h generator_utils.h
 	$(OBJCOPY) --strip-debug --strip-all $@
 
 build/sudt-validator: contracts/sudt.c sudt_utils.h gw_def.h validator_utils.h
+	$(CC) $(CFLAGS) $(VALIDATOR_FLAGS) $(LDFLAGS) -o $@ $<
+	$(OBJCOPY) --only-keep-debug $@ $@.debug
+	$(OBJCOPY) --strip-debug --strip-all $@
+
+build/eth-addr-reg-generator: contracts/eth_addr_reg.c sudt_utils.h gw_def.h generator_utils.h
+	$(CC) $(CFLAGS) $(GENERATOR_FLAGS) $(LDFLAGS) -o $@ $<
+	$(OBJCOPY) --only-keep-debug $@ $@.debug
+	$(OBJCOPY) --strip-debug --strip-all $@
+
+build/eth-addr-reg-validator: contracts/eth_addr_reg.c sudt_utils.h gw_def.h validator_utils.h
 	$(CC) $(CFLAGS) $(VALIDATOR_FLAGS) $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
