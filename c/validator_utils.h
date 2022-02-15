@@ -71,6 +71,10 @@ typedef struct gw_context_t {
   gw_recover_account_fn sys_recover_account;
   gw_log_fn sys_log;
   gw_pay_fee_fn sys_pay_fee;
+  gw_get_registry_address_by_script_hash_fn
+      sys_get_registry_address_by_script_hash;
+  gw_get_script_hash_by_registry_address_fn
+      sys_get_script_hash_by_registry_address;
   _gw_load_raw_fn _internal_load_raw;
   _gw_store_raw_fn _internal_store_raw;
 
@@ -286,9 +290,8 @@ int sys_get_account_script(gw_context_t *ctx, uint32_t account_id,
   }
 
   if (entry == NULL) {
-    printf(
-        "account script_hash exist, but we can't found, we miss the "
-        "necessary context");
+    printf("account script_hash exist, but we can't found, we miss the "
+           "necessary context");
     return GW_FATAL_SCRIPT_NOT_FOUND;
   }
 
@@ -553,9 +556,8 @@ int sys_recover_account(gw_context_t *ctx, uint8_t message[32],
     return 0;
   }
   /* Can't found account signature lock from inputs */
-  printf(
-      "recover account: can't found account signature lock "
-      "from inputs");
+  printf("recover account: can't found account signature lock "
+         "from inputs");
   return GW_FATAL_SIGNATURE_CELL_NOT_FOUND;
 }
 
@@ -681,8 +683,7 @@ int sys_log(gw_context_t *ctx, uint32_t account_id, uint8_t service_flag,
   return 0;
 }
 
-int sys_pay_fee(gw_context_t *ctx, const uint8_t *payer_short_script_hash,
-                const uint64_t short_script_hash_len, uint32_t sudt_id,
+int sys_pay_fee(gw_context_t *ctx, gw_reg_addr_t payer_addr, uint32_t sudt_id,
                 uint128_t amount) {
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
@@ -1171,11 +1172,18 @@ int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
   uint64_t challenged_block_number = *(uint64_t *)number_seg.ptr;
   mol_seg_t timestamp_seg =
       MolReader_RawL2Block_get_timestamp(&raw_l2block_seg);
-  mol_seg_t block_producer_id_seg =
-      MolReader_RawL2Block_get_block_producer_id(&raw_l2block_seg);
+  mol_seg_t block_producer_seg =
+      MolReader_RawL2Block_get_block_producer(&raw_l2block_seg);
+  mol_seg_t raw_block_producer_seg =
+      MolReader_Bytes_raw_bytes(&block_producer_seg);
   ctx->block_info.number = *((uint64_t *)number_seg.ptr);
   ctx->block_info.timestamp = *((uint64_t *)timestamp_seg.ptr);
-  ctx->block_info.block_producer_id = *((uint32_t *)block_producer_id_seg.ptr);
+  /* parse block producer */
+  ret = _gw_parse_addr(raw_block_producer_seg.ptr, raw_block_producer_seg.size,
+                       &ctx->block_info.block_producer);
+  if (ret != 0) {
+    return ret;
+  }
 
   /* load block hashes */
   mol_seg_t block_hashes_seg =
@@ -1472,9 +1480,8 @@ int _gw_check_account_script_is_allowed(uint8_t rollup_script_hash[32],
     mol_seg_t code_hash_seg =
         MolReader_AllowedTypeHash_get_hash(&allowed_type_hash_res.seg);
     if (code_hash_seg.size != script_code_hash_seg.size) {
-      printf(
-          "[check account script] failed to get contract code hash, size "
-          "mismatch");
+      printf("[check account script] failed to get contract code hash, size "
+             "mismatch");
       return GW_FATAL_INVALID_DATA;
     }
 
@@ -1527,10 +1534,9 @@ int _check_owner_lock_hash() {
                                  CKB_CELL_FIELD_LOCK_HASH);
 
     if (ret != 0) {
-      printf(
-          "check owner lock hash failed: failed to load cell lock_hash ret: "
-          "%d",
-          ret);
+      printf("check owner lock hash failed: failed to load cell lock_hash ret: "
+             "%d",
+             ret);
       return GW_FATAL_INVALID_CONTEXT;
     }
     if (memcmp(lock_hash, owner_lock_hash, 32) == 0) {
@@ -1548,10 +1554,9 @@ int _gw_calculate_state_checkpoint(uint8_t buffer[32], const smt_state_t *state,
   uint8_t root[32];
   int ret = smt_calculate_root(root, state, proof, proof_length);
   if (0 != ret) {
-    printf(
-        "_gw_calculate_state_check_point: failed to calculate kv state "
-        "root ret: %d",
-        ret);
+    printf("_gw_calculate_state_check_point: failed to calculate kv state "
+           "root ret: %d",
+           ret);
     return GW_FATAL_SMT_CALCULATE_ROOT;
   }
 
@@ -1603,6 +1608,10 @@ int gw_context_init(gw_context_t *ctx) {
   ctx->sys_recover_account = sys_recover_account;
   ctx->sys_log = sys_log;
   ctx->sys_pay_fee = sys_pay_fee;
+  ctx->sys_get_registry_address_by_script_hash =
+      _gw_get_registry_address_by_script_hash;
+  ctx->sys_get_script_hash_by_registry_address =
+      _gw_get_script_hash_by_registry_address;
   ctx->_internal_load_raw = _internal_load_raw;
   ctx->_internal_store_raw = _internal_store_raw;
 
@@ -1620,10 +1629,9 @@ int gw_context_init(gw_context_t *ctx) {
                                 &rollup_cell_index);
   if (ret == GW_ERROR_NOT_FOUND) {
     /* exit execution with 0 if we are not in a challenge */
-    printf(
-        "gw_context_init: can't found rollup cell from inputs which "
-        "means we are not in a "
-        "challenge, unlock cell without execution script");
+    printf("gw_context_init: can't found rollup cell from inputs which "
+           "means we are not in a "
+           "challenge, unlock cell without execution script");
     ckb_exit(0);
   } else if (ret != 0) {
     printf("gw_context_init: failed to load rollup cell index, ret: %d", ret);
