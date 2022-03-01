@@ -52,6 +52,7 @@ pub enum Error {
     WrongSignature,
     DuplicatedScriptHash,
     RegistryAddressNotFound,
+    DuplicatedRegistryAddress,
 }
 
 impl From<SysError> for Error {
@@ -76,6 +77,9 @@ impl From<CommonError> for Error {
             AmountOverflow => Self::AmountOverflow,
             InvalidShortScriptHash => Self::InvalidShortScriptHash,
             DuplicatedScriptHash => Self::DuplicatedScriptHash,
+            InvalidArgs => Self::InvalidArgs,
+            UnknownEoaCodeHash => Self::UnknownEOAScript,
+            DuplicatedRegistryAddress => Self::DuplicatedRegistryAddress,
         }
     }
 }

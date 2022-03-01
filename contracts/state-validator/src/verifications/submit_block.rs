@@ -37,7 +37,7 @@ use gw_common::{
     error::Error as StateError,
     h256_ext::H256Ext,
     merkle_utils::{calculate_ckb_merkle_root, calculate_state_checkpoint, ckb_merkle_leaf_hash},
-    state::{to_short_script_hash, State},
+    state::State,
     CKB_SUDT_SCRIPT_ARGS, H256,
 };
 use gw_types::{
@@ -224,35 +224,44 @@ fn check_layer2_deposit(
     kv_state: &mut KVState,
     deposit_cells: &[DepositRequestCell],
 ) -> Result<(), Error> {
+    let registry_ctx = gw_common::registry::context::RegistryContext::new(
+        config.allowed_eoa_type_hashes().into_iter().collect(),
+    );
     for request in deposit_cells {
         // check that account's script is a valid EOA script
         if request.account_script.hash_type() != ScriptHashType::Type.into() {
             return Err(Error::UnknownEOAScript);
         }
-        if !config
-            .allowed_eoa_type_hashes()
-            .into_iter()
-            .any(|type_hash| type_hash.hash() == request.account_script.code_hash())
-        {
-            return Err(Error::UnknownEOAScript);
-        }
+        let registry_id: u32 = request.args.registry_id().unpack();
+
         // find or create EOA
-        if kv_state
-            .get_account_id_by_script_hash(&request.account_script_hash)?
-            .is_none()
-        {
-            let _new_id = kv_state.create_account(request.account_script_hash)?;
-        }
-        let registry_id = request.args.registry_id().unpack();
-        let registry_address = kv_state
-            .get_registry_address_by_script_hash(registry_id, &request.account_script_hash)?
-            .ok_or(Error::RegistryAddressNotFound)?;
+        let address = match kv_state.get_account_id_by_script_hash(&request.account_script_hash)? {
+            Some(_id) => {
+                // account is exist, query registry address
+                kv_state
+                    .get_registry_address_by_script_hash(registry_id, &request.account_script_hash)?
+                    .ok_or(Error::RegistryAddressNotFound)?
+            }
+            None => {
+                // account isn't exist
+                let _new_id = kv_state.create_account(request.account_script_hash)?;
+                let script = &request.account_script;
+                let addr = registry_ctx.extract_registry_address_from_deposit(
+                    registry_id,
+                    &script.code_hash(),
+                    &script.args().raw_data(),
+                )?;
+                // mapping addr to script hash
+                kv_state.mapping_registry_address_to_script_hash(
+                    addr.clone(),
+                    request.account_script_hash,
+                )?;
+                addr
+            }
+        };
+
         // mint CKB
-        kv_state.mint_sudt(
-            CKB_SUDT_ACCOUNT_ID,
-            &registry_address,
-            request.value.capacity.into(),
-        )?;
+        kv_state.mint_sudt(CKB_SUDT_ACCOUNT_ID, &address, request.value.capacity.into())?;
         if request.value.sudt_script_hash.as_slice() == CKB_SUDT_SCRIPT_ARGS {
             if request.value.amount != 0 {
                 // SUDT amount must equals to zero if sudt script hash is equals to CKB_SUDT_SCRIPT_ARGS
@@ -273,7 +282,7 @@ fn check_layer2_deposit(
             return Err(Error::InvalidDepositCell);
         }
         // mint SUDT
-        kv_state.mint_sudt(sudt_id, &registry_address, request.value.amount)?;
+        kv_state.mint_sudt(sudt_id, &address, request.value.amount)?;
     }
 
     Ok(())
