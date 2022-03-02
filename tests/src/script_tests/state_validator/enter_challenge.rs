@@ -16,11 +16,13 @@ use ckb_script::ScriptError;
 use ckb_types::packed::CellOutput;
 use ckb_types::prelude::{Pack as CKBPack, Unpack};
 use gw_chain::chain::Chain;
+use gw_common::registry_address::RegistryAddress;
 use gw_common::{
     builtins::CKB_SUDT_ACCOUNT_ID,
     state::{to_short_script_hash, State},
 };
 use gw_store::state::state_db::StateContext;
+use gw_types::core::AllowedEoaType;
 use gw_types::packed::AllowedTypeHash;
 use gw_types::prelude::*;
 use gw_types::{
@@ -56,7 +58,11 @@ async fn test_enter_challenge() {
         .challenge_script_type_hash(Pack::pack(&challenge_script_type_hash))
         .finality_blocks(Pack::pack(&finality_blocks))
         .allowed_eoa_type_hashes(
-            vec![AllowedTypeHash::from_unknown(*ALWAYS_SUCCESS_CODE_HASH)].pack(),
+            vec![AllowedTypeHash::new(
+                AllowedEoaType::Eth,
+                *ALWAYS_SUCCESS_CODE_HASH,
+            )]
+            .pack(),
         )
         .build();
     // setup chain
@@ -74,14 +80,14 @@ async fn test_enter_challenge() {
         // deposit two account
         let rollup_script_hash = rollup_type_script.hash();
         let mut sender_args = rollup_script_hash.to_vec();
-        sender_args.extend_from_slice(b"sender");
+        sender_args.extend_from_slice(&[1u8; 20]);
         let sender_script = Script::new_builder()
             .code_hash(Pack::pack(&ALWAYS_SUCCESS_CODE_HASH.clone()))
             .hash_type(ScriptHashType::Type.into())
             .args(Pack::pack(&Bytes::from(sender_args)))
             .build();
         let mut receiver_args = rollup_script_hash.to_vec();
-        receiver_args.extend_from_slice(b"receiver");
+        receiver_args.extend_from_slice(&[2u8; 20]);
         let receiver_script = Script::new_builder()
             .code_hash(Pack::pack(&ALWAYS_SUCCESS_CODE_HASH.clone()))
             .hash_type(ScriptHashType::Type.into())
@@ -125,13 +131,14 @@ async fn test_enter_challenge() {
             .unwrap()
             .unwrap();
         let receiver_script_hash = tree.get_script_hash(receiver_id).expect("get script hash");
-        let receiver_address = Bytes::copy_from_slice(to_short_script_hash(&receiver_script_hash));
+        let receiver_address =
+            RegistryAddress::new(1, to_short_script_hash(&receiver_script_hash).to_vec());
         let produce_block_result = {
             let args = SUDTArgs::new_builder()
                 .set(SUDTArgsUnion::SUDTTransfer(
                     SUDTTransfer::new_builder()
                         .amount(Pack::pack(&150_00000000u128))
-                        .to(Pack::pack(&receiver_address))
+                        .to_address(Pack::pack(&Bytes::from(receiver_address.to_bytes())))
                         .build(),
                 ))
                 .build()
@@ -266,7 +273,11 @@ async fn test_enter_challenge_finalized_block() {
         .challenge_script_type_hash(Pack::pack(&challenge_script_type_hash))
         .finality_blocks(Pack::pack(&finality_blocks))
         .allowed_eoa_type_hashes(
-            vec![AllowedTypeHash::from_unknown(*ALWAYS_SUCCESS_CODE_HASH)].pack(),
+            vec![AllowedTypeHash::new(
+                AllowedEoaType::Eth,
+                *ALWAYS_SUCCESS_CODE_HASH,
+            )]
+            .pack(),
         )
         .build();
     // setup chain
@@ -284,14 +295,15 @@ async fn test_enter_challenge_finalized_block() {
     let rollup_script_hash = rollup_type_script.hash();
     let (sender_id, receiver_address) = {
         let mut sender_args = rollup_script_hash.to_vec();
-        sender_args.extend_from_slice(b"sender");
+        sender_args.extend_from_slice(&[1u8; 20]);
         let sender_script = Script::new_builder()
             .code_hash(Pack::pack(&ALWAYS_SUCCESS_CODE_HASH.clone()))
             .hash_type(ScriptHashType::Type.into())
             .args(Pack::pack(&Bytes::from(sender_args)))
             .build();
         let mut receiver_args = rollup_script_hash.to_vec();
-        receiver_args.extend_from_slice(b"sender");
+        receiver_args.extend_from_slice(&[2u8; 20]);
+        let receiver_address = RegistryAddress::new(2, [2u8; 20].to_vec());
         let receiver_script = Script::new_builder()
             .code_hash(Pack::pack(&ALWAYS_SUCCESS_CODE_HASH.clone()))
             .hash_type(ScriptHashType::Type.into())
@@ -330,13 +342,6 @@ async fn test_enter_challenge_finalized_block() {
             .get_account_id_by_script_hash(&sender_script.hash().into())
             .unwrap()
             .unwrap();
-        let receiver_id = tree
-            .get_account_id_by_script_hash(&receiver_script.hash().into())
-            .unwrap()
-            .unwrap();
-        let receiver_script_hash = tree.get_script_hash(receiver_id).expect("get script hash");
-        let receiver_address = Bytes::copy_from_slice(to_short_script_hash(&receiver_script_hash));
-
         (sender_id, receiver_address)
     };
 
@@ -458,7 +463,7 @@ async fn produce_block(
     chain: &mut Chain,
     rollup_cell: &CellOutput,
     sender_id: u32,
-    receiver_address: &Bytes,
+    receiver_address: &RegistryAddress,
     nonce: u32,
 ) {
     let rollup_cell = gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes());
@@ -467,7 +472,7 @@ async fn produce_block(
             .set(SUDTArgsUnion::SUDTTransfer(
                 SUDTTransfer::new_builder()
                     .amount(Pack::pack(&50_00000000u128))
-                    .to(Pack::pack(receiver_address))
+                    .to_address(Pack::pack(&Bytes::from(receiver_address.to_bytes())))
                     .build(),
             ))
             .build()

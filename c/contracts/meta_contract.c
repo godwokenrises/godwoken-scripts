@@ -25,19 +25,26 @@ int handle_fee(gw_context_t *ctx, uint32_t registry_id, uint64_t fee) {
   int ret = ctx->sys_get_script_hash_by_account_id(
       ctx, ctx->transaction_context.from_id, payer_script_hash);
   if (ret != 0) {
+    ckb_debug("failed to get script hash");
     return ret;
   }
   gw_reg_addr_t payer_addr;
   ret = ctx->sys_get_registry_address_by_script_hash(ctx, payer_script_hash,
                                                      registry_id, &payer_addr);
   if (ret != 0) {
+    ckb_debug("failed to get payer registry address");
     return ret;
   }
 
   /* pay fee */
   uint32_t sudt_id = CKB_SUDT_ACCOUNT_ID;
   uint128_t fee_amount = fee;
-  return sudt_pay_fee(ctx, sudt_id, payer_addr, fee_amount);
+  ret = sudt_pay_fee(ctx, sudt_id, payer_addr, fee_amount);
+  if (ret != 0) {
+    ckb_debug("failed to pay fee");
+    return ret;
+  }
+  return 0;
 }
 
 int main() {
@@ -45,6 +52,7 @@ int main() {
   gw_context_t ctx = {0};
   int ret = gw_context_init(&ctx);
   if (ret != 0) {
+    ckb_debug("failed to init gw context");
     return ret;
   };
 
@@ -72,6 +80,7 @@ int main() {
     uint32_t reg_id = *(uint32_t *)reg_id_seg.ptr;
     int ret = handle_fee(&ctx, reg_id, fee_amount);
     if (ret != 0) {
+      ckb_debug("failed to handle fee");
       return ret;
     }
     /* Create account */
@@ -79,11 +88,13 @@ int main() {
     uint32_t account_id = 0;
     ret = ctx.sys_create(&ctx, script_seg.ptr, script_seg.size, &account_id);
     if (ret != 0) {
+      ckb_debug("failed to create account");
       return ret;
     }
     ret = ctx.sys_set_program_return_data(&ctx, (uint8_t *)&account_id,
                                           sizeof(uint32_t));
     if (ret != 0) {
+      ckb_debug("failed to set return data");
       return ret;
     }
   } else {

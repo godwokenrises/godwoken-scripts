@@ -1,12 +1,17 @@
+use super::super::utils::init_env_log;
+use crate::script_tests::utils::context::TestingContext;
+
 use super::{check_transfer_logs, new_block_info, run_contract, run_contract_get_result};
-use gw_common::state::{to_short_script_hash, State};
-use gw_generator::dummy_state::DummyState;
+use ckb_vm::Bytes;
+use gw_common::builtins::CKB_SUDT_ACCOUNT_ID;
+use gw_common::registry_address::RegistryAddress;
+use gw_common::state::State;
 use gw_generator::syscalls::error_codes::{
     GW_SUDT_ERROR_AMOUNT_OVERFLOW, GW_SUDT_ERROR_INSUFFICIENT_BALANCE,
 };
 use gw_generator::{error::TransactionError, traits::StateExt};
 use gw_traits::CodeStore;
-use gw_types::packed::BlockInfo;
+use gw_types::packed::{BlockInfo, Fee};
 use gw_types::{
     core::ScriptHashType,
     packed::{RollupConfig, SUDTArgs, SUDTQuery, SUDTTransfer, Script},
@@ -17,16 +22,17 @@ const DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH: [u8; 32] = [3u8; 32];
 
 #[test]
 fn test_sudt() {
-    let mut tree = DummyState::default();
-
+    init_env_log();
     let rollup_config = RollupConfig::new_builder()
         .l2_sudt_validator_script_type_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.pack())
         .build();
+    let mut ctx = TestingContext::setup(&rollup_config);
 
     let init_a_balance: u128 = 10000;
 
     // init accounts
-    let _meta = tree
+    let _meta = ctx
+        .state
         .create_account_from_script(
             Script::new_builder()
                 .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
@@ -35,7 +41,8 @@ fn test_sudt() {
                 .build(),
         )
         .expect("create account");
-    let sudt_id = tree
+    let sudt_id = ctx
+        .state
         .create_account_from_script(
             Script::new_builder()
                 .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
@@ -44,17 +51,8 @@ fn test_sudt() {
                 .build(),
         )
         .expect("create account");
-    let a_id = tree
-        .create_account_from_script(
-            Script::new_builder()
-                .code_hash([0u8; 32].pack())
-                .args([0u8; 20].to_vec().pack())
-                .hash_type(ScriptHashType::Type.into())
-                .build(),
-        )
-        .expect("create account");
-    let a_script_hash = tree.get_script_hash(a_id).expect("get script hash");
-    let b_id = tree
+    let a_id = ctx
+        .state
         .create_account_from_script(
             Script::new_builder()
                 .code_hash([0u8; 32].pack())
@@ -63,8 +61,9 @@ fn test_sudt() {
                 .build(),
         )
         .expect("create account");
-    let b_script_hash = tree.get_script_hash(b_id).expect("get script hash");
-    let block_producer_id = tree
+    let a_script_hash = ctx.state.get_script_hash(a_id).expect("get script hash");
+    let b_id = ctx
+        .state
         .create_account_from_script(
             Script::new_builder()
                 .code_hash([0u8; 32].pack())
@@ -73,27 +72,43 @@ fn test_sudt() {
                 .build(),
         )
         .expect("create account");
-    let block_producer_script_hash = tree
+    let b_script_hash = ctx.state.get_script_hash(b_id).expect("get script hash");
+    let block_producer_id = ctx
+        .state
+        .create_account_from_script(
+            Script::new_builder()
+                .code_hash([0u8; 32].pack())
+                .args([42u8; 20].to_vec().pack())
+                .hash_type(ScriptHashType::Type.into())
+                .build(),
+        )
+        .expect("create account");
+    let block_producer_script_hash = ctx
+        .state
         .get_script_hash(block_producer_id)
         .expect("get script hash");
-    let block_info = new_block_info(block_producer_id, 1, 0);
+    let block_producer = ctx.create_eth_address(block_producer_script_hash.into(), [42u8; 20]);
+    let block_info = new_block_info(&block_producer, 1, 0);
+
+    let a_address = ctx.create_eth_address(a_script_hash.into(), [1u8; 20]);
+    let b_address = ctx.create_eth_address(b_script_hash.into(), [2u8; 20]);
 
     // init balance for a
-    tree.mint_sudt(
-        sudt_id,
-        to_short_script_hash(&a_script_hash),
-        init_a_balance,
-    )
-    .expect("init balance");
+    ctx.state
+        .mint_sudt(sudt_id, &a_address, init_a_balance)
+        .expect("init balance");
 
-    let a_address = to_short_script_hash(&a_script_hash).to_vec();
-    let b_address = to_short_script_hash(&b_script_hash).to_vec();
-    let block_producer_address = to_short_script_hash(&block_producer_script_hash).to_vec();
+    // init ckb for a to pay fee
+    let init_ckb = 100;
+    ctx.state
+        .mint_sudt(CKB_SUDT_ACCOUNT_ID, &a_address, init_ckb)
+        .expect("init balance");
+
     // check balance of A, B
     {
         check_balance(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
             &block_info,
             a_id,
             sudt_id,
@@ -103,7 +118,7 @@ fn test_sudt() {
 
         check_balance(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
             &block_info,
             a_id,
             sudt_id,
@@ -116,53 +131,71 @@ fn test_sudt() {
     {
         let value = 4000u128;
         let fee = 42u64;
-        let sender_nonce = tree.get_nonce(a_id).unwrap();
+        let sender_nonce = ctx.state.get_nonce(a_id).unwrap();
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
-                    .to(b_address.pack())
+                    .to_address(Bytes::from(b_address.to_bytes()).pack())
                     .amount(value.pack())
-                    .fee(fee.pack())
+                    .fee(
+                        Fee::new_builder()
+                            .amount(fee.pack())
+                            .registry_id(a_address.registry_id.pack())
+                            .build(),
+                    )
                     .build(),
             )
             .build();
         let run_result = run_contract_get_result(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
             a_id,
             sudt_id,
             args.as_bytes(),
             &block_info,
         )
         .expect("execute");
-        let new_sender_nonce = tree.get_nonce(a_id).unwrap();
+        let new_sender_nonce = ctx.state.get_nonce(a_id).unwrap();
         assert_eq!(sender_nonce + 1, new_sender_nonce, "nonce increased");
         assert!(run_result.return_data.is_empty());
         assert_eq!(run_result.logs.len(), 2);
         check_transfer_logs(
             &run_result.logs,
             sudt_id,
-            block_producer_script_hash,
+            &block_producer,
             fee,
-            a_script_hash,
-            b_script_hash,
+            &a_address,
+            &b_address,
             value,
         );
 
         {
+            // check sender's sudt
             check_balance(
                 &rollup_config,
-                &mut tree,
+                &mut ctx.state,
                 &block_info,
                 a_id,
                 sudt_id,
                 &a_address,
-                init_a_balance - value - fee as u128,
+                init_a_balance - value as u128,
             );
 
+            // check sender's ckb
             check_balance(
                 &rollup_config,
-                &mut tree,
+                &mut ctx.state,
+                &block_info,
+                a_id,
+                CKB_SUDT_ACCOUNT_ID,
+                &a_address,
+                init_ckb - fee as u128,
+            );
+
+            // check receiver's sudt
+            check_balance(
+                &rollup_config,
+                &mut ctx.state,
                 &block_info,
                 a_id,
                 sudt_id,
@@ -170,13 +203,36 @@ fn test_sudt() {
                 value,
             );
 
+            // check receiver's ckb
             check_balance(
                 &rollup_config,
-                &mut tree,
+                &mut ctx.state,
+                &block_info,
+                a_id,
+                CKB_SUDT_ACCOUNT_ID,
+                &b_address,
+                0,
+            );
+
+            // check producers's sudt
+            check_balance(
+                &rollup_config,
+                &mut ctx.state,
                 &block_info,
                 a_id,
                 sudt_id,
-                &block_producer_address,
+                &block_producer,
+                0,
+            );
+
+            // check producers's ckb
+            check_balance(
+                &rollup_config,
+                &mut ctx.state,
+                &block_info,
+                a_id,
+                CKB_SUDT_ACCOUNT_ID,
+                &block_producer,
                 fee as u128,
             );
         }
@@ -185,15 +241,17 @@ fn test_sudt() {
 
 #[test]
 fn test_insufficient_balance() {
-    let mut tree = DummyState::default();
+    init_env_log();
     let init_a_balance: u128 = 10000;
 
     let rollup_config = RollupConfig::new_builder()
         .l2_sudt_validator_script_type_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.pack())
         .build();
+    let mut ctx = TestingContext::setup(&rollup_config);
 
     // init accounts
-    let _meta = tree
+    let _meta = ctx
+        .state
         .create_account_from_script(
             Script::new_builder()
                 .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
@@ -202,7 +260,8 @@ fn test_insufficient_balance() {
                 .build(),
         )
         .expect("create account");
-    let sudt_id = tree
+    let sudt_id = ctx
+        .state
         .create_account_from_script(
             Script::new_builder()
                 .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
@@ -211,8 +270,9 @@ fn test_insufficient_balance() {
                 .build(),
         )
         .expect("create account");
-    assert_eq!(sudt_id, 1);
-    let a_id = tree
+
+    let a_id = ctx
+        .state
         .create_account_from_script(
             Script::new_builder()
                 .code_hash([0u8; 32].pack())
@@ -221,8 +281,9 @@ fn test_insufficient_balance() {
                 .build(),
         )
         .expect("create account");
-    let a_script_hash = tree.get_script_hash(a_id).expect("get script hash");
-    let b_id = tree
+    let a_script_hash = ctx.state.get_script_hash(a_id).expect("get script hash");
+    let b_id = ctx
+        .state
         .create_account_from_script(
             Script::new_builder()
                 .code_hash([0u8; 32].pack())
@@ -231,33 +292,36 @@ fn test_insufficient_balance() {
                 .build(),
         )
         .expect("create account");
-    let b_script_hash = tree.get_script_hash(b_id).expect("get script hash");
+    let b_script_hash = ctx.state.get_script_hash(b_id).expect("get script hash");
 
-    let block_info = new_block_info(0, 10, 0);
+    let block_info = new_block_info(&Default::default(), 10, 0);
 
+    let a_address = ctx.create_eth_address(a_script_hash.into(), [1u8; 20]);
+    let b_address = ctx.create_eth_address(b_script_hash.into(), [2u8; 20]);
     // init balance for a
-    tree.mint_sudt(
-        sudt_id,
-        to_short_script_hash(&a_script_hash),
-        init_a_balance,
-    )
-    .expect("init balance");
+    ctx.state
+        .mint_sudt(sudt_id, &a_address, init_a_balance)
+        .expect("init balance");
 
-    let b_address = to_short_script_hash(&b_script_hash).to_vec();
     // transfer from A to B
     {
         let value = 10001u128;
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
-                    .to(b_address.pack())
+                    .to_address(Bytes::from(b_address.to_bytes()).pack())
                     .amount(value.pack())
+                    .fee(
+                        Fee::new_builder()
+                            .registry_id(a_address.registry_id.pack())
+                            .build(),
+                    )
                     .build(),
             )
             .build();
         let err = run_contract(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
             a_id,
             sudt_id,
             args.as_bytes(),
@@ -274,15 +338,16 @@ fn test_insufficient_balance() {
 
 #[test]
 fn test_transfer_to_non_exist_account() {
-    let mut tree = DummyState::default();
     let init_a_balance: u128 = 10000;
 
     let rollup_config = RollupConfig::new_builder()
         .l2_sudt_validator_script_type_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.pack())
         .build();
+    let mut ctx = TestingContext::setup(&rollup_config);
 
     // init accounts
-    let _meta = tree
+    let _meta = ctx
+        .state
         .create_account_from_script(
             Script::new_builder()
                 .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
@@ -291,7 +356,8 @@ fn test_transfer_to_non_exist_account() {
                 .build(),
         )
         .expect("create account");
-    let sudt_id = tree
+    let sudt_id = ctx
+        .state
         .create_account_from_script(
             Script::new_builder()
                 .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
@@ -300,7 +366,8 @@ fn test_transfer_to_non_exist_account() {
                 .build(),
         )
         .expect("create account");
-    let a_id = tree
+    let a_id = ctx
+        .state
         .create_account_from_script(
             Script::new_builder()
                 .code_hash([0u8; 32].pack())
@@ -309,19 +376,17 @@ fn test_transfer_to_non_exist_account() {
                 .build(),
         )
         .expect("create account");
-    let a_script_hash = tree.get_script_hash(a_id).expect("get script hash");
+    let a_script_hash = ctx.state.get_script_hash(a_id).expect("get script hash");
     // non-exist account id
-    let b_address = [0x33u8; 20];
+    let a_address = ctx.create_eth_address(a_script_hash.into(), [1u8; 20]);
+    let b_address = RegistryAddress::new(a_address.registry_id, [0x33u8; 20].to_vec());
 
-    let block_info = new_block_info(0, 10, 0);
+    let block_info = new_block_info(&Default::default(), 10, 0);
 
     // init balance for a
-    tree.mint_sudt(
-        sudt_id,
-        to_short_script_hash(&a_script_hash),
-        init_a_balance,
-    )
-    .expect("init balance");
+    ctx.state
+        .mint_sudt(sudt_id, &a_address, init_a_balance)
+        .expect("init balance");
 
     // transfer from A to B
     {
@@ -329,14 +394,19 @@ fn test_transfer_to_non_exist_account() {
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
-                    .to(b_address.to_vec().pack())
+                    .to_address(Bytes::from(b_address.to_bytes()).pack())
                     .amount(value.pack())
+                    .fee(
+                        Fee::new_builder()
+                            .registry_id(a_address.registry_id.pack())
+                            .build(),
+                    )
                     .build(),
             )
             .build();
         let _run_result = run_contract(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
             a_id,
             sudt_id,
             args.as_bytes(),
@@ -348,15 +418,17 @@ fn test_transfer_to_non_exist_account() {
 
 #[test]
 fn test_transfer_to_self() {
-    let mut tree = DummyState::default();
     let init_a_balance: u128 = 10000;
+    let init_ckb: u128 = 100;
 
     let rollup_config = RollupConfig::new_builder()
         .l2_sudt_validator_script_type_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.pack())
         .build();
+    let mut ctx = TestingContext::setup(&rollup_config);
 
     // init accounts
-    let _meta = tree
+    let _meta = ctx
+        .state
         .create_account_from_script(
             Script::new_builder()
                 .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
@@ -365,7 +437,8 @@ fn test_transfer_to_self() {
                 .build(),
         )
         .expect("create account");
-    let sudt_id = tree
+    let sudt_id = ctx
+        .state
         .create_account_from_script(
             Script::new_builder()
                 .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
@@ -374,7 +447,8 @@ fn test_transfer_to_self() {
                 .build(),
         )
         .expect("create account");
-    let a_id = tree
+    let a_id = ctx
+        .state
         .create_account_from_script(
             Script::new_builder()
                 .code_hash([0u8; 32].pack())
@@ -383,11 +457,12 @@ fn test_transfer_to_self() {
                 .build(),
         )
         .expect("create account");
-    let a_script_hash = tree.get_script_hash(a_id).expect("get script hash");
+    let a_script_hash = ctx.state.get_script_hash(a_id).expect("get script hash");
     // non-exist account id
-    let a_address = to_short_script_hash(&a_script_hash).to_vec();
+    let a_address = ctx.create_eth_address(a_script_hash.into(), [1u8; 20]);
 
-    let block_producer_id = tree
+    let block_producer_id = ctx
+        .state
         .create_account_from_script(
             Script::new_builder()
                 .code_hash([0u8; 32].pack())
@@ -396,59 +471,66 @@ fn test_transfer_to_self() {
                 .build(),
         )
         .expect("create account");
-    let block_producer_script_hash = tree
+    let block_producer_script_hash = ctx
+        .state
         .get_script_hash(block_producer_id)
         .expect("get script hash");
-    let block_producer_address = to_short_script_hash(&block_producer_script_hash).to_vec();
+    let block_producer = ctx.create_eth_address(block_producer_script_hash.into(), [42u8; 20]);
     let block_producer_balance = 0;
-    let block_info = new_block_info(block_producer_id, 10, 0);
+    let block_info = new_block_info(&block_producer, 10, 0);
 
     // init balance for a
-    tree.mint_sudt(
-        sudt_id,
-        to_short_script_hash(&a_script_hash),
-        init_a_balance,
-    )
-    .expect("init balance");
+    ctx.state
+        .mint_sudt(sudt_id, &a_address, init_a_balance)
+        .expect("init balance");
+
+    ctx.state
+        .mint_sudt(CKB_SUDT_ACCOUNT_ID, &a_address, init_ckb)
+        .expect("init balance");
 
     // transfer from A to A, zero value
     {
         let value: u128 = 0;
         let fee: u64 = 0;
-        let sender_nonce = tree.get_nonce(a_id).unwrap();
+        let sender_nonce = ctx.state.get_nonce(a_id).unwrap();
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
-                    .to(a_address.pack())
+                    .to_address(Bytes::from(a_address.to_bytes()).pack())
                     .amount(value.pack())
-                    .fee(fee.pack())
+                    .fee(
+                        Fee::new_builder()
+                            .amount(fee.pack())
+                            .registry_id(a_address.registry_id.pack())
+                            .build(),
+                    )
                     .build(),
             )
             .build();
         let run_result = run_contract_get_result(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
             a_id,
             sudt_id,
             args.as_bytes(),
             &block_info,
         )
         .expect("run contract");
-        let new_sender_nonce = tree.get_nonce(a_id).unwrap();
+        let new_sender_nonce = ctx.state.get_nonce(a_id).unwrap();
         assert_eq!(sender_nonce + 1, new_sender_nonce, "nonce increased");
         assert_eq!(run_result.logs.len(), 2);
         check_transfer_logs(
             &run_result.logs,
             sudt_id,
-            block_producer_script_hash,
+            &block_producer,
             fee,
-            a_script_hash,
-            a_script_hash,
+            &a_address,
+            &a_address,
             value,
         );
         check_balance(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
             &block_info,
             a_id,
             sudt_id,
@@ -457,11 +539,11 @@ fn test_transfer_to_self() {
         );
         check_balance(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
             &block_info,
             a_id,
             sudt_id,
-            &block_producer_address,
+            &block_producer,
             block_producer_balance,
         );
     }
@@ -473,15 +555,20 @@ fn test_transfer_to_self() {
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
-                    .to(a_address.pack())
+                    .to_address(Bytes::from(a_address.to_bytes()).pack())
                     .amount(value.pack())
-                    .fee(fee.pack())
+                    .fee(
+                        Fee::new_builder()
+                            .amount(fee.pack())
+                            .registry_id(a_address.registry_id.pack())
+                            .build(),
+                    )
                     .build(),
             )
             .build();
         let run_result = run_contract_get_result(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
             a_id,
             sudt_id,
             args.as_bytes(),
@@ -492,29 +579,55 @@ fn test_transfer_to_self() {
         check_transfer_logs(
             &run_result.logs,
             sudt_id,
-            block_producer_script_hash,
+            &block_producer,
             fee,
-            a_script_hash,
-            a_script_hash,
+            &a_address,
+            &a_address,
             value,
         );
+
+        // sender's sudt balance
         check_balance(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
             &block_info,
             a_id,
             sudt_id,
             &a_address,
-            init_a_balance - fee as u128,
+            init_a_balance as u128,
         );
+
+        // sender's ckb balance
         check_balance(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
+            &block_info,
+            a_id,
+            CKB_SUDT_ACCOUNT_ID,
+            &a_address,
+            init_ckb - fee as u128,
+        );
+
+        // block producer's balance
+        check_balance(
+            &rollup_config,
+            &mut ctx.state,
             &block_info,
             a_id,
             sudt_id,
-            &block_producer_address,
-            block_producer_balance + fee as u128,
+            &block_producer,
+            block_producer_balance as u128,
+        );
+
+        // block producer's balance
+        check_balance(
+            &rollup_config,
+            &mut ctx.state,
+            &block_info,
+            a_id,
+            CKB_SUDT_ACCOUNT_ID,
+            &block_producer,
+            fee as u128,
         );
     }
 
@@ -524,14 +637,19 @@ fn test_transfer_to_self() {
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
-                    .to(a_address.pack())
+                    .to_address(Bytes::from(a_address.to_bytes()).pack())
                     .amount(value.pack())
+                    .fee(
+                        Fee::new_builder()
+                            .registry_id(a_address.registry_id.pack())
+                            .build(),
+                    )
                     .build(),
             )
             .build();
         let err = run_contract(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
             a_id,
             sudt_id,
             args.as_bytes(),
@@ -543,38 +661,53 @@ fn test_transfer_to_self() {
             err => panic!("unexpected {:?}", err),
         };
         assert_eq!(err_code, GW_SUDT_ERROR_INSUFFICIENT_BALANCE);
+        // sender sudt
         check_balance(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
             &block_info,
             a_id,
             sudt_id,
             &a_address,
-            init_a_balance - fee as u128,
+            init_a_balance as u128,
         );
+
+        // sender's ckb
         check_balance(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
             &block_info,
             a_id,
-            sudt_id,
-            &block_producer_address,
-            block_producer_balance + fee as u128,
+            CKB_SUDT_ACCOUNT_ID,
+            &a_address,
+            init_ckb - fee as u128,
+        );
+        // block producer ckb
+        check_balance(
+            &rollup_config,
+            &mut ctx.state,
+            &block_info,
+            a_id,
+            CKB_SUDT_ACCOUNT_ID,
+            &block_producer,
+            fee as u128,
         );
     }
 }
 
 #[test]
 fn test_transfer_to_self_overflow() {
-    let mut tree = DummyState::default();
     let init_a_balance: u128 = u128::MAX - 1;
+    let init_ckb: u128 = 100;
 
     let rollup_config = RollupConfig::new_builder()
         .l2_sudt_validator_script_type_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.pack())
         .build();
+    let mut ctx = TestingContext::setup(&rollup_config);
 
     // init accounts
-    let _meta = tree
+    let _meta = ctx
+        .state
         .create_account_from_script(
             Script::new_builder()
                 .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
@@ -583,7 +716,8 @@ fn test_transfer_to_self_overflow() {
                 .build(),
         )
         .expect("create account");
-    let sudt_id = tree
+    let sudt_id = ctx
+        .state
         .create_account_from_script(
             Script::new_builder()
                 .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
@@ -592,7 +726,8 @@ fn test_transfer_to_self_overflow() {
                 .build(),
         )
         .expect("create account");
-    let a_id = tree
+    let a_id = ctx
+        .state
         .create_account_from_script(
             Script::new_builder()
                 .code_hash([0u8; 32].pack())
@@ -601,11 +736,12 @@ fn test_transfer_to_self_overflow() {
                 .build(),
         )
         .expect("create account");
-    let a_script_hash = tree.get_script_hash(a_id).expect("get script hash");
+    let a_script_hash = ctx.state.get_script_hash(a_id).expect("get script hash");
     // non-exist account id
-    let a_address = to_short_script_hash(&a_script_hash).to_vec();
+    let a_address = ctx.create_eth_address(a_script_hash.into(), [1u8; 20]);
 
-    let block_producer_id = tree
+    let block_producer_id = ctx
+        .state
         .create_account_from_script(
             Script::new_builder()
                 .code_hash([0u8; 32].pack())
@@ -614,20 +750,21 @@ fn test_transfer_to_self_overflow() {
                 .build(),
         )
         .expect("create account");
-    let block_producer_script_hash = tree
+    let block_producer_script_hash = ctx
+        .state
         .get_script_hash(block_producer_id)
         .expect("get script hash");
-    let block_producer_address = to_short_script_hash(&block_producer_script_hash).to_vec();
+    let block_producer = ctx.create_eth_address(block_producer_script_hash.into(), [42u8; 20]);
     let block_producer_balance = 0;
-    let block_info = new_block_info(block_producer_id, 10, 0);
+    let block_info = new_block_info(&block_producer, 10, 0);
 
     // init balance for a
-    tree.mint_sudt(
-        sudt_id,
-        to_short_script_hash(&a_script_hash),
-        init_a_balance,
-    )
-    .expect("init balance");
+    ctx.state
+        .mint_sudt(sudt_id, &a_address, init_a_balance)
+        .expect("init balance");
+    ctx.state
+        .mint_sudt(CKB_SUDT_ACCOUNT_ID, &a_address, init_ckb)
+        .expect("init balance");
 
     // transfer from A to A, zero value
     {
@@ -636,15 +773,20 @@ fn test_transfer_to_self_overflow() {
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
-                    .to(a_address.pack())
+                    .to_address(Bytes::from(a_address.to_bytes()).pack())
                     .amount(value.pack())
-                    .fee(fee.pack())
+                    .fee(
+                        Fee::new_builder()
+                            .amount(fee.pack())
+                            .registry_id(a_address.registry_id.pack())
+                            .build(),
+                    )
                     .build(),
             )
             .build();
         let run_result = run_contract_get_result(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
             a_id,
             sudt_id,
             args.as_bytes(),
@@ -655,30 +797,52 @@ fn test_transfer_to_self_overflow() {
         check_transfer_logs(
             &run_result.logs,
             sudt_id,
-            block_producer_script_hash,
+            &block_producer,
             fee.into(),
-            a_script_hash,
-            a_script_hash,
+            &a_address,
+            &a_address,
             value,
         );
 
+        // sender's sudt
         check_balance(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
             &block_info,
             a_id,
             sudt_id,
             &a_address,
             init_a_balance,
         );
+        // sender's ckb
         check_balance(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
+            &block_info,
+            a_id,
+            CKB_SUDT_ACCOUNT_ID,
+            &a_address,
+            init_ckb,
+        );
+        // block producer's sudt
+        check_balance(
+            &rollup_config,
+            &mut ctx.state,
             &block_info,
             a_id,
             sudt_id,
-            &block_producer_address,
+            &block_producer,
             block_producer_balance,
+        );
+        // block producer's ckb
+        check_balance(
+            &rollup_config,
+            &mut ctx.state,
+            &block_info,
+            a_id,
+            CKB_SUDT_ACCOUNT_ID,
+            &block_producer,
+            0,
         );
     }
 
@@ -689,15 +853,20 @@ fn test_transfer_to_self_overflow() {
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
-                    .to(a_address.pack())
+                    .to_address(Bytes::from(a_address.to_bytes()).pack())
                     .amount(value.pack())
-                    .fee(fee.pack())
+                    .fee(
+                        Fee::new_builder()
+                            .amount(fee.pack())
+                            .registry_id(a_address.registry_id.pack())
+                            .build(),
+                    )
                     .build(),
             )
             .build();
         let run_result = run_contract_get_result(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
             a_id,
             sudt_id,
             args.as_bytes(),
@@ -708,15 +877,16 @@ fn test_transfer_to_self_overflow() {
         check_transfer_logs(
             &run_result.logs,
             sudt_id,
-            block_producer_script_hash,
+            &block_producer,
             fee.into(),
-            a_script_hash,
-            a_script_hash,
+            &a_address,
+            &a_address,
             value,
         );
+        // sudt
         check_balance(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
             &block_info,
             a_id,
             sudt_id,
@@ -725,12 +895,31 @@ fn test_transfer_to_self_overflow() {
         );
         check_balance(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
             &block_info,
             a_id,
             sudt_id,
-            &block_producer_address,
+            &block_producer,
             block_producer_balance,
+        );
+        // ckb
+        check_balance(
+            &rollup_config,
+            &mut ctx.state,
+            &block_info,
+            a_id,
+            CKB_SUDT_ACCOUNT_ID,
+            &a_address,
+            init_ckb,
+        );
+        check_balance(
+            &rollup_config,
+            &mut ctx.state,
+            &block_info,
+            a_id,
+            CKB_SUDT_ACCOUNT_ID,
+            &block_producer,
+            0,
         );
     }
 
@@ -740,14 +929,19 @@ fn test_transfer_to_self_overflow() {
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
-                    .to(a_address.pack())
+                    .to_address(Bytes::from(a_address.to_bytes()).pack())
                     .amount(value.pack())
+                    .fee(
+                        Fee::new_builder()
+                            .registry_id(a_address.registry_id.pack())
+                            .build(),
+                    )
                     .build(),
             )
             .build();
         let run_result = run_contract_get_result(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
             a_id,
             sudt_id,
             args.as_bytes(),
@@ -758,15 +952,16 @@ fn test_transfer_to_self_overflow() {
         check_transfer_logs(
             &run_result.logs,
             sudt_id,
-            block_producer_script_hash,
+            &block_producer,
             0,
-            a_script_hash,
-            a_script_hash,
+            &a_address,
+            &a_address,
             value,
         );
+        // sudt
         check_balance(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
             &block_info,
             a_id,
             sudt_id,
@@ -775,12 +970,31 @@ fn test_transfer_to_self_overflow() {
         );
         check_balance(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
             &block_info,
             a_id,
             sudt_id,
-            &block_producer_address,
+            &block_producer,
             block_producer_balance,
+        );
+        // ckb
+        check_balance(
+            &rollup_config,
+            &mut ctx.state,
+            &block_info,
+            a_id,
+            CKB_SUDT_ACCOUNT_ID,
+            &a_address,
+            init_ckb,
+        );
+        check_balance(
+            &rollup_config,
+            &mut ctx.state,
+            &block_info,
+            a_id,
+            CKB_SUDT_ACCOUNT_ID,
+            &block_producer,
+            0,
         );
     }
 
@@ -790,14 +1004,19 @@ fn test_transfer_to_self_overflow() {
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
-                    .to(a_address.pack())
+                    .to_address(Bytes::from(a_address.to_bytes()).pack())
                     .amount(value.pack())
+                    .fee(
+                        Fee::new_builder()
+                            .registry_id(a_address.registry_id.pack())
+                            .build(),
+                    )
                     .build(),
             )
             .build();
         let run_result = run_contract_get_result(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
             a_id,
             sudt_id,
             args.as_bytes(),
@@ -808,15 +1027,16 @@ fn test_transfer_to_self_overflow() {
         check_transfer_logs(
             &run_result.logs,
             sudt_id,
-            block_producer_script_hash,
+            &block_producer,
             0,
-            a_script_hash,
-            a_script_hash,
+            &a_address,
+            &a_address,
             value,
         );
+        //sudt
         check_balance(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
             &block_info,
             a_id,
             sudt_id,
@@ -825,28 +1045,49 @@ fn test_transfer_to_self_overflow() {
         );
         check_balance(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
             &block_info,
             a_id,
             sudt_id,
-            &block_producer_address,
+            &block_producer,
             block_producer_balance,
+        );
+        //ckb
+        check_balance(
+            &rollup_config,
+            &mut ctx.state,
+            &block_info,
+            a_id,
+            CKB_SUDT_ACCOUNT_ID,
+            &a_address,
+            init_ckb,
+        );
+        check_balance(
+            &rollup_config,
+            &mut ctx.state,
+            &block_info,
+            a_id,
+            CKB_SUDT_ACCOUNT_ID,
+            &block_producer,
+            0,
         );
     }
 }
 
 #[test]
 fn test_transfer_overflow() {
-    let mut tree = DummyState::default();
     let init_a_balance: u128 = 10000;
     let init_b_balance: u128 = u128::MAX;
+    let init_a_ckb = 100;
 
     let rollup_config = RollupConfig::new_builder()
         .l2_sudt_validator_script_type_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.pack())
         .build();
+    let mut ctx = TestingContext::setup(&rollup_config);
 
     // init accounts
-    let _meta = tree
+    let _meta = ctx
+        .state
         .create_account_from_script(
             Script::new_builder()
                 .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
@@ -855,7 +1096,8 @@ fn test_transfer_overflow() {
                 .build(),
         )
         .expect("create account");
-    let sudt_id = tree
+    let sudt_id = ctx
+        .state
         .create_account_from_script(
             Script::new_builder()
                 .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
@@ -864,7 +1106,8 @@ fn test_transfer_overflow() {
                 .build(),
         )
         .expect("create account");
-    let a_id = tree
+    let a_id = ctx
+        .state
         .create_account_from_script(
             Script::new_builder()
                 .code_hash([0u8; 32].pack())
@@ -873,9 +1116,10 @@ fn test_transfer_overflow() {
                 .build(),
         )
         .expect("create account");
-    let a_script_hash = tree.get_script_hash(a_id).expect("get script hash");
-    let a_address = to_short_script_hash(&a_script_hash).to_vec();
-    let b_id = tree
+    let a_script_hash = ctx.state.get_script_hash(a_id).expect("get script hash");
+    let a_address = ctx.create_eth_address(a_script_hash.into(), [1u8; 20]);
+    let b_id = ctx
+        .state
         .create_account_from_script(
             Script::new_builder()
                 .code_hash([0u8; 32].pack())
@@ -884,39 +1128,41 @@ fn test_transfer_overflow() {
                 .build(),
         )
         .expect("create account");
-    let b_script_hash = tree.get_script_hash(b_id).expect("get script hash");
+    let b_script_hash = ctx.state.get_script_hash(b_id).expect("get script hash");
+    let b_address = ctx.create_eth_address(b_script_hash.into(), [2u8; 20]);
 
-    let block_info = new_block_info(0, 10, 0);
+    let block_info = new_block_info(&Default::default(), 10, 0);
 
     // init balance for a
-    tree.mint_sudt(
-        sudt_id,
-        to_short_script_hash(&a_script_hash),
-        init_a_balance,
-    )
-    .expect("init balance");
-    tree.mint_sudt(
-        sudt_id,
-        to_short_script_hash(&b_script_hash),
-        init_b_balance,
-    )
-    .expect("init balance");
+    ctx.state
+        .mint_sudt(sudt_id, &a_address, init_a_balance)
+        .expect("init balance");
+    ctx.state
+        .mint_sudt(CKB_SUDT_ACCOUNT_ID, &a_address, init_a_ckb)
+        .expect("init balance");
+    ctx.state
+        .mint_sudt(sudt_id, &b_address, init_b_balance)
+        .expect("init balance");
 
-    let b_address = to_short_script_hash(&b_script_hash).to_vec();
     // transfer from A to B overflow
     {
         let value: u128 = 1000;
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
-                    .to(b_address.pack())
+                    .to_address(Bytes::from(b_address.to_bytes()).pack())
                     .amount(value.pack())
+                    .fee(
+                        Fee::new_builder()
+                            .registry_id(a_address.registry_id.pack())
+                            .build(),
+                    )
                     .build(),
             )
             .build();
         let err = run_contract(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
             a_id,
             sudt_id,
             args.as_bytes(),
@@ -932,7 +1178,7 @@ fn test_transfer_overflow() {
         // check balance
         check_balance(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
             &block_info,
             a_id,
             sudt_id,
@@ -942,7 +1188,17 @@ fn test_transfer_overflow() {
 
         check_balance(
             &rollup_config,
-            &mut tree,
+            &mut ctx.state,
+            &block_info,
+            a_id,
+            CKB_SUDT_ACCOUNT_ID,
+            &a_address,
+            init_a_ckb,
+        );
+
+        check_balance(
+            &rollup_config,
+            &mut ctx.state,
             &block_info,
             a_id,
             sudt_id,
@@ -958,14 +1214,14 @@ fn check_balance<S: State + CodeStore>(
     block_info: &BlockInfo,
     sender_id: u32,
     sudt_id: u32,
-    short_script_hash: &[u8],
+    address: &RegistryAddress,
     expected_balance: u128,
 ) {
     // check balance
     let args = SUDTArgs::new_builder()
         .set(
             SUDTQuery::new_builder()
-                .short_script_hash(short_script_hash.pack())
+                .address(Bytes::from(address.to_bytes()).pack())
                 .build(),
         )
         .build();

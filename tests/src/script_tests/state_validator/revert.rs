@@ -15,13 +15,15 @@ use ckb_types::{
     packed::{CellInput, CellOutput},
     prelude::{Pack as CKBPack, Unpack as CKBUnpack},
 };
+use gw_common::registry_address::RegistryAddress;
 use gw_common::{
     builtins::CKB_SUDT_ACCOUNT_ID, h256_ext::H256Ext,
     sparse_merkle_tree::default_store::DefaultStore, state::State, H256,
 };
 use gw_store::state::state_db::StateContext;
 use gw_store::traits::chain_store::ChainStore;
-use gw_types::packed::AllowedTypeHash;
+use gw_types::core::AllowedEoaType;
+use gw_types::packed::{AllowedTypeHash, Fee};
 use gw_types::{
     bytes::Bytes,
     core::{ChallengeTargetType, ScriptHashType, Status},
@@ -67,7 +69,11 @@ async fn test_revert() {
         .burn_lock_hash(Pack::pack(&reward_burn_lock_hash))
         .finality_blocks(Pack::pack(&finality_blocks))
         .allowed_eoa_type_hashes(
-            vec![AllowedTypeHash::from_unknown(*ALWAYS_SUCCESS_CODE_HASH)].pack(),
+            vec![AllowedTypeHash::new(
+                AllowedEoaType::Eth,
+                *ALWAYS_SUCCESS_CODE_HASH,
+            )]
+            .pack(),
         )
         .build();
     // setup chain
@@ -81,18 +87,19 @@ async fn test_revert() {
         )),
     );
     let rollup_script_hash = rollup_type_script.hash();
+    let eth_registry_id = 3u32;
     // produce a block so we can challenge it
     let prev_block_merkle = {
         // deposit two account
         let mut sender_args = rollup_script_hash.to_vec();
-        sender_args.extend_from_slice(b"sender");
+        sender_args.extend_from_slice(&[1u8; 20]);
         let sender_script = Script::new_builder()
             .code_hash(Pack::pack(&ALWAYS_SUCCESS_CODE_HASH.clone()))
             .hash_type(ScriptHashType::Type.into())
             .args(Pack::pack(&Bytes::from(sender_args)))
             .build();
         let mut receiver_args = rollup_script_hash.to_vec();
-        receiver_args.extend_from_slice(b"receiver");
+        receiver_args.extend_from_slice(&[2u8; 20]);
         let receiver_script = Script::new_builder()
             .code_hash(Pack::pack(&ALWAYS_SUCCESS_CODE_HASH.clone()))
             .hash_type(ScriptHashType::Type.into())
@@ -102,10 +109,12 @@ async fn test_revert() {
             DepositRequest::new_builder()
                 .capacity(Pack::pack(&300_00000000u64))
                 .script(sender_script.clone())
+                .registry_id(Pack::pack(&eth_registry_id))
                 .build(),
             DepositRequest::new_builder()
                 .capacity(Pack::pack(&450_00000000u64))
                 .script(receiver_script.clone())
+                .registry_id(Pack::pack(&eth_registry_id))
                 .build(),
         ];
         let produce_block_result = {
@@ -131,14 +140,19 @@ async fn test_revert() {
             .get_account_id_by_script_hash(&sender_script.hash().into())
             .unwrap()
             .unwrap();
-        let receiver_address = Bytes::copy_from_slice(&receiver_script.hash()[0..20]);
+        let receiver_address = RegistryAddress::new(1, receiver_script.hash()[0..20].to_vec());
         let produce_block_result = {
             let args = SUDTArgs::new_builder()
                 .set(SUDTArgsUnion::SUDTTransfer(
                     SUDTTransfer::new_builder()
                         .amount(Pack::pack(&150_00000000u128))
-                        .fee(Pack::pack(&1_00000000u64))
-                        .to(Pack::pack(&receiver_address))
+                        .fee(
+                            Fee::new_builder()
+                                .amount(Pack::pack(&1_00000000u64))
+                                .registry_id(Pack::pack(&eth_registry_id))
+                                .build(),
+                        )
+                        .to_address(Pack::pack(&Bytes::from(receiver_address.to_bytes())))
                         .build(),
                 ))
                 .build()

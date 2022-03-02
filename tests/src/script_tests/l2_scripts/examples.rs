@@ -6,11 +6,7 @@ use super::{
     SUDT_TOTAL_SUPPLY_PROGRAM, SUDT_TOTAL_SUPPLY_PROGRAM_CODE_HASH, SUM_PROGRAM,
     SUM_PROGRAM_CODE_HASH,
 };
-use gw_common::{
-    h256_ext::H256Ext,
-    state::{to_short_script_hash, State},
-    H256, U256,
-};
+use gw_common::{h256_ext::H256Ext, registry_address::RegistryAddress, state::State, H256, U256};
 use gw_config::BackendType;
 use gw_generator::{
     account_lock_manage::{always_success::AlwaysSuccess, secp256k1::Secp256k1, AccountLockManage},
@@ -68,7 +64,7 @@ fn test_example_sum() {
         let generator = Generator::new(backend_manage, account_lock_manage, rollup_context);
         let mut sum_value = init_value;
         for (number, add_value) in &[(1u64, 7u64), (2u64, 16u64)] {
-            let block_info = new_block_info(0, *number, 0);
+            let block_info = new_block_info(&Default::default(), *number, 0);
             let raw_tx = RawL2Transaction::new_builder()
                 .from_id(from_id.pack())
                 .to_id(contract_id.pack())
@@ -189,7 +185,7 @@ fn test_example_account_operation() {
         rollup_script_hash: [42u8; 32].into(),
     };
     let generator = Generator::new(backend_manage, account_lock_manage, rollup_context);
-    let block_info = new_block_info(0, 2, 0);
+    let block_info = new_block_info(&Default::default(), 2, 0);
 
     // Load: success
     {
@@ -343,14 +339,14 @@ fn test_example_account_operation() {
     // Log: success
     {
         let account_id = 0;
-        let from_script_hash = [0x33u8; 32];
-        let to_script_hash = [0x44u8; 32];
+        let registry_id = 2;
+        let from_addr = RegistryAddress::new(registry_id, vec![0x33u8; 20]);
+        let to_addr = RegistryAddress::new(registry_id, vec![0x44u8; 20]);
         let amount: u128 = 101;
-        let mut data = vec![0u8; 1 + 20 + 20 + 16];
-        data[0] = 20;
-        data[1..21].copy_from_slice(&from_script_hash[0..20]);
-        data[21..41].copy_from_slice(&to_script_hash[0..20]);
-        data[41..41 + 16].copy_from_slice(&amount.to_le_bytes()[..]);
+        let mut data = Vec::default();
+        data.extend(from_addr.to_bytes());
+        data.extend(to_addr.to_bytes());
+        data.extend(&amount.to_le_bytes()[..]);
         let args = AccountOp::Log {
             service_flag: GW_LOG_SUDT_TRANSFER,
             account_id,
@@ -373,8 +369,8 @@ fn test_example_account_operation() {
             .expect("result");
         let log = SudtLog::from_log_item(&run_result.logs[0]).unwrap();
         assert_eq!(log.sudt_id, account_id);
-        assert_eq!(log.from_addr, from_script_hash[0..20]);
-        assert_eq!(log.to_addr, to_script_hash[0..20]);
+        assert_eq!(log.from_addr, from_addr);
+        assert_eq!(log.to_addr, to_addr);
         assert_eq!(log.amount, amount);
         assert_eq!(log.log_type, SudtLogType::Transfer);
         assert_eq!(run_result.return_data, Vec::<u8>::new());
@@ -443,7 +439,7 @@ fn test_example_recover_account() {
         rollup_script_hash,
     };
     let generator = Generator::new(backend_manage, account_lock_manage, rollup_context);
-    let block_info = new_block_info(0, 2, 0);
+    let block_info = new_block_info(&Default::default(), 2, 0);
 
     let lock_args_hex = "404f90829ec0e5821aeba9bce7d5e841ce9f7fa5";
     let message_hex = "1cdeae55a5768fe14b628001c6247ae84c70310a7ddcfdc73ac68494251e46ec";
@@ -569,10 +565,12 @@ fn test_sudt_total_supply() {
         .hash_type(ScriptHashType::Type.into())
         .build();
     let alice_hash: H256 = alice.hash().into();
+    let eth_registry_id = 3;
+    let alice_address = RegistryAddress::new(eth_registry_id, alice_hash.as_slice().to_vec());
     let alice_id = tree
         .create_account_from_script(alice)
         .expect("create alice account");
-    tree.mint_sudt(sudt_id, to_short_script_hash(&alice_hash), u128::MAX)
+    tree.mint_sudt(sudt_id, &alice_address, u128::MAX)
         .expect("alice mint sudt");
 
     let bob = Script::new_builder()
@@ -581,9 +579,10 @@ fn test_sudt_total_supply() {
         .hash_type(ScriptHashType::Type.into())
         .build();
     let bob_hash: H256 = bob.hash().into();
+    let bob_address = RegistryAddress::new(eth_registry_id, bob_hash.as_slice().to_vec());
     tree.create_account_from_script(bob)
         .expect("create bob account");
-    tree.mint_sudt(sudt_id, to_short_script_hash(&bob_hash), u128::MAX)
+    tree.mint_sudt(sudt_id, &bob_address, u128::MAX)
         .expect("bob mint sudt");
 
     let contract_id = tree
@@ -615,7 +614,7 @@ fn test_sudt_total_supply() {
             rollup_script_hash: [42u8; 32].into(),
         };
         let generator = Generator::new(backend_manage, account_lock_manage, rollup_context);
-        let block_info = new_block_info(0, 1, 0);
+        let block_info = new_block_info(&Default::default(), 1, 0);
         let raw_tx = RawL2Transaction::new_builder()
             .from_id(alice_id.pack())
             .to_id(contract_id.pack())

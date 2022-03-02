@@ -127,8 +127,11 @@ int gw_parse_block_info(gw_block_info_t *block_info, mol_seg_t *src) {
   mol_seg_t number_seg = MolReader_BlockInfo_get_number(src);
   mol_seg_t timestamp_seg = MolReader_BlockInfo_get_timestamp(src);
   mol_seg_t block_producer_seg = MolReader_BlockInfo_get_block_producer(src);
-  int ret = _gw_parse_addr(block_producer_seg.ptr, block_producer_seg.size,
-                           &block_info->block_producer);
+  mol_seg_t raw_block_producer_seg =
+      MolReader_Bytes_raw_bytes(&block_producer_seg);
+  int ret =
+      _gw_parse_addr(raw_block_producer_seg.ptr, raw_block_producer_seg.size,
+                     &block_info->block_producer);
   if (ret != 0) {
     return ret;
   }
@@ -323,6 +326,7 @@ int _gw_get_registry_address_by_script_hash(struct gw_context_t *ctx,
     return ret;
   }
   if (_is_zero_hash(buf)) {
+    printf("failed to get registry address by script hash");
     return GW_ERROR_NOT_FOUND;
   }
   memcpy((uint8_t *)&(addr->reg_id), buf, 4);
@@ -347,7 +351,9 @@ int _gw_get_script_hash_by_registry_address(struct gw_context_t *ctx,
 
   uint8_t key[32] = {0};
   int ret = _gw_build_registry_address_to_script_hash_key(key, addr);
-  if(ret != 0) {return ret;}
+  if (ret != 0) {
+    return ret;
+  }
 
   /* get value */
   ret = ctx->sys_load(ctx, addr->reg_id, key, 32, script_hash);
@@ -355,6 +361,7 @@ int _gw_get_script_hash_by_registry_address(struct gw_context_t *ctx,
     return ret;
   }
   if (_is_zero_hash(script_hash)) {
+    printf("failed to get script hash by registry address");
     return GW_ERROR_NOT_FOUND;
   }
   return 0;

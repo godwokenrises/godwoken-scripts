@@ -18,16 +18,16 @@ use ckb_types::{
     prelude::{Pack as CKBPack, Unpack},
 };
 use gw_common::merkle_utils::ckb_merkle_leaf_hash;
-use gw_common::{
-    state::{to_short_script_hash, State},
-    H256,
-};
+use gw_common::registry_address::RegistryAddress;
+use gw_common::{state::State, H256};
 use gw_store::mem_pool_state::MemPoolState;
 use gw_store::mem_pool_state::MemStore;
 use gw_store::state::state_db::StateContext;
 use gw_traits::CodeStore;
+use gw_types::core::AllowedEoaType;
 use gw_types::packed::AllowedTypeHash;
 use gw_types::packed::CCTransactionWitness;
+use gw_types::packed::Fee;
 use gw_types::prelude::*;
 use gw_types::{
     bytes::Bytes,
@@ -60,13 +60,19 @@ async fn test_cancel_tx_execute() {
     let l2_sudt_type_hash: [u8; 32] = l2_sudt_type.calc_script_hash().unpack();
 
     let finality_blocks = 10;
+    let eth_registry_id = 3u32;
+
     let rollup_config = RollupConfig::new_builder()
         .challenge_script_type_hash(Pack::pack(&challenge_script_type_hash))
         .l2_sudt_validator_script_type_hash(Pack::pack(&l2_sudt_type_hash))
         .allowed_contract_type_hashes(vec![AllowedTypeHash::from_unknown(l2_sudt_type_hash)].pack())
         .finality_blocks(Pack::pack(&finality_blocks))
         .allowed_eoa_type_hashes(
-            vec![AllowedTypeHash::from_unknown(*ALWAYS_SUCCESS_CODE_HASH)].pack(),
+            vec![AllowedTypeHash::new(
+                AllowedEoaType::Eth,
+                *ALWAYS_SUCCESS_CODE_HASH,
+            )]
+            .pack(),
         )
         .build();
     // setup chain
@@ -86,27 +92,30 @@ async fn test_cancel_tx_execute() {
     let (sender_script, receiver_script, sudt_script) = {
         // deposit two account
         let mut sender_args = rollup_script_hash.to_vec();
-        sender_args.extend_from_slice(b"sender");
+        sender_args.extend_from_slice(&[1u8; 20]);
         let sender_script = Script::new_builder()
             .code_hash(Pack::pack(&ALWAYS_SUCCESS_CODE_HASH.clone()))
             .hash_type(ScriptHashType::Type.into())
             .args(Pack::pack(&Bytes::from(sender_args)))
             .build();
         let mut receiver_args = rollup_script_hash.to_vec();
-        receiver_args.extend_from_slice(b"receiver");
+        receiver_args.extend_from_slice(&[2u8; 20]);
         let receiver_script = Script::new_builder()
             .code_hash(Pack::pack(&ALWAYS_SUCCESS_CODE_HASH.clone()))
             .hash_type(ScriptHashType::Type.into())
             .args(Pack::pack(&Bytes::from(receiver_args)))
             .build();
+        let receiver_address = RegistryAddress::new(eth_registry_id, vec![2u8; 20]);
         let deposit_requests = vec![
             DepositRequest::new_builder()
                 .capacity(Pack::pack(&300_00000000u64))
                 .script(sender_script.clone())
+                .registry_id(Pack::pack(&eth_registry_id))
                 .build(),
             DepositRequest::new_builder()
                 .capacity(Pack::pack(&450_00000000u64))
                 .script(receiver_script.clone())
+                .registry_id(Pack::pack(&eth_registry_id))
                 .build(),
         ];
         let produce_block_result = {
@@ -132,12 +141,6 @@ async fn test_cancel_tx_execute() {
             .get_account_id_by_script_hash(&sender_script.hash().into())
             .unwrap()
             .unwrap();
-        let receiver_id = tree
-            .get_account_id_by_script_hash(&receiver_script.hash().into())
-            .unwrap()
-            .unwrap();
-        let receiver_script_hash = tree.get_script_hash(receiver_id).expect("get script hash");
-        let receiver_address = Bytes::copy_from_slice(to_short_script_hash(&receiver_script_hash));
         let sudt_script_hash = tree.get_script_hash(sudt_id).unwrap();
         let sudt_script = tree.get_script(&sudt_script_hash).unwrap();
         let transfer_capacity = 150_00000000u128;
@@ -145,9 +148,14 @@ async fn test_cancel_tx_execute() {
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
-                    .to(Pack::pack(&receiver_address))
+                    .to_address(Pack::pack(&Bytes::from(receiver_address.to_bytes())))
                     .amount(Pack::pack(&transfer_capacity))
-                    .fee(Pack::pack(&fee_capacity))
+                    .fee(
+                        Fee::new_builder()
+                            .amount(Pack::pack(&fee_capacity))
+                            .registry_id(Pack::pack(&receiver_address.registry_id))
+                            .build(),
+                    )
                     .build(),
             )
             .build()

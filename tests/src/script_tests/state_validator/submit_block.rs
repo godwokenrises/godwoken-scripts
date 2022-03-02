@@ -20,6 +20,7 @@ use ckb_types::{
     prelude::{Pack as CKBPack, Unpack},
 };
 use gw_chain::chain::{L1Action, L1ActionContext, SyncParam};
+use gw_types::core::AllowedEoaType;
 use gw_types::packed::{
     AllowedTypeHash, DepositRequest, L2BlockCommittedInfo, RawWithdrawalRequest, WithdrawalRequest,
     WithdrawalRequestExtra,
@@ -1121,7 +1122,8 @@ async fn test_withdrawal_cell_lock_args_with_owner_lock_in_submit_block() {
         .stake_script_type_hash(Pack::pack(&stake_script_type_hash))
         .custodian_script_type_hash(Pack::pack(&custodian_script_type_hash))
         .withdrawal_script_type_hash(Pack::pack(&withdrawal_script_type_hash))
-        .allowed_eoa_type_hashes(PackVec::pack(vec![AllowedTypeHash::from_unknown(
+        .allowed_eoa_type_hashes(PackVec::pack(vec![AllowedTypeHash::new(
+            AllowedEoaType::Eth,
             *ALWAYS_SUCCESS_CODE_HASH,
         )]))
         .build();
@@ -1136,12 +1138,13 @@ async fn test_withdrawal_cell_lock_args_with_owner_lock_in_submit_block() {
             rollup_type_script.as_bytes(),
         )),
     );
+    let eth_registry_id = 3u32;
 
     // Deposit account
     let deposit_capacity: u64 = 1000000 * 10u64.pow(8);
     let deposit_lock_args = {
         let mut args = rollup_type_script.hash().to_vec();
-        args.extend_from_slice(&[1u8; 32]);
+        args.extend_from_slice(&[1u8; 20]);
         Pack::pack(&Bytes::from(args))
     };
     let account_script = Script::new_builder()
@@ -1152,6 +1155,7 @@ async fn test_withdrawal_cell_lock_args_with_owner_lock_in_submit_block() {
     let deposit = DepositRequest::new_builder()
         .capacity(Pack::pack(&deposit_capacity))
         .script(account_script.to_owned())
+        .registry_id(Pack::pack(&eth_registry_id))
         .build();
 
     let block_result = {
@@ -1189,6 +1193,7 @@ async fn test_withdrawal_cell_lock_args_with_owner_lock_in_submit_block() {
             .capacity(Pack::pack(&deposit_capacity))
             .account_script_hash(Pack::pack(&account_script.hash()))
             .owner_lock_hash(Pack::pack(&account_script.hash()))
+            .registry_id(Pack::pack(&eth_registry_id))
             .build();
         let request = WithdrawalRequest::new_builder().raw(raw).build();
         WithdrawalRequestExtra::new_builder()
