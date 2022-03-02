@@ -708,7 +708,7 @@ int _find_cell_by_type_hash(uint8_t type_hash[32], uint64_t source,
                                              CKB_CELL_FIELD_TYPE_HASH);
     if (ret == CKB_INDEX_OUT_OF_BOUND) {
       printf(
-          "_finde_cell_by_type_hash: return not found cell index: %ld, source: "
+          "_find_cell_by_type_hash: return not found cell index: %ld, source: "
           "%ld",
           *index, source);
       return GW_ERROR_NOT_FOUND;
@@ -1545,6 +1545,7 @@ int _check_owner_lock_hash() {
     }
     current++;
   }
+  printf("failed to check owner lock");
   return GW_ERROR_NOT_FOUND;
 }
 

@@ -18,16 +18,19 @@ use ckb_types::{
     prelude::{Pack as CKBPack, Unpack},
 };
 use gw_common::merkle_utils::ckb_merkle_leaf_hash;
-use gw_common::{state::to_short_script_hash, state::State, H256};
+use gw_common::registry_address::RegistryAddress;
+use gw_common::{state::State, H256};
 use gw_generator::account_lock_manage::always_success::AlwaysSuccess;
 use gw_generator::account_lock_manage::AccountLockManage;
 use gw_store::mem_pool_state::MemPoolState;
 use gw_store::mem_pool_state::MemStore;
 use gw_store::state::state_db::StateContext;
 use gw_traits::CodeStore;
+use gw_types::core::AllowedEoaType;
 use gw_types::core::SigningType;
 use gw_types::packed::AllowedTypeHash;
 use gw_types::packed::CCTransactionSignatureWitness;
+use gw_types::packed::Fee;
 use gw_types::prelude::*;
 use gw_types::{
     bytes::Bytes,
@@ -60,8 +63,10 @@ async fn test_cancel_tx_signature() {
     let eoa_lock_type_hash: [u8; 32] = eoa_lock_type.calc_script_hash().unpack();
     let l2_sudt_type_hash: [u8; 32] = l2_sudt_type.calc_script_hash().unpack();
 
-    let allowed_eoa_type_hashes: Vec<AllowedTypeHash> =
-        vec![AllowedTypeHash::from_unknown(eoa_lock_type_hash)];
+    let allowed_eoa_type_hashes: Vec<AllowedTypeHash> = vec![AllowedTypeHash::new(
+        AllowedEoaType::Eth,
+        eoa_lock_type_hash,
+    )];
     let finality_blocks = 10;
     let rollup_config = RollupConfig::new_builder()
         .challenge_script_type_hash(Pack::pack(&challenge_script_type_hash))
@@ -93,31 +98,35 @@ async fn test_cancel_tx_signature() {
     // CKB built-in account id
     let sudt_id = 1;
     let rollup_script_hash = rollup_type_script.hash();
+    let eth_registry_id = 3u32;
     // produce a block so we can challenge it
     let (sender_script, receiver_script, sudt_script) = {
         // deposit two account
         let mut sender_args = rollup_script_hash.to_vec();
-        sender_args.extend_from_slice(b"sender");
+        sender_args.extend_from_slice(&[1u8; 20]);
         let sender_script = Script::new_builder()
             .code_hash(Pack::pack(&eoa_lock_type_hash.clone()))
             .hash_type(ScriptHashType::Type.into())
             .args(Pack::pack(&Bytes::from(sender_args)))
             .build();
         let mut receiver_args = rollup_script_hash.to_vec();
-        receiver_args.extend_from_slice(b"receiver");
+        receiver_args.extend_from_slice(&[2u8; 20]);
         let receiver_script = Script::new_builder()
             .code_hash(Pack::pack(&eoa_lock_type_hash.clone()))
             .hash_type(ScriptHashType::Type.into())
             .args(Pack::pack(&Bytes::from(receiver_args)))
             .build();
+        let receiver_address = RegistryAddress::new(eth_registry_id, vec![2u8; 20]);
         let deposit_requests = vec![
             DepositRequest::new_builder()
                 .capacity(Pack::pack(&300_00000000u64))
                 .script(sender_script.clone())
+                .registry_id(Pack::pack(&eth_registry_id))
                 .build(),
             DepositRequest::new_builder()
                 .capacity(Pack::pack(&450_00000000u64))
                 .script(receiver_script.clone())
+                .registry_id(Pack::pack(&eth_registry_id))
                 .build(),
         ];
         let produce_block_result = {
@@ -143,12 +152,6 @@ async fn test_cancel_tx_signature() {
             .get_account_id_by_script_hash(&sender_script.hash().into())
             .unwrap()
             .unwrap();
-        let receiver_id = tree
-            .get_account_id_by_script_hash(&receiver_script.hash().into())
-            .unwrap()
-            .unwrap();
-        let receiver_script_hash = tree.get_script_hash(receiver_id).expect("get script hash");
-        let receiver_address = Bytes::copy_from_slice(to_short_script_hash(&receiver_script_hash));
         let sudt_script_hash = tree.get_script_hash(sudt_id).unwrap();
         let sudt_script = tree.get_script(&sudt_script_hash).unwrap();
         let transfer_capacity = 2_00000000u128;
@@ -156,9 +159,14 @@ async fn test_cancel_tx_signature() {
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
-                    .to(Pack::pack(&receiver_address))
+                    .to_address(Pack::pack(&Bytes::from(receiver_address.to_bytes())))
                     .amount(Pack::pack(&transfer_capacity))
-                    .fee(Pack::pack(&fee_capacity))
+                    .fee(
+                        Fee::new_builder()
+                            .amount(Pack::pack(&fee_capacity))
+                            .registry_id(Pack::pack(&receiver_address.registry_id))
+                            .build(),
+                    )
                     .build(),
             )
             .build()

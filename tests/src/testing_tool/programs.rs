@@ -13,6 +13,7 @@ const SECP256K1_DATA_PATH: &str = "../c/deps/ckb-production-scripts/build/secp25
 const ANYONE_CAN_PAY_LOCK_PATH: &str = "../c/deps/ckb-production-scripts/build/anyone_can_pay";
 const C_SCRIPTS_DIR: &str = "../../godwoken-scripts/c/build";
 const META_CONTRACT_BIN_NAME: &str = "meta-contract-validator";
+const ETH_ADDR_REG_BIN_NAME: &str = "eth-addr-reg-generator";
 // account locks
 const ETH_LOCK_PATH: &str = "eth-account-lock";
 const TRON_LOCK_PATH: &str = "tron-account-lock";
@@ -137,6 +138,22 @@ lazy_static! {
         let mut buf = [0u8; 32];
         let mut hasher = new_blake2b();
         hasher.update(&META_CONTRACT_VALIDATOR_PROGRAM);
+        hasher.finalize(&mut buf);
+        buf
+    };
+    pub static ref ETH_ADDR_REG_VALIDATOR_PROGRAM: Bytes = {
+        let mut buf = Vec::new();
+        let mut path = PathBuf::new();
+        path.push(&C_SCRIPTS_DIR);
+        path.push(&ETH_ADDR_REG_BIN_NAME);
+        let mut f = fs::File::open(&path).expect("load program");
+        f.read_to_end(&mut buf).expect("read program");
+        Bytes::from(buf.to_vec())
+    };
+    pub static ref ETH_ADDR_REG_CONTRACT_CODE_HASH: [u8; 32] = {
+        let mut buf = [0u8; 32];
+        let mut hasher = new_blake2b();
+        hasher.update(&ETH_ADDR_REG_VALIDATOR_PROGRAM);
         hasher.finalize(&mut buf);
         buf
     };

@@ -22,6 +22,8 @@ typedef unsigned __int128 uint128_t;
 #define GW_REGISTRY_KEY_FLAG_NATIVE_TO_SCRIPT_HASH 2
 
 /* Limitations */
+/* GW_MAX_BLOCK_INFO_SIZE */
+#define GW_MAX_BLOCK_INFO_SIZE 256
 /* 25KB (ethereum max contract code size) */
 #define GW_MAX_DATA_SIZE (25 * 1024)
 /* 128KB */

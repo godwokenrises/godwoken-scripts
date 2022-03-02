@@ -1,6 +1,7 @@
 #ifndef GW_ETH_ADDR_REG_H
 #define GW_ETH_ADDR_REG_H
 
+#include "gw_syscalls.h"
 #include "ckb_syscalls.h"
 #include "gw_def.h"
 #include "gw_syscalls.h"

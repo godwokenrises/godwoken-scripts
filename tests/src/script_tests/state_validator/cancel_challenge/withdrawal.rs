@@ -18,6 +18,7 @@ use ckb_types::{
     packed::{CellInput, CellOutput},
     prelude::{Pack as CKBPack, Unpack as CKBUnpack},
 };
+use gw_common::registry_address::RegistryAddress;
 use gw_common::H256;
 use gw_generator::account_lock_manage::{
     eip712::{
@@ -26,6 +27,8 @@ use gw_generator::account_lock_manage::{
     },
     {always_success::AlwaysSuccess, AccountLockManage},
 };
+use gw_store::state::state_db::StateContext;
+use gw_types::core::AllowedEoaType;
 use gw_types::core::SigningType;
 use gw_types::packed::AllowedTypeHash;
 use gw_types::packed::CCWithdrawalWitness;
@@ -58,9 +61,12 @@ async fn test_cancel_withdrawal() {
     let eoa_lock_type = build_type_id_script(b"eoa_lock_type_id");
     let challenge_script_type_hash: [u8; 32] = challenge_lock_type.calc_script_hash().unpack();
     let eoa_lock_type_hash: [u8; 32] = eoa_lock_type.calc_script_hash().unpack();
-    let allowed_eoa_type_hashes: Vec<AllowedTypeHash> =
-        vec![AllowedTypeHash::from_unknown(eoa_lock_type_hash)];
+    let allowed_eoa_type_hashes: Vec<AllowedTypeHash> = vec![AllowedTypeHash::new(
+        AllowedEoaType::Eth,
+        eoa_lock_type_hash,
+    )];
     let finality_blocks = 10;
+    let eth_registry_id = 3u32;
     let rollup_config = RollupConfig::new_builder()
         .challenge_script_type_hash(Pack::pack(&challenge_script_type_hash))
         .allowed_eoa_type_hashes(PackVec::pack(allowed_eoa_type_hashes))
@@ -91,14 +97,14 @@ async fn test_cancel_withdrawal() {
     let sender_script = {
         // deposit two account
         let mut sender_args = rollup_script_hash.to_vec();
-        sender_args.extend_from_slice(b"sender");
+        sender_args.extend_from_slice(&[1u8; 20]);
         let sender_script = Script::new_builder()
             .code_hash(Pack::pack(&eoa_lock_type_hash.clone()))
             .hash_type(ScriptHashType::Type.into())
             .args(Pack::pack(&Bytes::from(sender_args)))
             .build();
         let mut receiver_args = rollup_script_hash.to_vec();
-        receiver_args.extend_from_slice(b"receiver");
+        receiver_args.extend_from_slice(&[2u8; 20]);
         let receiver_script = Script::new_builder()
             .code_hash(Pack::pack(&eoa_lock_type_hash.clone()))
             .hash_type(ScriptHashType::Type.into())
@@ -108,10 +114,12 @@ async fn test_cancel_withdrawal() {
             DepositRequest::new_builder()
                 .capacity(Pack::pack(&450_00000000u64))
                 .script(sender_script.clone())
+                .registry_id(Pack::pack(&eth_registry_id))
                 .build(),
             DepositRequest::new_builder()
                 .capacity(Pack::pack(&550_00000000u64))
                 .script(receiver_script)
+                .registry_id(Pack::pack(&eth_registry_id))
                 .build(),
         ];
         let produce_block_result = {
@@ -131,6 +139,21 @@ async fn test_cancel_withdrawal() {
             asset_scripts,
         )
         .await;
+        {
+            use gw_common::state::State;
+            let db = chain.store().begin_transaction();
+            let tree = db.state_tree(StateContext::ReadOnly).unwrap();
+            let value = tree
+                .get_sudt_balance(1, &RegistryAddress::new(eth_registry_id, vec![1u8; 20]))
+                .unwrap();
+            dbg!("balance", value);
+
+            let registry_address = tree
+                .get_registry_address_by_script_hash(eth_registry_id, &sender_script.hash().into())
+                .unwrap()
+                .unwrap();
+            dbg!(registry_address.address.len());
+        }
         let withdrawal_capacity = 400_00000000u64;
         withdrawal_extra = {
             let owner_lock = Script::default();
@@ -143,6 +166,7 @@ async fn test_cancel_withdrawal() {
                                 .capacity(Pack::pack(&withdrawal_capacity))
                                 .account_script_hash(Pack::pack(&sender_script.hash()))
                                 .owner_lock_hash(Pack::pack(&owner_lock.hash()))
+                                .registry_id(Pack::pack(&eth_registry_id))
                                 .build(),
                         )
                         .build(),

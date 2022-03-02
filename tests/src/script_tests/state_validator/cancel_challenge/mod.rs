@@ -25,6 +25,7 @@ use gw_generator::account_lock_manage::eip712::{
     types::{EIP712Domain, Withdrawal},
 };
 use gw_generator::account_lock_manage::AccountLockManage;
+use gw_types::core::AllowedEoaType;
 use gw_types::core::SigningType;
 use gw_types::packed::AllowedTypeHash;
 use gw_types::packed::CCWithdrawalWitness;
@@ -77,8 +78,10 @@ async fn test_burn_challenge_capacity() {
     let eoa_lock_type = build_type_id_script(b"eoa_lock_type_id");
     let challenge_script_type_hash: [u8; 32] = challenge_lock_type.calc_script_hash().unpack();
     let eoa_lock_type_hash: [u8; 32] = eoa_lock_type.calc_script_hash().unpack();
-    let allowed_eoa_type_hashes: Vec<AllowedTypeHash> =
-        vec![AllowedTypeHash::from_unknown(eoa_lock_type_hash)];
+    let allowed_eoa_type_hashes: Vec<AllowedTypeHash> = vec![AllowedTypeHash::new(
+        AllowedEoaType::Eth,
+        eoa_lock_type_hash,
+    )];
     let finality_blocks = 10;
     let rollup_config = RollupConfig::new_builder()
         .challenge_script_type_hash(Pack::pack(&challenge_script_type_hash))
@@ -105,19 +108,20 @@ async fn test_burn_challenge_capacity() {
             rollup_type_script.as_bytes(),
         )),
     );
+    let eth_registry_id = 3u32;
     let withdrawal_extra;
     // produce a block so we can challenge it
     let sender_script = {
         // deposit two account
         let mut sender_args = rollup_type_script.hash().to_vec();
-        sender_args.extend_from_slice(b"sender");
+        sender_args.extend_from_slice(&[1u8; 20]);
         let sender_script = Script::new_builder()
             .code_hash(Pack::pack(&eoa_lock_type_hash.clone()))
             .hash_type(ScriptHashType::Type.into())
             .args(Pack::pack(&Bytes::from(sender_args)))
             .build();
         let mut receiver_args = rollup_type_script.hash().to_vec();
-        receiver_args.extend_from_slice(b"receiver");
+        receiver_args.extend_from_slice(&[2u8; 20]);
         let receiver_script = Script::new_builder()
             .code_hash(Pack::pack(&eoa_lock_type_hash.clone()))
             .hash_type(ScriptHashType::Type.into())
@@ -127,10 +131,12 @@ async fn test_burn_challenge_capacity() {
             DepositRequest::new_builder()
                 .capacity(Pack::pack(&450_00000000u64))
                 .script(sender_script.clone())
+                .registry_id(Pack::pack(&eth_registry_id))
                 .build(),
             DepositRequest::new_builder()
                 .capacity(Pack::pack(&550_00000000u64))
                 .script(receiver_script)
+                .registry_id(Pack::pack(&eth_registry_id))
                 .build(),
         ];
         let produce_block_result = {
@@ -163,6 +169,7 @@ async fn test_burn_challenge_capacity() {
                                 .capacity(Pack::pack(&withdrawal_capacity))
                                 .account_script_hash(Pack::pack(&sender_script.hash()))
                                 .owner_lock_hash(Pack::pack(&owner_lock.hash()))
+                                .registry_id(Pack::pack(&eth_registry_id))
                                 .build(),
                         )
                         .build(),

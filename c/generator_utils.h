@@ -457,8 +457,8 @@ int gw_context_init(gw_context_t *ctx) {
     return ret;
   }
 
-  uint8_t block_info_buf[sizeof(MolDefault_BlockInfo)] = {0};
-  len = sizeof(block_info_buf);
+  uint8_t block_info_buf[GW_MAX_BLOCK_INFO_SIZE] = {0};
+  len = GW_MAX_BLOCK_INFO_SIZE;
   ret = _sys_load_block_info(block_info_buf, &len);
   if (ret != 0) {
     return ret;
