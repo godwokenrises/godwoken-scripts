@@ -330,8 +330,8 @@ async fn test_revert() {
     .cell_dep(ctx.always_success_dep.clone())
     .cell_dep(ctx.state_validator_dep.clone())
     .cell_dep(ctx.rollup_config_dep.clone())
-    .witness(CKBPack::pack(&witness.as_bytes()))
     .witness(CKBPack::pack(&Bytes::new()))
+    .witness(CKBPack::pack(&witness.as_bytes()))
     .build();
     ctx.verify_tx(tx).expect("return success");
 }

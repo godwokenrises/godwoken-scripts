@@ -6,7 +6,7 @@ use gw_types::{
     prelude::*,
 };
 use gw_utils::cells::rollup::{
-    load_rollup_config, parse_rollup_action, search_rollup_cell, search_rollup_state,
+    find_input_rollup_witness_index, load_rollup_config, parse_rollup_action, search_rollup_state,
 };
 use gw_utils::ckb_std::{
     debug,
@@ -90,9 +90,8 @@ pub fn main() -> Result<(), Error> {
             let withdrawal_block_hash = lock_args.withdrawal_block_hash();
             // prove the block is reverted
             let rollup_action = {
-                let index = search_rollup_cell(&rollup_type_hash, Source::Output)
-                    .ok_or(Error::RollupCellNotFound)?;
-                parse_rollup_action(&mut rollup_action_witness, index, Source::Output)?
+                let index = find_input_rollup_witness_index()?;
+                parse_rollup_action(&mut rollup_action_witness, index, Source::Input)?
             };
             match rollup_action.to_enum() {
                 RollupActionUnionReader::RollupSubmitBlock(args) => {

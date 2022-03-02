@@ -1,13 +1,11 @@
 // Import from `core` instead of from `std` since we are in no-std mode
 use core::{convert::TryInto, result::Result};
 
-use gw_utils::cells::rollup::MAX_ROLLUP_WITNESS_SIZE;
+use gw_utils::cells::rollup::{find_input_rollup_witness_index, MAX_ROLLUP_WITNESS_SIZE};
 use gw_utils::gw_types;
 use gw_utils::gw_types::packed::RollupActionUnionReader;
 use gw_utils::{
-    cells::rollup::{
-        load_rollup_config, parse_rollup_action, search_rollup_cell, search_rollup_state,
-    },
+    cells::rollup::{load_rollup_config, parse_rollup_action, search_rollup_state},
     ckb_std::{
         ckb_constants::Source,
         ckb_types::{bytes::Bytes, prelude::Unpack as CKBUnpack},
@@ -57,9 +55,8 @@ pub fn main() -> Result<(), Error> {
 
     // check rollup cell
     let mut rollup_action_witness = [0u8; MAX_ROLLUP_WITNESS_SIZE];
-    let index =
-        search_rollup_cell(&rollup_script_hash, Source::Output).ok_or(Error::RollupCellNotFound)?;
-    let action = parse_rollup_action(&mut rollup_action_witness, index, Source::Output)?;
+    let index = find_input_rollup_witness_index()?;
+    let action = parse_rollup_action(&mut rollup_action_witness, index, Source::Input)?;
     match action.to_enum() {
         RollupActionUnionReader::RollupEnterChallenge(_)
         | RollupActionUnionReader::RollupRevert(_) => {
@@ -68,7 +65,7 @@ pub fn main() -> Result<(), Error> {
         }
         RollupActionUnionReader::RollupCancelChallenge(_) => {}
         _ => {
-            debug!("unsupport action {:?}", action.to_enum());
+            debug!("unsupported action {:?}", action.to_enum());
             return Err(Error::InvalidArgs);
         }
     }

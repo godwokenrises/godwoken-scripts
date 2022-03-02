@@ -370,11 +370,12 @@ async fn test_cancel_tx_execute() {
         (rollup_cell, rollup_cell_data),
     )
     .as_advanced_builder()
-    .witness(CKBPack::pack(&witness.as_bytes()))
+    .witness(Default::default())
     .input(input_challenge_cell)
     .witness(CKBPack::pack(&challenge_witness.as_bytes()))
     .input(input_unlock_cell)
     .witness(Default::default())
+    .witness(CKBPack::pack(&witness.as_bytes()))
     .cell_dep(ctx.challenge_lock_dep.clone())
     .cell_dep(ctx.stake_lock_dep.clone())
     .cell_dep(ctx.always_success_dep.clone())
