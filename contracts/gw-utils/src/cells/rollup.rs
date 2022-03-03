@@ -63,12 +63,12 @@ pub fn search_rollup_state(
     }
 }
 
-pub fn find_input_rollup_witness_index() -> Result<usize, Error> {
+pub fn find_rollup_witness_index(source: Source) -> Result<usize, Error> {
     let mut index = 0;
     // Loop input witnesses to find the last index aka rollup action witness
     let mut buf = [0u8; 1];
     loop {
-        match load_witness(&mut buf, 0, index, Source::Input) {
+        match load_witness(&mut buf, 0, index, source) {
             Ok(_) => index += 1,
             Err(SysError::LengthNotEnough(_)) => index += 1,
             Err(SysError::IndexOutOfBound) => return Ok(index.saturating_sub(1)),

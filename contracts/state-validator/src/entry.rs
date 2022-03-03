@@ -5,8 +5,7 @@ use core::result::Result;
 // https://doc.rust-lang.org/alloc/index.html
 use gw_utils::{
     cells::rollup::{
-        find_input_rollup_witness_index, load_rollup_config, parse_rollup_action,
-        MAX_ROLLUP_WITNESS_SIZE,
+        find_rollup_witness_index, load_rollup_config, parse_rollup_action, MAX_ROLLUP_WITNESS_SIZE,
     },
     ckb_std::{
         ckb_types::prelude::Unpack as CKBUnpack,
@@ -96,8 +95,8 @@ pub fn main() -> Result<(), Error> {
 
     // load rollup action
     let mut rollup_witness_buf = [0u8; MAX_ROLLUP_WITNESS_SIZE];
-    let witness_index = find_input_rollup_witness_index()?;
-    let action = parse_rollup_action(&mut rollup_witness_buf, witness_index, Source::Input)?;
+    let witness_index = find_rollup_witness_index(Source::Output)?;
+    let action = parse_rollup_action(&mut rollup_witness_buf, witness_index, Source::Output)?;
     match action.to_enum() {
         RollupActionUnionReader::RollupSubmitBlock(args) => {
             // verify submit block

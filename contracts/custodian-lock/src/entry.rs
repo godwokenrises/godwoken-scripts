@@ -4,7 +4,7 @@ use core::result::Result;
 use gw_utils::{
     cells::{
         rollup::{
-            find_input_rollup_witness_index, load_rollup_config, parse_rollup_action,
+            find_rollup_witness_index, load_rollup_config, parse_rollup_action,
             search_rollup_state, MAX_ROLLUP_WITNESS_SIZE,
         },
         utils::search_lock_hash,
@@ -113,8 +113,8 @@ pub fn main() -> Result<(), Error> {
     let deposit_block_hash = lock_args.deposit_block_hash();
     let mut rollup_action_witness = [0u8; MAX_ROLLUP_WITNESS_SIZE];
     let rollup_action = {
-        let index = find_input_rollup_witness_index()?;
-        parse_rollup_action(&mut rollup_action_witness, index, Source::Input)?
+        let index = find_rollup_witness_index(Source::Output)?;
+        parse_rollup_action(&mut rollup_action_witness, index, Source::Output)?
     };
 
     match rollup_action.to_enum() {
