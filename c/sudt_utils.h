@@ -57,6 +57,7 @@ const uint8_t SUDT_TOTAL_SUPPLY_KEY[] = {
 int _sudt_build_key(uint32_t key_flag, gw_reg_addr_t registry_address,
                     uint8_t *key, uint32_t *key_len) {
   if (*key_len < (4 + GW_REG_ADDR_SIZE(registry_address))) {
+    printf("_sudt_build_key: addr is large than buffer");
     return GW_FATAL_BUFFER_OVERFLOW;
   }
   *key_len = 4 + GW_REG_ADDR_SIZE(registry_address);
@@ -80,6 +81,7 @@ int _sudt_emit_log(gw_context_t *ctx, const uint32_t sudt_id,
   uint32_t data_size =
       GW_REG_ADDR_SIZE(from_addr) + GW_REG_ADDR_SIZE(to_addr) + 16;
   if (data_size > 256) {
+    printf("_sudt_emit_log: data is large than buffer");
     return GW_FATAL_BUFFER_OVERFLOW;
   }
   _gw_cpy_addr(data, from_addr);
