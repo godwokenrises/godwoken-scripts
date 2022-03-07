@@ -1,7 +1,6 @@
 #ifndef GW_ETH_ADDR_REG_H
 #define GW_ETH_ADDR_REG_H
 
-#include "gw_syscalls.h"
 #include "ckb_syscalls.h"
 #include "gw_def.h"
 #include "gw_syscalls.h"
@@ -153,7 +152,8 @@ int eth_address_register(gw_context_t *ctx,
           ckb_debug("[eth_address_register] not eth_account_lock");
           return GW_FATAL_UNKNOWN_ARGS;
         }
-        _gw_fast_memcpy(eth_address, raw_bytes_seg.ptr + 32, GW_ETH_ADDRESS_LEN);
+        _gw_fast_memcpy(eth_address, raw_bytes_seg.ptr + 32,
+                        GW_ETH_ADDRESS_LEN);
         return update_eth_address_register(ctx, eth_address, script_hash);
       }
     }
@@ -206,7 +206,8 @@ int eth_address_register(gw_context_t *ctx,
               "[eth_address_register] not Polyjuice contract script_args");
           return GW_FATAL_UNKNOWN_ARGS;
         }
-        _gw_fast_memcpy(eth_address, raw_bytes_seg.ptr + 36, GW_ETH_ADDRESS_LEN);
+        _gw_fast_memcpy(eth_address, raw_bytes_seg.ptr + 36,
+                        GW_ETH_ADDRESS_LEN);
         return update_eth_address_register(ctx, eth_address, script_hash);
       }
     }

@@ -290,8 +290,9 @@ int sys_get_account_script(gw_context_t *ctx, uint32_t account_id,
   }
 
   if (entry == NULL) {
-    printf("account script_hash exist, but we can't found, we miss the "
-           "necessary context");
+    printf(
+        "account script_hash exist, but we can't found, we miss the "
+        "necessary context");
     return GW_FATAL_SCRIPT_NOT_FOUND;
   }
 
@@ -556,8 +557,9 @@ int sys_recover_account(gw_context_t *ctx, uint8_t message[32],
     return 0;
   }
   /* Can't found account signature lock from inputs */
-  printf("recover account: can't found account signature lock "
-         "from inputs");
+  printf(
+      "recover account: can't found account signature lock "
+      "from inputs");
   return GW_FATAL_SIGNATURE_CELL_NOT_FOUND;
 }
 
@@ -1480,8 +1482,9 @@ int _gw_check_account_script_is_allowed(uint8_t rollup_script_hash[32],
     mol_seg_t code_hash_seg =
         MolReader_AllowedTypeHash_get_hash(&allowed_type_hash_res.seg);
     if (code_hash_seg.size != script_code_hash_seg.size) {
-      printf("[check account script] failed to get contract code hash, size "
-             "mismatch");
+      printf(
+          "[check account script] failed to get contract code hash, size "
+          "mismatch");
       return GW_FATAL_INVALID_DATA;
     }
 
@@ -1534,9 +1537,10 @@ int _check_owner_lock_hash() {
                                  CKB_CELL_FIELD_LOCK_HASH);
 
     if (ret != 0) {
-      printf("check owner lock hash failed: failed to load cell lock_hash ret: "
-             "%d",
-             ret);
+      printf(
+          "check owner lock hash failed: failed to load cell lock_hash ret: "
+          "%d",
+          ret);
       return GW_FATAL_INVALID_CONTEXT;
     }
     if (memcmp(lock_hash, owner_lock_hash, 32) == 0) {
@@ -1555,9 +1559,10 @@ int _gw_calculate_state_checkpoint(uint8_t buffer[32], const smt_state_t *state,
   uint8_t root[32];
   int ret = smt_calculate_root(root, state, proof, proof_length);
   if (0 != ret) {
-    printf("_gw_calculate_state_check_point: failed to calculate kv state "
-           "root ret: %d",
-           ret);
+    printf(
+        "_gw_calculate_state_check_point: failed to calculate kv state "
+        "root ret: %d",
+        ret);
     return GW_FATAL_SMT_CALCULATE_ROOT;
   }
 
@@ -1630,9 +1635,10 @@ int gw_context_init(gw_context_t *ctx) {
                                 &rollup_cell_index);
   if (ret == GW_ERROR_NOT_FOUND) {
     /* exit execution with 0 if we are not in a challenge */
-    printf("gw_context_init: can't found rollup cell from inputs which "
-           "means we are not in a "
-           "challenge, unlock cell without execution script");
+    printf(
+        "gw_context_init: can't found rollup cell from inputs which "
+        "means we are not in a "
+        "challenge, unlock cell without execution script");
     ckb_exit(0);
   } else if (ret != 0) {
     printf("gw_context_init: failed to load rollup cell index, ret: %d", ret);

@@ -45,6 +45,7 @@ int _gw_parse_addr(uint8_t *buf, int len, gw_reg_addr_t *addr) {
   memcpy((uint8_t *)(&addr->addr_len), buf + 4, 4);
   /* Only support addr_len <=20 for now */
   if (addr->addr_len > 20) {
+    printf("failed to parse addr, addr len is large than 20");
     return GW_FATAL_BUFFER_OVERFLOW;
   }
   if (addr->addr_len + 8 > len) {

@@ -386,6 +386,9 @@ int sys_pay_fee(gw_context_t *ctx, gw_reg_addr_t addr, uint32_t sudt_id,
   uint8_t buf[32] = {0};
   int len = GW_REG_ADDR_SIZE(addr);
   if (len > 32) {
+    printf(
+        "sys_pay_fee: invalid addr len, "
+        "expect <= 20");
     return GW_FATAL_BUFFER_OVERFLOW;
   }
   _gw_cpy_addr(buf, addr);
