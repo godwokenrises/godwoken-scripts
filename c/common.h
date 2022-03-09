@@ -133,6 +133,7 @@ int gw_parse_block_info(gw_block_info_t *block_info, mol_seg_t *src) {
       _gw_parse_addr(raw_block_producer_seg.ptr, raw_block_producer_seg.size,
                      &block_info->block_producer);
   if (ret != 0) {
+    printf("failed to parse block producer addr");
     return ret;
   }
   _gw_fast_memcpy(&block_info->number, number_seg.ptr, sizeof(uint64_t));
@@ -302,9 +303,8 @@ int _gw_build_registry_address_to_script_hash_key(uint8_t key[32],
   bytes) */
   if (GW_REG_ADDR_SIZE((*addr)) != 28) {
     /* raw_key 32 bytes = 3 + 1 + 4 + 4 + 20 */
-    printf(
-        "_gw_build_registry_address_to_script_hash_key: invalid addr size, "
-        "expect 28");
+    printf("_gw_build_registry_address_to_script_hash_key: invalid addr size, "
+           "expect 28");
     return GW_FATAL_BUFFER_OVERFLOW;
   }
   memcpy(key, (uint8_t *)"reg", 3);
@@ -337,9 +337,8 @@ int _gw_get_registry_address_by_script_hash(struct gw_context_t *ctx,
   if (addr->addr_len > 20) {
     /* we suppose in current version the max address len is 20 (an ETH address
      * actually takes 20 bytes), but the value is overflowed */
-    printf(
-        "_gw_get_registry_address_by_script_hash: invalid addr len, "
-        "expect <= 20");
+    printf("_gw_get_registry_address_by_script_hash: invalid addr len, "
+           "expect <= 20");
     return GW_FATAL_BUFFER_OVERFLOW;
   }
   memcpy((uint8_t *)&(addr->addr), buf + 8, addr->addr_len);
@@ -352,9 +351,8 @@ int _gw_get_script_hash_by_registry_address(struct gw_context_t *ctx,
   if (addr == NULL || addr->addr_len > 20) {
     /* we suppose in current version the max address len is 20 (an ETH address
      * actually takes 20 bytes), but the value is overflowed */
-    printf(
-        "_gw_get_script_hash_by_registry_address: invalid addr len, "
-        "expect <= 20");
+    printf("_gw_get_script_hash_by_registry_address: invalid addr len, "
+           "expect <= 20");
     return GW_FATAL_BUFFER_OVERFLOW;
   }
 
