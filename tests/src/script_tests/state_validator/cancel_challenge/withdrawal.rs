@@ -66,7 +66,7 @@ async fn test_cancel_withdrawal() {
         eoa_lock_type_hash,
     )];
     let finality_blocks = 10;
-    let eth_registry_id = 3u32;
+    let eth_registry_id = gw_common::builtins::ETH_REGISTRY_ACCOUNT_ID;
     let rollup_config = RollupConfig::new_builder()
         .challenge_script_type_hash(Pack::pack(&challenge_script_type_hash))
         .allowed_eoa_type_hashes(PackVec::pack(allowed_eoa_type_hashes))

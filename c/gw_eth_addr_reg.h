@@ -19,15 +19,20 @@
  * @param script_hash Godwoken account script hash
  * @return int: 0 means success
  */
-int update_eth_address_register(gw_context_t *ctx,
-                                const uint8_t eth_address[GW_ETH_ADDRESS_LEN],
-                                const uint8_t script_hash[GW_VALUE_BYTES]) {
+int gw_update_eth_address_register(
+    gw_context_t *ctx, const uint8_t eth_address[GW_ETH_ADDRESS_LEN],
+    const uint8_t script_hash[GW_VALUE_BYTES]) {
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
   }
 
+  if (_is_zero_hash((uint8_t *)script_hash)) {
+    printf("gw_update_eth_address_register script hash is zero");
+    return GW_FATAL_INVALID_DATA;
+  }
+
   gw_reg_addr_t addr = {0};
-  addr.reg_id = ctx->transaction_context.to_id;
+  addr.reg_id = GW_DEFAULT_ETH_REGISTRY_ACCOUNT_ID;
   addr.addr_len = GW_ETH_ADDRESS_LEN;
   memcpy(addr.addr, eth_address, GW_ETH_ADDRESS_LEN);
 
@@ -85,8 +90,8 @@ int update_eth_address_register(gw_context_t *ctx,
  *
  * See https://eips.ethereum.org/EIPS/eip-3607
  */
-int eth_address_register(gw_context_t *ctx,
-                         uint8_t script_hash[GW_VALUE_BYTES]) {
+int gw_register_eth_address(gw_context_t *ctx,
+                            uint8_t script_hash[GW_VALUE_BYTES]) {
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
   }
@@ -147,14 +152,15 @@ int eth_address_register(gw_context_t *ctx,
       if (memcmp(script_code_hash_seg.ptr, eth_lock_code_hash_seg.ptr,
                  script_code_hash_seg.size) == 0) {
         ckb_debug(
-            "[eth_address_register] This is an ETH externally owned account");
+            "[gw_register_eth_address] This is an ETH externally owned "
+            "account");
         if (raw_bytes_seg.size != 52) {
-          ckb_debug("[eth_address_register] not eth_account_lock");
+          ckb_debug("[gw_register_eth_address] not eth_account_lock");
           return GW_FATAL_UNKNOWN_ARGS;
         }
         _gw_fast_memcpy(eth_address, raw_bytes_seg.ptr + 32,
                         GW_ETH_ADDRESS_LEN);
-        return update_eth_address_register(ctx, eth_address, script_hash);
+        return gw_update_eth_address_register(ctx, eth_address, script_hash);
       }
     }
   }
@@ -187,7 +193,7 @@ int eth_address_register(gw_context_t *ctx,
         MolReader_AllowedTypeHashVec_get(&allowed_eoa_list_seg, i);
 
     if (allowed_type_hash_res.errno != MOL_OK) {
-      ckb_debug("[eth_address_register] failed to get Polyjuice code_hash");
+      ckb_debug("[gw_register_eth_address] failed to get Polyjuice code_hash");
       return GW_FATAL_INVALID_DATA;
     }
 
@@ -200,15 +206,15 @@ int eth_address_register(gw_context_t *ctx,
       if (memcmp(script_code_hash_seg.ptr, polyjuice_code_hash_seg.ptr,
                  script_code_hash_seg.size) == 0) {
         ckb_debug(
-            "[eth_address_register] This is a Polyjuice contract account");
+            "[gw_register_eth_address] This is a Polyjuice contract account");
         if (raw_bytes_seg.size != GW_CONTRACT_ACCOUNT_SCRIPT_ARGS_LEN) {
           ckb_debug(
-              "[eth_address_register] not Polyjuice contract script_args");
+              "[gw_register_eth_address] not Polyjuice contract script_args");
           return GW_FATAL_UNKNOWN_ARGS;
         }
         _gw_fast_memcpy(eth_address, raw_bytes_seg.ptr + 36,
                         GW_ETH_ADDRESS_LEN);
-        return update_eth_address_register(ctx, eth_address, script_hash);
+        return gw_update_eth_address_register(ctx, eth_address, script_hash);
       }
     }
   }

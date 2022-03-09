@@ -24,6 +24,7 @@ use gw_common::{
 use gw_store::state::state_db::StateContext;
 use gw_types::core::AllowedEoaType;
 use gw_types::packed::AllowedTypeHash;
+use gw_types::packed::Fee;
 use gw_types::prelude::*;
 use gw_types::{
     bytes::Bytes,
@@ -97,10 +98,12 @@ async fn test_enter_challenge() {
             DepositRequest::new_builder()
                 .capacity(Pack::pack(&300_00000000u64))
                 .script(sender_script.clone())
+                .registry_id(Pack::pack(&gw_common::builtins::ETH_REGISTRY_ACCOUNT_ID))
                 .build(),
             DepositRequest::new_builder()
                 .capacity(Pack::pack(&450_00000000u64))
                 .script(receiver_script.clone())
+                .registry_id(Pack::pack(&gw_common::builtins::ETH_REGISTRY_ACCOUNT_ID))
                 .build(),
         ];
         let produce_block_result = {
@@ -139,6 +142,13 @@ async fn test_enter_challenge() {
                     SUDTTransfer::new_builder()
                         .amount(Pack::pack(&150_00000000u128))
                         .to_address(Pack::pack(&Bytes::from(receiver_address.to_bytes())))
+                        .fee(
+                            Fee::new_builder()
+                                .registry_id(Pack::pack(
+                                    &gw_common::builtins::ETH_REGISTRY_ACCOUNT_ID,
+                                ))
+                                .build(),
+                        )
                         .build(),
                 ))
                 .build()
@@ -291,6 +301,8 @@ async fn test_enter_challenge_finalized_block() {
         )),
     );
 
+    let eth_registry_id = gw_common::builtins::ETH_REGISTRY_ACCOUNT_ID;
+
     // deposit two account
     let rollup_script_hash = rollup_type_script.hash();
     let (sender_id, receiver_address) = {
@@ -313,10 +325,12 @@ async fn test_enter_challenge_finalized_block() {
             DepositRequest::new_builder()
                 .capacity(Pack::pack(&300_00000000u64))
                 .script(sender_script.clone())
+                .registry_id(Pack::pack(&eth_registry_id))
                 .build(),
             DepositRequest::new_builder()
                 .capacity(Pack::pack(&450_00000000u64))
                 .script(receiver_script.clone())
+                .registry_id(Pack::pack(&eth_registry_id))
                 .build(),
         ];
         let produce_block_result = {
@@ -473,6 +487,11 @@ async fn produce_block(
                 SUDTTransfer::new_builder()
                     .amount(Pack::pack(&50_00000000u128))
                     .to_address(Pack::pack(&Bytes::from(receiver_address.to_bytes())))
+                    .fee(
+                        Fee::new_builder()
+                            .registry_id(Pack::pack(&gw_common::builtins::ETH_REGISTRY_ACCOUNT_ID))
+                            .build(),
+                    )
                     .build(),
             ))
             .build()

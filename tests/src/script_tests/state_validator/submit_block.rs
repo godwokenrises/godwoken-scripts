@@ -1138,7 +1138,7 @@ async fn test_withdrawal_cell_lock_args_with_owner_lock_in_submit_block() {
             rollup_type_script.as_bytes(),
         )),
     );
-    let eth_registry_id = 3u32;
+    let eth_registry_id = gw_common::builtins::ETH_REGISTRY_ACCOUNT_ID;
 
     // Deposit account
     let deposit_capacity: u64 = 1000000 * 10u64.pow(8);

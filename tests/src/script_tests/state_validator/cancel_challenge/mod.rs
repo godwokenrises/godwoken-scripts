@@ -108,7 +108,7 @@ async fn test_burn_challenge_capacity() {
             rollup_type_script.as_bytes(),
         )),
     );
-    let eth_registry_id = 3u32;
+    let eth_registry_id = gw_common::builtins::ETH_REGISTRY_ACCOUNT_ID;
     let withdrawal_extra;
     // produce a block so we can challenge it
     let sender_script = {

@@ -565,7 +565,7 @@ fn test_sudt_total_supply() {
         .hash_type(ScriptHashType::Type.into())
         .build();
     let alice_hash: H256 = alice.hash().into();
-    let eth_registry_id = 3;
+    let eth_registry_id = gw_common::builtins::ETH_REGISTRY_ACCOUNT_ID;
     let alice_address = RegistryAddress::new(eth_registry_id, alice_hash.as_slice().to_vec());
     let alice_id = tree
         .create_account_from_script(alice)

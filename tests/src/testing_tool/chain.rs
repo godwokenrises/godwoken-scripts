@@ -40,6 +40,7 @@ use tokio::sync::Mutex;
 pub const META_VALIDATOR_PATH: &str = "../c/build/meta-contract-validator";
 pub const META_GENERATOR_PATH: &str = "../c/build/meta-contract-generator";
 pub const META_VALIDATOR_SCRIPT_TYPE_HASH: [u8; 32] = [1u8; 32];
+pub const ETH_REGISTRY_VALIDATOR_SCRIPT_TYPE_HASH: [u8; 32] = [2u8; 32];
 
 // simple UDT
 pub const SUDT_VALIDATOR_PATH: &str = "../c/build/sudt-validator";
@@ -129,7 +130,8 @@ pub async fn setup_chain_with_account_lock_manage(
     let rollup_script_hash: ckb_types::H256 = rollup_type_script.hash().into();
     let genesis_config = GenesisConfig {
         timestamp: 0,
-        meta_contract_validator_type_hash: Default::default(),
+        meta_contract_validator_type_hash: META_VALIDATOR_SCRIPT_TYPE_HASH.into(),
+        eth_registry_validator_type_hash: ETH_REGISTRY_VALIDATOR_SCRIPT_TYPE_HASH.into(),
         rollup_type_hash: rollup_script_hash.clone().0.into(),
         rollup_config: rollup_config.clone().into(),
         secp_data_dep: Default::default(),

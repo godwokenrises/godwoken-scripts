@@ -9,6 +9,9 @@ typedef unsigned __int128 uint128_t;
 #define GW_KEY_BYTES 32
 #define GW_VALUE_BYTES 32
 
+/* Builtins */
+#define GW_DEFAULT_ETH_REGISTRY_ACCOUNT_ID 2
+
 /* Key type */
 #define GW_ACCOUNT_KV 0
 #define GW_ACCOUNT_NONCE 1
@@ -316,4 +319,5 @@ typedef int (*_gw_load_raw_fn)(struct gw_context_t *ctx,
 typedef int (*_gw_store_raw_fn)(struct gw_context_t *ctx,
                                 const uint8_t raw_key[GW_KEY_BYTES],
                                 const uint8_t value[GW_VALUE_BYTES]);
+
 #endif /* GW_DEF_H_ */
