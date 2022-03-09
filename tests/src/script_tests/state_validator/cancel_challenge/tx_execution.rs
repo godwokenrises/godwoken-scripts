@@ -60,7 +60,7 @@ async fn test_cancel_tx_execute() {
     let l2_sudt_type_hash: [u8; 32] = l2_sudt_type.calc_script_hash().unpack();
 
     let finality_blocks = 10;
-    let eth_registry_id = 3u32;
+    let eth_registry_id = gw_common::builtins::ETH_REGISTRY_ACCOUNT_ID;
 
     let rollup_config = RollupConfig::new_builder()
         .challenge_script_type_hash(Pack::pack(&challenge_script_type_hash))

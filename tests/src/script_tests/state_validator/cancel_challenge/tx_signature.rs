@@ -98,7 +98,7 @@ async fn test_cancel_tx_signature() {
     // CKB built-in account id
     let sudt_id = 1;
     let rollup_script_hash = rollup_type_script.hash();
-    let eth_registry_id = 3u32;
+    let eth_registry_id = gw_common::builtins::ETH_REGISTRY_ACCOUNT_ID;
     // produce a block so we can challenge it
     let (sender_script, receiver_script, sudt_script) = {
         // deposit two account

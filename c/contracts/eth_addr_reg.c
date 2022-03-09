@@ -113,7 +113,7 @@ int main() {
 
     mol_seg_t script_hash_seg =
         MolReader_SetMapping_get_gw_script_hash(&msg.seg);
-    ret = eth_address_register(&ctx, script_hash_seg.ptr);
+    ret = gw_register_eth_address(&ctx, script_hash_seg.ptr);
     if (ret != 0) {
       return ret;
     }
@@ -141,7 +141,7 @@ int main() {
         ckb_debug("invalid script hash");
         return GW_FATAL_INVALID_DATA;
       }
-      ret = eth_address_register(&ctx, script_hash_res.seg.ptr);
+      ret = gw_register_eth_address(&ctx, script_hash_res.seg.ptr);
       if (ret != 0) {
         return ret;
       }

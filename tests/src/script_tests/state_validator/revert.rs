@@ -87,7 +87,7 @@ async fn test_revert() {
         )),
     );
     let rollup_script_hash = rollup_type_script.hash();
-    let eth_registry_id = 3u32;
+    let eth_registry_id = gw_common::builtins::ETH_REGISTRY_ACCOUNT_ID;
     // produce a block so we can challenge it
     let prev_block_merkle = {
         // deposit two account
