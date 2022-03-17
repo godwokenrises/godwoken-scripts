@@ -12,7 +12,7 @@
 
 /* MSG_TYPE */
 #define MSG_CREATE_ACCOUNT 0
-/* Currently, we only support 20 length short script hash length */
+/* Constants */
 #define CKB_SUDT_ACCOUNT_ID 1
 
 int handle_fee(gw_context_t *ctx, uint32_t registry_id, uint64_t fee) {

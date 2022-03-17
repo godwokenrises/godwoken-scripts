@@ -8,5 +8,5 @@ edition = "2018"
 
 [dependencies]
 ckb-std = "0.9.0"
-gw-types = { git = "https://github.com/jjyr/godwoken.git", rev = "018c07dae06a71284bdd1d6ccacf515fdf135b98", default-features = false }
-gw-common = { git = "https://github.com/jjyr/godwoken.git", rev = "018c07dae06a71284bdd1d6ccacf515fdf135b98", default-features = false }
+gw-types = { git = "https://github.com/jjyr/godwoken.git", rev = "80a0afae31f30bca1ff4b91891a485f3c4980123", default-features = false }
+gw-common = { git = "https://github.com/jjyr/godwoken.git", rev = "80a0afae31f30bca1ff4b91891a485f3c4980123", default-features = false }

@@ -67,7 +67,6 @@ typedef struct gw_context_t {
   gw_load_data_fn sys_load_data;
   gw_store_data_fn sys_store_data;
   gw_get_block_hash_fn sys_get_block_hash;
-  gw_get_script_hash_by_prefix_fn sys_get_script_hash_by_prefix;
   gw_recover_account_fn sys_recover_account;
   gw_log_fn sys_log;
   gw_pay_fee_fn sys_pay_fee;
@@ -451,21 +450,6 @@ int sys_get_block_hash(gw_context_t *ctx, uint64_t number,
   return 0;
 }
 
-int sys_get_script_hash_by_prefix(gw_context_t *ctx, const uint8_t *prefix,
-                                  uint64_t prefix_len,
-                                  uint8_t script_hash[32]) {
-  if (ctx == NULL) {
-    return GW_FATAL_INVALID_CONTEXT;
-  }
-
-  if (prefix_len == 0 || prefix_len > 32) {
-    return GW_FATAL_INVALID_DATA;
-  }
-
-  return _load_script_hash_by_short_script_hash(ctx, prefix, prefix_len,
-                                                script_hash);
-}
-
 int sys_recover_account(gw_context_t *ctx, uint8_t message[32],
                         uint8_t *signature, uint64_t signature_len,
                         uint8_t code_hash[32], uint8_t *script,
@@ -636,19 +620,6 @@ int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
   script_hash_to_id_value[4] = 1;
   ret =
       _internal_store_raw(ctx, script_hash_to_id_key, script_hash_to_id_value);
-  if (ret != 0) {
-    return ret;
-  }
-
-  /* init short script hash -> script_hash */
-  uint8_t short_script_hash_to_script_key[32] = {0};
-  ret = gw_build_short_script_hash_to_script_hash_key(
-      script_hash, GW_DEFAULT_SHORT_SCRIPT_HASH_LEN,
-      short_script_hash_to_script_key);
-  if (ret != 0) {
-    return ret;
-  }
-  ret = _internal_store_raw(ctx, short_script_hash_to_script_key, script_hash);
   if (ret != 0) {
     return ret;
   }
@@ -1610,7 +1581,6 @@ int gw_context_init(gw_context_t *ctx) {
   ctx->sys_store_data = sys_store_data;
   ctx->sys_load_data = sys_load_data;
   ctx->sys_get_block_hash = sys_get_block_hash;
-  ctx->sys_get_script_hash_by_prefix = sys_get_script_hash_by_prefix;
   ctx->sys_recover_account = sys_recover_account;
   ctx->sys_log = sys_log;
   ctx->sys_pay_fee = sys_pay_fee;
