@@ -75,32 +75,6 @@ void gw_build_data_hash_key(uint8_t data_hash[GW_KEY_BYTES],
   blake2b_final(&blake2b_ctx, raw_key, GW_KEY_BYTES);
 }
 
-int gw_build_short_script_hash_to_script_hash_key(
-    const uint8_t *short_script_hash, uint32_t short_script_hash_len,
-    uint8_t raw_key[GW_KEY_BYTES]) {
-  if (short_script_hash_len > 32 || short_script_hash == NULL) {
-    return GW_FATAL_INVALID_DATA;
-  }
-
-  blake2b_state blake2b_ctx;
-  blake2b_init(&blake2b_ctx, GW_KEY_BYTES);
-
-  /* placeholder: 0 */
-  uint32_t placeholder = 0;
-  blake2b_update(&blake2b_ctx, (uint8_t *)&placeholder, 4);
-  /* type */
-  uint8_t type = GW_SHORT_ACCOUNT_SCRIPT_HASH_TO_SCRIPT_HASH;
-  blake2b_update(&blake2b_ctx, (uint8_t *)&type, 1);
-  /* short_script_hash_len */
-  blake2b_update(&blake2b_ctx, (uint8_t *)&short_script_hash_len,
-                 sizeof(uint32_t));
-  /* short_script_hash */
-  blake2b_update(&blake2b_ctx, short_script_hash, short_script_hash_len);
-
-  blake2b_final(&blake2b_ctx, raw_key, GW_KEY_BYTES);
-  return 0;
-}
-
 int gw_parse_transaction_context(gw_transaction_context_t *transaction_context,
                                  mol_seg_t *src) {
   if (MolReader_RawL2Transaction_verify(src, false) != MOL_OK) {
@@ -256,35 +230,6 @@ int _check_data_hash_exist(gw_context_t *ctx, uint8_t data_hash[32],
   }
 
   *is_exist = !_is_zero_hash(data_exists);
-  return 0;
-}
-
-int _load_script_hash_by_short_script_hash(gw_context_t *ctx,
-                                           const uint8_t *short_script_hash,
-                                           uint32_t short_script_hash_len,
-                                           uint8_t script_hash[32]) {
-  if (ctx == NULL) {
-    return GW_FATAL_INVALID_CONTEXT;
-  }
-  if (short_script_hash == NULL) {
-    return GW_FATAL_INVALID_DATA;
-  }
-  /* Check short_script_hash_key */
-  uint8_t raw_key[GW_KEY_BYTES] = {0};
-  int ret = gw_build_short_script_hash_to_script_hash_key(
-      short_script_hash, short_script_hash_len, raw_key);
-  if (ret != 0) {
-    return ret;
-  }
-  ret = ctx->_internal_load_raw(ctx, raw_key, script_hash);
-  if (ret != 0) {
-    return ret;
-  }
-
-  if (_is_zero_hash(script_hash)) {
-    return GW_ERROR_NOT_FOUND;
-  }
-
   return 0;
 }
 

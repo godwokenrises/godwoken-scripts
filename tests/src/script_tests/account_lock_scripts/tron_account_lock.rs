@@ -23,7 +23,7 @@ use sha3::{Digest, Keccak256};
 use std::convert::TryInto;
 use std::sync::atomic::Ordering;
 
-const ERROR_WRONG_SIGNATURE: i8 = 42;
+const ERROR_WRONG_SIGNATURE: i8 = 41;
 
 fn gen_tx(
     dummy: &mut DummyDataLoader,

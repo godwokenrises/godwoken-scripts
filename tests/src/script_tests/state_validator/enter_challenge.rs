@@ -19,7 +19,7 @@ use gw_chain::chain::Chain;
 use gw_common::registry_address::RegistryAddress;
 use gw_common::{
     builtins::CKB_SUDT_ACCOUNT_ID,
-    state::{to_short_script_hash, State},
+    state::{State},
 };
 use gw_store::state::state_db::StateContext;
 use gw_types::core::AllowedEoaType;
@@ -36,7 +36,7 @@ use gw_types::{
     },
 };
 
-const INVALID_CHALLENGE_TARGET_ERROR: i8 = 33;
+const INVALID_CHALLENGE_TARGET_ERROR: i8 = 32;
 
 #[tokio::test]
 async fn test_enter_challenge() {
@@ -135,7 +135,7 @@ async fn test_enter_challenge() {
             .unwrap();
         let receiver_script_hash = tree.get_script_hash(receiver_id).expect("get script hash");
         let receiver_address =
-            RegistryAddress::new(1, to_short_script_hash(&receiver_script_hash).to_vec());
+            RegistryAddress::new(gw_common::builtins::ETH_REGISTRY_ACCOUNT_ID, receiver_script_hash.as_slice()[..20].to_vec());
         let produce_block_result = {
             let args = SUDTArgs::new_builder()
                 .set(SUDTArgsUnion::SUDTTransfer(

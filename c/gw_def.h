@@ -19,7 +19,6 @@ typedef unsigned __int128 uint128_t;
 /* Non account type */
 #define GW_ACCOUNT_SCRIPT_HASH_TO_ID 3
 #define GW_DATA_HASH_PREFIX 4
-#define GW_SHORT_ACCOUNT_SCRIPT_HASH_TO_SCRIPT_HASH 5
 /* Godwoken Registry key type */
 #define GW_REGISTRY_KEY_FLAG_SCRIPT_HASH_TO_NATIVE 1
 #define GW_REGISTRY_KEY_FLAG_NATIVE_TO_SCRIPT_HASH 2
@@ -48,8 +47,6 @@ typedef unsigned __int128 uint128_t;
 #define GW_LOG_SUDT_PAY_FEE 0x1
 #define GW_LOG_POLYJUICE_SYSTEM 0x2
 #define GW_LOG_POLYJUICE_USER 0x3
-
-#define GW_DEFAULT_SHORT_SCRIPT_HASH_LEN 20
 
 #define GW_ALLOWED_EOA_UNKNOWN 0
 #define GW_ALLOWED_EOA_ETH 1
@@ -213,19 +210,6 @@ typedef int (*gw_store_data_fn)(struct gw_context_t *ctx, uint64_t data_len,
 typedef int (*gw_get_block_hash_fn)(struct gw_context_t *ctx, uint64_t number,
                                     uint8_t block_hash[32]);
 
-/**
- * Get account script hash by prefix (short script hash)
- *
- * @param ctx         The godwoken context
- * @param prefix      The pointer of prefix data
- * @param prefix_len  The length of prefix data
- * @param script_hash The account script hash
- * @return            The status code, 0 is success
- */
-typedef int (*gw_get_script_hash_by_prefix_fn)(struct gw_context_t *ctx,
-                                               const uint8_t *prefix,
-                                               uint64_t prefix_len,
-                                               uint8_t script_hash[32]);
 /**
  * Recover an EoA account script by signature
  *
