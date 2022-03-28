@@ -50,7 +50,7 @@ int gw_update_eth_address_register(
   if (ret != 0) {
     return ret;
   }
-  ret = ctx->sys_store(ctx, ctx->transaction_context.to_id,
+  ret = ctx->sys_store(ctx, GW_DEFAULT_ETH_REGISTRY_ACCOUNT_ID,
                        eth_to_script_hash_key, 32, script_hash);
   if (ret != 0) {
     return ret;
@@ -62,8 +62,8 @@ int gw_update_eth_address_register(
                                                 (uint8_t *)script_hash);
   uint8_t addr_buf[32] = {0};
   _gw_cpy_addr(addr_buf, addr);
-  ret = ctx->sys_store(ctx, ctx->transaction_context.to_id,
-                       script_hash_to_eth_key, 32, addr_buf);
+  ret = ctx->sys_store(ctx, GW_DEFAULT_ETH_REGISTRY_ACCOUNT_ID,
+                       script_hash_to_eth_key, 36, addr_buf);
   if (ret != 0) {
     return ret;
   }
