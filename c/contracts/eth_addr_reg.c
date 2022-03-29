@@ -100,6 +100,12 @@ int main() {
       return ret;
     }
   } else if (msg.item_id == MSG_SET_MAPPING) {
+    mol_seg_t script_hash_seg =
+        MolReader_SetMapping_get_gw_script_hash(&msg.seg);
+    ret = gw_register_eth_address(&ctx, script_hash_seg.ptr);
+    if (ret != 0) {
+      return ret;
+    }
     /* charge fee */
     mol_seg_t fee_seg = MolReader_SetMapping_get_fee(&msg.seg);
     mol_seg_t amount_seg = MolReader_Fee_get_amount(&fee_seg);
@@ -111,24 +117,7 @@ int main() {
       return ret;
     }
 
-    mol_seg_t script_hash_seg =
-        MolReader_SetMapping_get_gw_script_hash(&msg.seg);
-    ret = gw_register_eth_address(&ctx, script_hash_seg.ptr);
-    if (ret != 0) {
-      return ret;
-    }
   } else if (msg.item_id == MSG_BATCH_SET_MAPPING) {
-    /* charge fee */
-    mol_seg_t fee_seg = MolReader_BatchSetMapping_get_fee(&msg.seg);
-    mol_seg_t amount_seg = MolReader_Fee_get_amount(&fee_seg);
-    mol_seg_t reg_id_seg = MolReader_Fee_get_registry_id(&fee_seg);
-    uint64_t fee_amount = *(uint64_t *)amount_seg.ptr;
-    uint32_t reg_id = *(uint32_t *)reg_id_seg.ptr;
-    ret = handle_fee(&ctx, reg_id, fee_amount);
-    if (ret != 0) {
-      return ret;
-    }
-
     mol_seg_t script_hashes_seg =
         MolReader_BatchSetMapping_get_gw_script_hashes(&msg.seg);
     uint32_t script_hashes_size =
@@ -146,6 +135,17 @@ int main() {
         return ret;
       }
     }
+    /* charge fee */
+    mol_seg_t fee_seg = MolReader_BatchSetMapping_get_fee(&msg.seg);
+    mol_seg_t amount_seg = MolReader_Fee_get_amount(&fee_seg);
+    mol_seg_t reg_id_seg = MolReader_Fee_get_registry_id(&fee_seg);
+    uint64_t fee_amount = *(uint64_t *)amount_seg.ptr;
+    uint32_t reg_id = *(uint32_t *)reg_id_seg.ptr;
+    ret = handle_fee(&ctx, reg_id, fee_amount);
+    if (ret != 0) {
+      return ret;
+    }
+
   } else {
     return GW_FATAL_UNKNOWN_ARGS;
   }
