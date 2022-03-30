@@ -280,7 +280,7 @@ dependencies = [
 [[package]]
 name = "gw-common"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?rev=80a0afae31f30bca1ff4b91891a485f3c4980123#80a0afae31f30bca1ff4b91891a485f3c4980123"
+source = "git+https://github.com/jjyr/godwoken.git?rev=972c949b8c743d411d1172c8e289c014c5e952a1#972c949b8c743d411d1172c8e289c014c5e952a1"
 dependencies = [
  "cfg-if 0.1.10",
  "gw-hash",
@@ -293,7 +293,7 @@ dependencies = [
 [[package]]
 name = "gw-hash"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?rev=80a0afae31f30bca1ff4b91891a485f3c4980123#80a0afae31f30bca1ff4b91891a485f3c4980123"
+source = "git+https://github.com/jjyr/godwoken.git?rev=972c949b8c743d411d1172c8e289c014c5e952a1#972c949b8c743d411d1172c8e289c014c5e952a1"
 dependencies = [
  "blake2b-ref",
 ]
@@ -309,7 +309,7 @@ dependencies = [
 [[package]]
 name = "gw-types"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?rev=80a0afae31f30bca1ff4b91891a485f3c4980123#80a0afae31f30bca1ff4b91891a485f3c4980123"
+source = "git+https://github.com/jjyr/godwoken.git?rev=972c949b8c743d411d1172c8e289c014c5e952a1#972c949b8c743d411d1172c8e289c014c5e952a1"
 dependencies = [
  "cfg-if 0.1.10",
  "gw-hash",

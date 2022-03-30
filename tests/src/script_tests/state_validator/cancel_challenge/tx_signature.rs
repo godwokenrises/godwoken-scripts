@@ -15,12 +15,16 @@ use crate::testing_tool::chain::{apply_block_result, construct_block};
 use crate::testing_tool::programs::STATE_VALIDATOR_CODE_HASH;
 use ckb_types::{
     packed::{CellInput, CellOutput},
-    prelude::{Pack as CKBPack, Unpack},
+    prelude::{Pack as CKBPack, Unpack as CKBUnpack},
 };
+use gw_common::builtins::ETH_REGISTRY_ACCOUNT_ID;
 use gw_common::merkle_utils::ckb_merkle_leaf_hash;
 use gw_common::registry_address::RegistryAddress;
 use gw_common::{state::State, H256};
 use gw_generator::account_lock_manage::always_success::AlwaysSuccess;
+use gw_generator::account_lock_manage::eip712;
+use gw_generator::account_lock_manage::eip712::traits::EIP712Encode;
+use gw_generator::account_lock_manage::eip712::types::EIP712Domain;
 use gw_generator::account_lock_manage::AccountLockManage;
 use gw_store::mem_pool_state::MemPoolState;
 use gw_store::mem_pool_state::MemStore;
@@ -255,6 +259,7 @@ async fn test_cancel_tx_signature() {
             .output_type(CKBPack::pack(&Some(rollup_action.as_bytes())))
             .build()
     };
+    let sender_address;
     let challenge_witness = {
         let witness = {
             let leaves: Vec<H256> = challenged_block
@@ -291,6 +296,13 @@ async fn test_cancel_tx_signature() {
                 .get_account_id_by_script_hash(&sender_script.hash().into())
                 .unwrap()
                 .unwrap();
+            sender_address = tree
+                .get_registry_address_by_script_hash(
+                    ETH_REGISTRY_ACCOUNT_ID,
+                    &sender_script.hash().into(),
+                )
+                .unwrap()
+                .expect("get sender address");
             tree.get_script_hash(sender_id).unwrap();
             tree.get_nonce(sender_id).unwrap();
             let receiver_id = tree
@@ -349,15 +361,26 @@ async fn test_cancel_tx_signature() {
             .capacity(CKBPack::pack(&42u64))
             .build();
         let owner_lock_hash = vec![42u8; 32];
-        let message = tx.raw().calc_message(
-            &rollup_type_script.hash().into(),
-            &sender_script.hash().into(),
-            &sudt_script.hash().into(),
-        );
+        let message = {
+            let typed_tx = eip712::types::L2Transaction::from_raw(
+                tx.raw(),
+                sender_address,
+                sudt_script.hash().into(),
+            )
+            .unwrap();
+            let domain_seperator = EIP712Domain {
+                name: "Godwoken".to_string(),
+                version: "1".to_string(),
+                chain_id: Unpack::unpack(&tx.raw().chain_id()),
+                verifying_contract: None,
+                salt: None,
+            };
+            typed_tx.eip712_message(domain_seperator.hash_struct())
+        };
         let data: Bytes = {
             let mut buf = owner_lock_hash.to_vec();
-            buf.push(SigningType::WithPrefix.into());
-            buf.extend_from_slice(message.as_slice());
+            buf.push(SigningType::Raw.into());
+            buf.extend_from_slice(&message);
             buf.into()
         };
         let out_point = ctx.insert_cell(cell, data);

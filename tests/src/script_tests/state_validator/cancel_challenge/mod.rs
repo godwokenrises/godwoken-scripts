@@ -1,6 +1,7 @@
 #![allow(clippy::mutable_key_type)]
 
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use crate::script_tests::utils::init_env_log;
 use crate::script_tests::utils::layer1::build_simple_tx_with_out_point;
@@ -16,8 +17,10 @@ use ckb_types::{
     packed::{CellInput, CellOutput},
     prelude::{Pack as CKBPack, Unpack as CKBUnpack},
 };
+use gw_common::builtins::ETH_REGISTRY_ACCOUNT_ID;
 use gw_common::merkle_utils::ckb_merkle_leaf_hash;
 use gw_common::merkle_utils::CBMT;
+use gw_common::state::State;
 use gw_common::H256;
 use gw_generator::account_lock_manage::always_success::AlwaysSuccess;
 use gw_generator::account_lock_manage::eip712::{
@@ -25,6 +28,8 @@ use gw_generator::account_lock_manage::eip712::{
     types::{EIP712Domain, Withdrawal},
 };
 use gw_generator::account_lock_manage::AccountLockManage;
+use gw_store::mem_pool_state::MemPoolState;
+use gw_store::mem_pool_state::MemStore;
 use gw_types::core::AllowedEoaType;
 use gw_types::core::SigningType;
 use gw_types::packed::AllowedTypeHash;
@@ -259,6 +264,50 @@ async fn test_burn_challenge_capacity() {
         .withdrawals()
         .get(challenge_target_index as usize)
         .unwrap();
+
+    let state = {
+        let mem_store = MemStore::new(chain.store().get_snapshot());
+        MemPoolState::new(Arc::new(mem_store))
+    };
+    let snap = state.load();
+    let mut tree = snap.state().unwrap();
+
+    tree.tracker_mut().enable();
+    let withdrawal_address = tree
+        .get_registry_address_by_script_hash(ETH_REGISTRY_ACCOUNT_ID, &sender_script.hash().into())
+        .unwrap()
+        .unwrap();
+    let sender_id = tree
+        .get_account_id_by_script_hash(&sender_script.hash().into())
+        .unwrap()
+        .unwrap();
+    tree.get_script_hash(sender_id).unwrap();
+    tree.get_nonce(sender_id).unwrap();
+    let account_count = tree.get_account_count().unwrap();
+    let touched_keys: Vec<H256> = {
+        let keys = tree.tracker_mut().touched_keys().unwrap();
+        let unlock = keys.lock().unwrap();
+        unlock.clone().into_iter().collect()
+    };
+    let kv_state = touched_keys
+        .iter()
+        .map(|k| {
+            let v = tree.get_raw(k).unwrap();
+            (*k, v)
+        })
+        .collect::<Vec<(H256, H256)>>();
+
+    let kv_state_proof: Bytes = {
+        let db = chain.store().begin_transaction();
+        let account_smt = db.account_smt().unwrap();
+        account_smt
+            .merkle_proof(touched_keys)
+            .unwrap()
+            .compile(kv_state.clone())
+            .unwrap()
+            .0
+            .into()
+    };
     let challenge_witness = {
         let witness = {
             // build proof
@@ -280,6 +329,9 @@ async fn test_burn_challenge_capacity() {
                 .withdrawal_proof(proof)
                 .owner_lock(withdrawal_extra.owner_lock())
                 .sender(sender_script.clone())
+                .kv_state_proof(Pack::pack(&kv_state_proof))
+                .account_count(Pack::pack(&account_count))
+                .kv_state(kv_state.pack())
                 .build()
         };
         ckb_types::packed::WitnessArgs::new_builder()
@@ -295,9 +347,10 @@ async fn test_burn_challenge_capacity() {
             .build();
         let owner_lock_hash = vec![42u8; 32];
         let message = {
-            let withdrawal = Withdrawal::from_withdrawal_request(
+            let withdrawal = Withdrawal::from_raw(
                 withdrawal.raw(),
                 withdrawal_extra.owner_lock(),
+                withdrawal_address,
             )
             .unwrap();
             let domain = EIP712Domain {

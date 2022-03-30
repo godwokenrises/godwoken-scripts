@@ -67,6 +67,8 @@ table RollupConfig {
 }
 
 table RawL2Transaction {
+    // chain id
+    chain_id: Uint64,
     from_id: Uint32,
     to_id: Uint32,
     nonce: Uint32,
@@ -336,6 +338,9 @@ table CCWithdrawalWitness {
     sender: Script,
     owner_lock: Script,
     withdrawal_proof: CKBMerkleProof,
+    kv_state_proof: Bytes,
+    kv_state: KVPairVec,
+    account_count: Uint32,
 }
 
 // --- end of challenge ---
