@@ -1,5 +1,8 @@
 use core::result::Result;
-use gw_common::{merkle_utils::calculate_state_checkpoint, state::State, H256};
+use gw_common::{
+    builtins::ETH_REGISTRY_ACCOUNT_ID, merkle_utils::calculate_state_checkpoint,
+    registry_address::RegistryAddress, state::State, H256,
+};
 use gw_state::kv_state::KVState;
 use gw_types::{
     core::ScriptHashType,
@@ -28,6 +31,7 @@ pub struct TxContext {
     pub receiver_script_hash: H256,
     pub sender: Script,
     pub receiver: Script,
+    pub sender_address: RegistryAddress,
 }
 
 pub fn verify_tx_context(input: TxContextInput) -> Result<TxContext, Error> {
@@ -163,11 +167,16 @@ pub fn verify_tx_context(input: TxContextInput) -> Result<TxContext, Error> {
         return Err(Error::MerkleProof);
     }
 
+    let sender_address = kv_state
+        .get_registry_address_by_script_hash(ETH_REGISTRY_ACCOUNT_ID, &sender_script_hash)?
+        .ok_or(Error::RegistryAddressNotFound)?;
+
     let tx_ctx = TxContext {
         sender_script_hash,
         receiver_script_hash,
         sender: sender_script,
         receiver: receiver_script,
+        sender_address,
     };
     Ok(tx_ctx)
 }

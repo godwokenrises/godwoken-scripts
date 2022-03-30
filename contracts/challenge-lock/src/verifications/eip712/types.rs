@@ -1,4 +1,4 @@
-use core::convert::TryFrom;
+use core::convert::{TryFrom, TryInto};
 
 use alloc::{
     string::{String, ToString},
@@ -71,16 +71,138 @@ impl EIP712Encode for WithdrawalAsset {
     }
 }
 
-// RawWithdrawalRequest
+#[derive(Debug)]
+pub enum AddressRegistry {
+    ETH,
+}
+
+impl AddressRegistry {
+    fn to_string(&self) -> &str {
+        "ETH"
+    }
+
+    pub fn from_registry_id(registry_id: u32) -> Result<Self, Error> {
+        match registry_id {
+            gw_utils::gw_common::builtins::ETH_REGISTRY_ACCOUNT_ID => Ok(Self::ETH),
+            _ => {
+                debug!("Unsupported registry id : {}", registry_id);
+                Err(Error::InvalidArgs)
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct RegistryAddress {
+    registry: AddressRegistry,
+    address: [u8; 20],
+}
+
+impl RegistryAddress {
+    fn from_address(
+        address: gw_utils::gw_common::registry_address::RegistryAddress,
+    ) -> Result<Self, Error> {
+        let registry = AddressRegistry::from_registry_id(address.registry_id)?;
+        if address.address.len() != 20 {
+            debug!(
+                "Invalid ETH address len, expected 20, got {}",
+                address.address.len()
+            );
+            return Err(Error::InvalidArgs);
+        }
+        Ok(RegistryAddress {
+            registry,
+            address: address.address.try_into().expect("eth address"),
+        })
+    }
+}
+
+impl EIP712Encode for RegistryAddress {
+    fn type_name() -> &'static str {
+        "RegistryAddress"
+    }
+
+    fn encode_type(&self, buf: &mut Vec<u8>) {
+        buf.extend(b"RegistryAddress(string registry,address address)");
+    }
+
+    fn encode_data(&self, buf: &mut Vec<u8>) {
+        use ethabi::Token;
+        let registry: [u8; 32] = {
+            let mut hasher = Keccak256::new();
+            hasher.update(self.registry.to_string().as_bytes());
+            hasher.finalize().into()
+        };
+        buf.extend(ethabi::encode(&[Token::Uint(registry.into())]));
+        buf.extend(ethabi::encode(&[Token::Address(self.address.into())]));
+    }
+}
+
+/// L2Transaction
+#[derive(Debug)]
+pub struct L2Transaction {
+    chain_id: u64,
+    from: RegistryAddress,
+    to: [u8; 32],
+    nonce: u32,
+    args: Vec<u8>,
+}
+
+impl EIP712Encode for L2Transaction {
+    fn type_name() -> &'static str {
+        "L2Transaction"
+    }
+
+    fn encode_type(&self, buf: &mut Vec<u8>) {
+        buf.extend(b"L2Transaction(uint256 chainId,RegistryAddress from,bytes32 to,uint256 nonce,bytes args)");
+        self.from.encode_type(buf);
+    }
+
+    fn encode_data(&self, buf: &mut Vec<u8>) {
+        use ethabi::Token;
+        buf.extend(ethabi::encode(&[Token::Uint(self.chain_id.into())]));
+        buf.extend(ethabi::encode(&[Token::Uint(
+            self.from.hash_struct().into(),
+        )]));
+        buf.extend(ethabi::encode(&[Token::Uint(self.to.into())]));
+        buf.extend(ethabi::encode(&[Token::Uint(self.nonce.into())]));
+        let args: [u8; 32] = {
+            let mut hasher = Keccak256::new();
+            hasher.update(&self.args);
+            hasher.finalize().into()
+        };
+        buf.extend(ethabi::encode(&[Token::Uint(args.into())]));
+    }
+}
+
+impl L2Transaction {
+    pub fn from_raw(
+        data: gw_utils::gw_types::packed::RawL2Transaction,
+        sender_address: gw_utils::gw_common::registry_address::RegistryAddress,
+        to_script_hash: gw_utils::gw_common::H256,
+    ) -> Result<Self, Error> {
+        let sender_address = RegistryAddress::from_address(sender_address)?;
+        let tx = L2Transaction {
+            chain_id: data.chain_id().unpack(),
+            nonce: data.nonce().unpack(),
+            from: sender_address,
+            to: to_script_hash.into(),
+            args: data.args().unpack(),
+        };
+        Ok(tx)
+    }
+}
+
+/// RawWithdrawalRequest
 pub struct Withdrawal {
-    account_script_hash: [u8; 32],
+    address: RegistryAddress,
     nonce: u32,
     chain_id: u64,
     // withdrawal fee, paid to block producer
     fee: u64,
     // layer1 lock to withdraw after challenge period
     layer1_owner_lock: Script,
-    // Withdrawal asset including CKB_capacity and sUDT_amount
+    // CKB amount
     withdraw: WithdrawalAsset,
 }
 
@@ -90,7 +212,8 @@ impl EIP712Encode for Withdrawal {
     }
 
     fn encode_type(&self, buf: &mut Vec<u8>) {
-        buf.extend(b"Withdrawal(bytes32 accountScriptHash,uint256 nonce,uint256 chainId,uint256 fee,Script layer1OwnerLock,WithdrawalAsset withdraw)");
+        buf.extend(b"Withdrawal(RegistryAddress address,uint256 nonce,uint256 chainId,uint256 fee,Script layer1OwnerLock,WithdrawalAsset withdraw)");
+        self.address.encode_type(buf);
         self.layer1_owner_lock.encode_type(buf);
         self.withdraw.encode_type(buf);
     }
@@ -98,7 +221,7 @@ impl EIP712Encode for Withdrawal {
     fn encode_data(&self, buf: &mut Vec<u8>) {
         use ethabi::Token;
         buf.extend(ethabi::encode(&[Token::Uint(
-            self.account_script_hash.into(),
+            self.address.hash_struct().into(),
         )]));
         buf.extend(ethabi::encode(&[Token::Uint(self.nonce.into())]));
         buf.extend(ethabi::encode(&[Token::Uint(self.chain_id.into())]));
@@ -113,9 +236,10 @@ impl EIP712Encode for Withdrawal {
 }
 
 impl Withdrawal {
-    pub fn from_withdrawal_request(
+    pub fn from_raw(
         data: RawWithdrawalRequest,
         owner_lock: gw_utils::gw_types::packed::Script,
+        address: gw_utils::gw_common::registry_address::RegistryAddress,
     ) -> Result<Self, Error> {
         let hash_type =
             match ScriptHashType::try_from(owner_lock.hash_type()).map_err(|hash_type| {
@@ -125,9 +249,10 @@ impl Withdrawal {
                 ScriptHashType::Data => "data",
                 ScriptHashType::Type => "type",
             };
+        let address = RegistryAddress::from_address(address)?;
         let withdrawal = Withdrawal {
             nonce: data.nonce().unpack(),
-            account_script_hash: data.account_script_hash().unpack(),
+            address,
             withdraw: WithdrawalAsset {
                 ckb_capacity: data.capacity().unpack(),
                 udt_amount: data.amount().unpack(),
@@ -151,6 +276,18 @@ pub struct EIP712Domain {
     pub chain_id: u64,
     pub verifying_contract: Option<[u8; 20]>,
     pub salt: Option<[u8; 32]>,
+}
+
+impl EIP712Domain {
+    pub fn domain_with_chain_id(chain_id: u64) -> EIP712Domain {
+        EIP712Domain {
+            name: "Godwoken".to_string(),
+            chain_id,
+            version: "1".to_string(),
+            verifying_contract: None,
+            salt: None,
+        }
+    }
 }
 
 impl EIP712Encode for EIP712Domain {

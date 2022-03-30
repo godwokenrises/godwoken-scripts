@@ -17,6 +17,7 @@ use ckb_types::{
     packed::{CellInput, CellOutput},
     prelude::{Pack as CKBPack, Unpack},
 };
+use gw_common::builtins::ETH_REGISTRY_ACCOUNT_ID;
 use gw_common::merkle_utils::ckb_merkle_leaf_hash;
 use gw_common::registry_address::RegistryAddress;
 use gw_common::{state::State, H256};
@@ -288,6 +289,12 @@ async fn test_cancel_tx_execute() {
             tree.get_script_hash(receiver_id).unwrap();
             tree.get_nonce(receiver_id).unwrap();
             tree.get_script_hash(sudt_id).unwrap();
+            tree.get_registry_address_by_script_hash(
+                ETH_REGISTRY_ACCOUNT_ID,
+                &sender_script.hash().into(),
+            )
+            .unwrap()
+            .expect("get sender address");
             let account_count = tree.get_account_count().unwrap();
             let touched_keys: Vec<H256> = {
                 let keys = tree.tracker_mut().touched_keys().unwrap();

@@ -1,6 +1,7 @@
 #![allow(clippy::mutable_key_type)]
 
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use crate::script_tests::state_validator::cancel_challenge::build_merkle_proof;
 use crate::script_tests::utils::init_env_log;
@@ -18,7 +19,9 @@ use ckb_types::{
     packed::{CellInput, CellOutput},
     prelude::{Pack as CKBPack, Unpack as CKBUnpack},
 };
+use gw_common::builtins::ETH_REGISTRY_ACCOUNT_ID;
 use gw_common::registry_address::RegistryAddress;
+use gw_common::state::State;
 use gw_common::H256;
 use gw_generator::account_lock_manage::{
     eip712::{
@@ -27,6 +30,8 @@ use gw_generator::account_lock_manage::{
     },
     {always_success::AlwaysSuccess, AccountLockManage},
 };
+use gw_store::mem_pool_state::MemPoolState;
+use gw_store::mem_pool_state::MemStore;
 use gw_store::state::state_db::StateContext;
 use gw_types::core::AllowedEoaType;
 use gw_types::core::SigningType;
@@ -139,21 +144,6 @@ async fn test_cancel_withdrawal() {
             asset_scripts,
         )
         .await;
-        {
-            use gw_common::state::State;
-            let db = chain.store().begin_transaction();
-            let tree = db.state_tree(StateContext::ReadOnly).unwrap();
-            let value = tree
-                .get_sudt_balance(1, &RegistryAddress::new(eth_registry_id, vec![1u8; 20]))
-                .unwrap();
-            dbg!("balance", value);
-
-            let registry_address = tree
-                .get_registry_address_by_script_hash(eth_registry_id, &sender_script.hash().into())
-                .unwrap()
-                .unwrap();
-            dbg!(registry_address.address.len());
-        }
         let withdrawal_capacity = 400_00000000u64;
         withdrawal_extra = {
             let owner_lock = Script::default();
@@ -249,6 +239,41 @@ async fn test_cancel_withdrawal() {
         .withdrawals()
         .get(challenge_target_index as usize)
         .unwrap();
+    let state = {
+        let mem_store = MemStore::new(chain.store().get_snapshot());
+        MemPoolState::new(Arc::new(mem_store))
+    };
+    let snap = state.load();
+    let mut tree = snap.state().unwrap();
+    tree.tracker_mut().enable();
+    let withdrawal_address = tree
+        .get_registry_address_by_script_hash(ETH_REGISTRY_ACCOUNT_ID, &sender_script.hash().into())
+        .unwrap()
+        .unwrap();
+    let account_count = tree.get_account_count().unwrap();
+    let touched_keys: Vec<H256> = {
+        let keys = tree.tracker_mut().touched_keys().unwrap();
+        let unlock = keys.lock().unwrap();
+        unlock.clone().into_iter().collect()
+    };
+    let kv_state = touched_keys
+        .iter()
+        .map(|k| {
+            let v = tree.get_raw(k).unwrap();
+            (*k, v)
+        })
+        .collect::<Vec<(H256, H256)>>();
+    let kv_state_proof: Bytes = {
+        let db = chain.store().begin_transaction();
+        let account_smt = db.account_smt().unwrap();
+        account_smt
+            .merkle_proof(touched_keys)
+            .unwrap()
+            .compile(kv_state.clone())
+            .unwrap()
+            .0
+            .into()
+    };
     let challenge_witness = {
         let witness = {
             let leaves: Vec<H256> = challenged_block
@@ -265,6 +290,9 @@ async fn test_cancel_withdrawal() {
                 .sender(sender_script.clone())
                 .owner_lock(withdrawal_extra.owner_lock())
                 .withdrawal_proof(proof)
+                .kv_state_proof(Pack::pack(&kv_state_proof))
+                .account_count(Pack::pack(&account_count))
+                .kv_state(kv_state.pack())
                 .build()
         };
         ckb_types::packed::WitnessArgs::new_builder()
@@ -279,10 +307,12 @@ async fn test_cancel_withdrawal() {
             .capacity(CKBPack::pack(&42u64))
             .build();
         let owner_lock_hash = vec![42u8; 32];
+
         let message = {
-            let withdrawal = Withdrawal::from_withdrawal_request(
+            let withdrawal = Withdrawal::from_raw(
                 withdrawal.raw(),
                 withdrawal_extra.owner_lock(),
+                withdrawal_address,
             )
             .unwrap();
             let domain = EIP712Domain {

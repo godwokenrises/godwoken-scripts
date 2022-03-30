@@ -17,10 +17,7 @@ use ckb_types::packed::CellOutput;
 use ckb_types::prelude::{Pack as CKBPack, Unpack};
 use gw_chain::chain::Chain;
 use gw_common::registry_address::RegistryAddress;
-use gw_common::{
-    builtins::CKB_SUDT_ACCOUNT_ID,
-    state::{State},
-};
+use gw_common::{builtins::CKB_SUDT_ACCOUNT_ID, state::State};
 use gw_store::state::state_db::StateContext;
 use gw_types::core::AllowedEoaType;
 use gw_types::packed::AllowedTypeHash;
@@ -134,8 +131,10 @@ async fn test_enter_challenge() {
             .unwrap()
             .unwrap();
         let receiver_script_hash = tree.get_script_hash(receiver_id).expect("get script hash");
-        let receiver_address =
-            RegistryAddress::new(gw_common::builtins::ETH_REGISTRY_ACCOUNT_ID, receiver_script_hash.as_slice()[..20].to_vec());
+        let receiver_address = RegistryAddress::new(
+            gw_common::builtins::ETH_REGISTRY_ACCOUNT_ID,
+            receiver_script_hash.as_slice()[..20].to_vec(),
+        );
         let produce_block_result = {
             let args = SUDTArgs::new_builder()
                 .set(SUDTArgsUnion::SUDTTransfer(

@@ -1,11 +1,15 @@
 use crate::verifications::eip712::traits::EIP712Encode;
-use alloc::string::ToString;
 use core::result::Result;
-use gw_common::H256;
-use gw_types::{packed::ChallengeLockArgs, prelude::*};
+use gw_common::{
+    builtins::ETH_REGISTRY_ACCOUNT_ID, registry_address::RegistryAddress, state::State, H256,
+};
+use gw_state::kv_state::KVState;
+use gw_state::{ckb_smt::smt::Pair, constants::GW_MAX_KV_PAIRS};
+use gw_types::packed::ChallengeLockArgs;
 use gw_utils::gw_types::{
     self,
     packed::{RollupConfig, Script, WithdrawalRequest},
+    prelude::*,
 };
 use gw_utils::{
     ckb_std::{
@@ -30,6 +34,7 @@ use super::eip712::types::EIP712Domain;
 struct WithdrawalContext {
     withdrawal: WithdrawalRequest,
     sender_script_hash: H256,
+    withdrawal_address: RegistryAddress,
     owner_lock: Script,
 }
 
@@ -90,8 +95,24 @@ fn verify_withdrawal_proof(lock_args: &ChallengeLockArgs) -> Result<WithdrawalCo
         return Err(Error::MerkleProof);
     }
 
+    // check kv state
+    let mut tree_buffer = [Pair::default(); GW_MAX_KV_PAIRS];
+    let kv_state_proof: Bytes = unlock_args.kv_state_proof().unpack();
+    let kv_state = KVState::build(
+        &mut tree_buffer,
+        unlock_args.kv_state().as_reader(),
+        &kv_state_proof,
+        unlock_args.account_count().unpack(),
+        None,
+    )?;
+
+    let withdrawal_address = kv_state
+        .get_registry_address_by_script_hash(ETH_REGISTRY_ACCOUNT_ID, &sender_script_hash)?
+        .ok_or(Error::RegistryAddressNotFound)?;
+
     let context = WithdrawalContext {
         withdrawal,
+        withdrawal_address,
         sender_script_hash,
         owner_lock,
     };
@@ -108,6 +129,7 @@ pub fn verify_withdrawal(
     let WithdrawalContext {
         withdrawal,
         sender_script_hash,
+        withdrawal_address,
         owner_lock,
     } = verify_withdrawal_proof(lock_args)?;
     let raw_withdrawal = withdrawal.raw();
@@ -123,12 +145,14 @@ pub fn verify_withdrawal(
     }
 
     // calculate EIP-712 message
-    let typed_message = crate::verifications::eip712::types::Withdrawal::from_withdrawal_request(
+    let typed_message = crate::verifications::eip712::types::Withdrawal::from_raw(
         withdrawal.raw(),
         owner_lock,
+        withdrawal_address,
     )?;
-    let message = typed_message
-        .eip712_message(domain_with_chain_id(raw_withdrawal.chain_id().unpack()).hash_struct());
+    let message = typed_message.eip712_message(
+        EIP712Domain::domain_with_chain_id(raw_withdrawal.chain_id().unpack()).hash_struct(),
+    );
     // verify sender's script is in the input
     check_l2_account_signature_cell(
         &sender_script_hash,
@@ -136,14 +160,4 @@ pub fn verify_withdrawal(
         message.into(),
     )?;
     Ok(())
-}
-
-fn domain_with_chain_id(chain_id: u64) -> EIP712Domain {
-    EIP712Domain {
-        name: "Godwoken".to_string(),
-        chain_id,
-        version: "1".to_string(),
-        verifying_contract: None,
-        salt: None,
-    }
 }

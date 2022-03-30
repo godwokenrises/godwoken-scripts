@@ -1,4 +1,5 @@
 use crate::verifications::context::{verify_tx_context, TxContext, TxContextInput};
+use crate::verifications::eip712::{traits::EIP712Encode, types::EIP712Domain};
 use alloc::vec;
 use core::result::Result;
 use gw_state::{ckb_smt::smt::Pair, constants::GW_MAX_KV_PAIRS, kv_state::KVState};
@@ -22,30 +23,14 @@ use gw_utils::{
     signature::check_l2_account_signature_cell,
 };
 use gw_utils::{
-    gw_common::{blake2b::new_blake2b, H256},
+    gw_common::H256,
     gw_types::{self, packed::RawL2Transaction},
 };
 use sha3::{Digest, Keccak256};
 
-fn calc_tx_message(
-    raw_tx: &RawL2Transaction,
-    rollup_type_script_hash: &[u8; 32],
-    sender_script_hash: &H256,
-    receiver_script_hash: &H256,
-) -> H256 {
-    let mut hasher = new_blake2b();
-    hasher.update(rollup_type_script_hash);
-    hasher.update(sender_script_hash.as_slice());
-    hasher.update(receiver_script_hash.as_slice());
-    hasher.update(raw_tx.as_slice());
-    let mut message = [0u8; 32];
-    hasher.finalize(&mut message);
-    message.into()
-}
-
 /// Verify tx signature
 pub fn verify_tx_signature(
-    rollup_script_hash: &[u8; 32],
+    _rollup_script_hash: &[u8; 32],
     rollup_config: &RollupConfig,
     lock_args: &ChallengeLockArgs,
 ) -> Result<(), Error> {
@@ -59,9 +44,21 @@ pub fn verify_tx_signature(
         Err(_) => return Err(Error::InvalidArgs),
     };
     let tx = unlock_args.l2tx();
+
+    // check rollup chain id
+    let expected_rollup_chain_id: u32 = rollup_config.compatible_chain_id().unpack();
+    let chain_id: u64 = tx.raw().chain_id().unpack();
+    // first 32 bits are rollup chain id, the last 32 bits are polyjuice chain id
+    let rollup_chain_id = (chain_id >> 32) as u32;
+    if expected_rollup_chain_id != rollup_chain_id {
+        crate::ckb_std::debug!("Tx using wrong rollup_chain_id");
+        return Err(Error::WrongSignature);
+    }
+
     let account_count: u32 = unlock_args.account_count().unpack();
     let mut tree_buffer = [Pair::default(); GW_MAX_KV_PAIRS];
     let kv_state_proof: Bytes = unlock_args.kv_state_proof().unpack();
+
     let kv_state = KVState::build(
         &mut tree_buffer,
         unlock_args.kv_state().as_reader(),
@@ -69,6 +66,7 @@ pub fn verify_tx_signature(
         account_count,
         None,
     )?;
+
     let scripts = ScriptVec::new_builder()
         .push(unlock_args.sender())
         .push(unlock_args.receiver())
@@ -93,6 +91,7 @@ pub fn verify_tx_signature(
         receiver_script_hash,
         receiver,
         sender: _,
+        sender_address,
     } = verify_tx_context(input)?;
 
     let (message, signing_type) = match try_assemble_polyjuice_args(
@@ -109,13 +108,15 @@ pub fn verify_tx_signature(
             (H256::from(signing_message), SigningType::Raw)
         }
         None => {
-            let message = calc_tx_message(
-                &raw_tx,
-                rollup_script_hash,
-                &sender_script_hash,
-                &receiver_script_hash,
-            );
-            (message, SigningType::WithPrefix)
+            let chain_id = raw_tx.chain_id().unpack();
+            let typed_tx = crate::verifications::eip712::types::L2Transaction::from_raw(
+                raw_tx,
+                sender_address,
+                receiver_script_hash,
+            )?;
+            let message =
+                typed_tx.eip712_message(EIP712Domain::domain_with_chain_id(chain_id).hash_struct());
+            (message.into(), SigningType::Raw)
         }
     };
 
