@@ -46,11 +46,9 @@ pub fn verify_tx_signature(
     let tx = unlock_args.l2tx();
 
     // check rollup chain id
-    let expected_rollup_chain_id: u32 = rollup_config.compatible_chain_id().unpack();
+    let expected_rollup_chain_id: u64 = rollup_config.chain_id().unpack();
     let chain_id: u64 = tx.raw().chain_id().unpack();
-    // first 32 bits are rollup chain id, the last 32 bits are polyjuice chain id
-    let rollup_chain_id = (chain_id >> 32) as u32;
-    if expected_rollup_chain_id != rollup_chain_id {
+    if expected_rollup_chain_id != chain_id {
         crate::ckb_std::debug!("Tx using wrong rollup_chain_id");
         return Err(Error::WrongSignature);
     }
@@ -95,7 +93,6 @@ pub fn verify_tx_signature(
     } = verify_tx_context(input)?;
 
     let (message, signing_type) = match try_assemble_polyjuice_args(
-        rollup_config.compatible_chain_id().unpack(),
         &raw_tx,
         receiver,
     ) {
@@ -126,7 +123,6 @@ pub fn verify_tx_signature(
 }
 
 fn try_assemble_polyjuice_args(
-    rollup_chain_id: u32,
     raw_tx: &RawL2Transaction,
     receiver_script: Script,
 ) -> Option<Bytes> {
@@ -153,11 +149,9 @@ fn try_assemble_polyjuice_args(
         u64::from_le_bytes(data)
     };
     stream.append(&gas_limit);
-    let (to, polyjuice_chain_id) = if args[7] == 3 {
+    let to = if args[7] == 3 {
         // 3 for EVMC_CREATE
-        // In case of deploying a polyjuice contract, to id(creator account id)
-        // is directly used as chain id
-        (vec![0u8; 0], raw_tx.to_id().unpack())
+        vec![0u8; 0]
     } else {
         // For contract calling, chain id is read from scrpit args of
         // receiver_script, see the following link for more details:
@@ -165,17 +159,12 @@ fn try_assemble_polyjuice_args(
         if receiver_script.args().len() < 36 {
             return None;
         }
-        let polyjuice_chain_id = {
-            let mut data = [0u8; 4];
-            data.copy_from_slice(&receiver_script.args().raw_data()[32..36]);
-            u32::from_le_bytes(data)
-        };
         let mut to = vec![0u8; 20];
         let receiver_hash = receiver_script.hash();
         to[0..16].copy_from_slice(&receiver_hash[0..16]);
         let to_id: u32 = raw_tx.to_id().unpack();
         to[16..20].copy_from_slice(&to_id.to_le_bytes());
-        (to, polyjuice_chain_id)
+        to
     };
     stream.append(&to);
     let value = {
@@ -193,8 +182,7 @@ fn try_assemble_polyjuice_args(
         return None;
     }
     stream.append(&args[52..52 + payload_length].to_vec());
-    // calculate chain id by concanate rollup_chain_id || polyjuice_chain_id
-    let chain_id: u64 = ((rollup_chain_id as u64) << 32) | (polyjuice_chain_id as u64);
+    let chain_id: u64 = raw_tx.chain_id().unpack();
     stream.append(&chain_id);
     stream.append(&0u8);
     stream.append(&0u8);
