@@ -135,11 +135,9 @@ pub fn verify_withdrawal(
     let raw_withdrawal = withdrawal.raw();
 
     // check rollup chain id
-    let expected_rollup_chain_id: u32 = rollup_config.compatible_chain_id().unpack();
+    let expected_rollup_chain_id: u64 = rollup_config.chain_id().unpack();
     let chain_id: u64 = raw_withdrawal.chain_id().unpack();
-    // first 32 bits are rollup chain id, the last 32 bits are polyjuice chain id
-    let rollup_chain_id = (chain_id >> 32) as u32;
-    if expected_rollup_chain_id != rollup_chain_id {
+    if expected_rollup_chain_id != chain_id {
         debug!("Withdrawal using wrong rollup_chain_id");
         return Err(Error::WrongSignature);
     }

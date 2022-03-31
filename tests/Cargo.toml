@@ -7,17 +7,17 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-gw-types = { git = "https://github.com/jjyr/godwoken.git", rev = "972c949b8c743d411d1172c8e289c014c5e952a1" }
-gw-common = { git = "https://github.com/jjyr/godwoken.git", rev = "972c949b8c743d411d1172c8e289c014c5e952a1" }
-gw-config = { git = "https://github.com/jjyr/godwoken.git", rev = "972c949b8c743d411d1172c8e289c014c5e952a1" }
-gw-db = { git = "https://github.com/jjyr/godwoken.git", rev = "972c949b8c743d411d1172c8e289c014c5e952a1" }
-gw-store = { git = "https://github.com/jjyr/godwoken.git", rev = "972c949b8c743d411d1172c8e289c014c5e952a1" }
-gw-traits = { git = "https://github.com/jjyr/godwoken.git", rev = "972c949b8c743d411d1172c8e289c014c5e952a1" }
-gw-generator = { git = "https://github.com/jjyr/godwoken.git", rev = "972c949b8c743d411d1172c8e289c014c5e952a1" }
-gw-chain = { git = "https://github.com/jjyr/godwoken.git", rev = "972c949b8c743d411d1172c8e289c014c5e952a1" }
-gw-mem-pool = { git = "https://github.com/jjyr/godwoken.git", rev = "972c949b8c743d411d1172c8e289c014c5e952a1" }
-gw-block-producer = { git = "https://github.com/jjyr/godwoken.git", rev = "972c949b8c743d411d1172c8e289c014c5e952a1" }
-gw-ckb-hardfork = { git = "https://github.com/jjyr/godwoken.git", rev = "972c949b8c743d411d1172c8e289c014c5e952a1" }
+gw-types = { git = "https://github.com/jjyr/godwoken.git", rev = "9f6b9567905d1384da633ff22489b8d00baf5164" }
+gw-common = { git = "https://github.com/jjyr/godwoken.git", rev = "9f6b9567905d1384da633ff22489b8d00baf5164" }
+gw-config = { git = "https://github.com/jjyr/godwoken.git", rev = "9f6b9567905d1384da633ff22489b8d00baf5164" }
+gw-db = { git = "https://github.com/jjyr/godwoken.git", rev = "9f6b9567905d1384da633ff22489b8d00baf5164" }
+gw-store = { git = "https://github.com/jjyr/godwoken.git", rev = "9f6b9567905d1384da633ff22489b8d00baf5164" }
+gw-traits = { git = "https://github.com/jjyr/godwoken.git", rev = "9f6b9567905d1384da633ff22489b8d00baf5164" }
+gw-generator = { git = "https://github.com/jjyr/godwoken.git", rev = "9f6b9567905d1384da633ff22489b8d00baf5164" }
+gw-chain = { git = "https://github.com/jjyr/godwoken.git", rev = "9f6b9567905d1384da633ff22489b8d00baf5164" }
+gw-mem-pool = { git = "https://github.com/jjyr/godwoken.git", rev = "9f6b9567905d1384da633ff22489b8d00baf5164" }
+gw-block-producer = { git = "https://github.com/jjyr/godwoken.git", rev = "9f6b9567905d1384da633ff22489b8d00baf5164" }
+gw-ckb-hardfork = { git = "https://github.com/jjyr/godwoken.git", rev = "9f6b9567905d1384da633ff22489b8d00baf5164" }
 parking_lot = "0.11"
 anyhow = "1.0"
 blake2b-rs = "0.2"
