@@ -20,7 +20,7 @@ use gw_utils::{
 
 /// Eth account lock
 /// script args: rollup_script_hash(32 bytes) | tron_address(20 bytes)
-/// data: owner_lock_hash(32 bytes) | message(32 bytes)
+/// data: onetime_owner_lock_hash(32 bytes) | signing type (1 byte) | message(32 bytes)
 pub fn main() -> Result<(), Error> {
     // parse args
     let script = load_script()?;
@@ -29,11 +29,11 @@ pub fn main() -> Result<(), Error> {
     debug!("tron_address {:?}", &tron_address);
 
     // parse data
-    let (owner_lock_hash, signing_type, message) = parse_data()?;
+    let (onetime_owner_lock_hash, signing_type, message) = parse_data()?;
 
     // check owner lock hash cell
     // to prevent others unlock this cell
-    if search_lock_hash(&owner_lock_hash, Source::Input).is_none() {
+    if search_lock_hash(&onetime_owner_lock_hash, Source::Input).is_none() {
         return Err(Error::OwnerCellNotFound);
     }
 
@@ -91,12 +91,12 @@ fn verify_message_signature(
 }
 
 /// parse cell's data
-/// return (owner_lock_hash, message)
+/// return (onetime_owner_lock_hash, sign type, message)
 fn parse_data() -> Result<([u8; 32], SigningType, H256), Error> {
     let mut data = [0u8; 65];
     let loaded_size = load_cell_data(&mut data, 0, 0, Source::GroupInput)?;
 
-    if loaded_size != 64 && loaded_size != 65 {
+    if loaded_size != 65 {
         debug!("Invalid data size: {}", loaded_size);
         return Err(Error::Encoding);
     }
@@ -106,19 +106,13 @@ fn parse_data() -> Result<([u8; 32], SigningType, H256), Error> {
     owner_lock_hash.copy_from_slice(&data[..32]);
 
     // copy message
-    let (signing_type, msg_start, msg_end) = if loaded_size == 64 {
-        (SigningType::WithPrefix, 32, 64)
-    } else {
-        let signing_type = SigningType::try_from(data[32]).map_err(|err| {
-            debug!("Invalid signature message type {}", err);
-            Error::Encoding
-        })?;
-
-        (signing_type, 33, 65)
-    };
+    let signing_type = SigningType::try_from(data[32]).map_err(|err| {
+        debug!("Invalid signature message type {}", err);
+        Error::Encoding
+    })?;
 
     let mut msg = [0u8; 32];
-    msg.copy_from_slice(&data[msg_start..msg_end]);
+    msg.copy_from_slice(&data[33..65]);
 
     Ok((owner_lock_hash, signing_type, msg.into()))
 }

@@ -1,3 +1,4 @@
+use ckb_std::debug;
 use gw_types::{
     bytes::Bytes,
     packed::{Script, ScriptReader, WithdrawalLockArgs, WithdrawalLockArgsReader},
@@ -6,13 +7,13 @@ use gw_types::{
 
 use crate::error::Error;
 
-pub struct WithdrawalLockArgsOptOwnerLock {
+pub struct WithdrawalLockArgsWithOwnerLock {
     pub lock_args: WithdrawalLockArgs,
-    pub opt_owner_lock: Option<Script>,
+    pub owner_lock: Script,
 }
 
 /// args: rollup_type_hash | withdrawal lock args | owner lock len (optional) | owner lock (optional)
-pub fn parse_lock_args(args: &Bytes) -> Result<WithdrawalLockArgsOptOwnerLock, Error> {
+pub fn parse_lock_args(args: &Bytes) -> Result<WithdrawalLockArgsWithOwnerLock, Error> {
     let lock_args_start = 32;
     let lock_args_end = lock_args_start + WithdrawalLockArgs::TOTAL_SIZE;
 
@@ -29,10 +30,8 @@ pub fn parse_lock_args(args: &Bytes) -> Result<WithdrawalLockArgsOptOwnerLock, E
 
     let owner_lock_start = lock_args_end + 4; // u32 length
     if args_len <= owner_lock_start {
-        return Ok(WithdrawalLockArgsOptOwnerLock {
-            lock_args,
-            opt_owner_lock: None,
-        });
+        debug!("[parse withdrawal] missing owner lock");
+        return Err(Error::InvalidArgs);
     }
 
     let mut owner_lock_len_buf = [0u8; 4];
@@ -52,11 +51,12 @@ pub fn parse_lock_args(args: &Bytes) -> Result<WithdrawalLockArgsOptOwnerLock, E
 
     let owner_lock_hash: [u8; 32] = lock_args.owner_lock_hash().unpack();
     if owner_lock.hash() != owner_lock_hash {
+        debug!("[parse withdrawal] incorrect owner lock");
         return Err(Error::InvalidArgs);
     }
 
-    Ok(WithdrawalLockArgsOptOwnerLock {
+    Ok(WithdrawalLockArgsWithOwnerLock {
         lock_args,
-        opt_owner_lock: Some(owner_lock),
+        owner_lock,
     })
 }

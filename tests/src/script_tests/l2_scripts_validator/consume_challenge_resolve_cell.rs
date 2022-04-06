@@ -24,6 +24,8 @@ use gw_ckb_hardfork::GLOBAL_HARDFORK_SWITCH;
 use gw_types::bytes::Bytes;
 use gw_types::prelude::*;
 
+use std::sync::atomic::Ordering;
+
 use crate::testing_tool::programs::{
     ALWAYS_SUCCESS_CODE_HASH, ALWAYS_SUCCESS_PROGRAM, META_CONTRACT_CODE_HASH,
     META_CONTRACT_VALIDATOR_PROGRAM,
@@ -100,8 +102,8 @@ fn test_consume_challenge_resolve_cell() {
     .cell_dep(CellDep::new_builder().out_point(script_out_point).build())
     .cell_dep(CellDep::new_builder().out_point(lock_out_point).build())
     .build();
-    let hardfork_switch = smol::block_on(async {
-        let switch = &*GLOBAL_HARDFORK_SWITCH.lock().await;
+    let hardfork_switch = {
+        let switch = GLOBAL_HARDFORK_SWITCH.load();
         HardForkSwitch::new_without_any_enabled()
             .as_builder()
             .rfc_0028(switch.rfc_0028())
@@ -113,11 +115,11 @@ fn test_consume_challenge_resolve_cell() {
             .rfc_0038(switch.rfc_0038())
             .build()
             .unwrap()
-    });
+    };
     let consensus = ConsensusBuilder::default()
         .hardfork_switch(hardfork_switch)
         .build();
-    let current_epoch_number = smol::block_on(async { *GLOBAL_CURRENT_EPOCH_NUMBER.lock().await });
+    let current_epoch_number = GLOBAL_CURRENT_EPOCH_NUMBER.load(Ordering::SeqCst);
     let tx_verify_env = TxVerifyEnv::new_submit(
         &HeaderView::new_advanced_builder()
             .epoch(CKBPack::pack(&current_epoch_number))

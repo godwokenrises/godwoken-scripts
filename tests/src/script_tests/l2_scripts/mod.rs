@@ -1,11 +1,10 @@
 use gw_common::blake2b::new_blake2b;
-use gw_common::state::{to_short_address, State};
+use gw_common::state::{to_short_script_hash, State};
 use gw_common::H256;
-use gw_config::RPCConfig;
 use gw_generator::constants::L2TX_MAX_CYCLES;
 use gw_generator::{account_lock_manage::AccountLockManage, Generator};
 use gw_generator::{error::TransactionError, traits::StateExt};
-use gw_traits::{ChainStore, CodeStore};
+use gw_traits::{ChainView, CodeStore};
 use gw_types::offchain::RollupContext;
 use gw_types::{
     bytes::Bytes,
@@ -26,6 +25,7 @@ const EXAMPLES_DIR: &str = "../../godwoken-scripts/c/build/examples";
 const SUM_BIN_NAME: &str = "sum-generator";
 const ACCOUNT_OP_BIN_NAME: &str = "account-operation-generator";
 const RECOVER_BIN_NAME: &str = "recover-account-generator";
+const SUDT_TOTAL_SUPPLY_BIN_NAME: &str = "sudt-total-supply-generator";
 
 lazy_static! {
     static ref SUM_PROGRAM: Bytes = {
@@ -76,6 +76,22 @@ lazy_static! {
         hasher.finalize(&mut buf);
         buf
     };
+    static ref SUDT_TOTAL_SUPPLY_PROGRAM: Bytes = {
+        let mut buf = Vec::new();
+        let mut path = PathBuf::new();
+        path.push(&EXAMPLES_DIR);
+        path.push(&SUDT_TOTAL_SUPPLY_BIN_NAME);
+        let mut f = fs::File::open(&path).expect("load program");
+        f.read_to_end(&mut buf).expect("read program");
+        Bytes::from(buf.to_vec())
+    };
+    static ref SUDT_TOTAL_SUPPLY_PROGRAM_CODE_HASH: [u8; 32] = {
+        let mut buf = [0u8; 32];
+        let mut hasher = new_blake2b();
+        hasher.update(&SUDT_TOTAL_SUPPLY_PROGRAM);
+        hasher.finalize(&mut buf);
+        buf
+    };
 }
 
 pub fn new_block_info(block_producer_id: u32, number: u64, timestamp: u64) -> BlockInfo {
@@ -87,7 +103,7 @@ pub fn new_block_info(block_producer_id: u32, number: u64, timestamp: u64) -> Bl
 }
 
 struct DummyChainStore;
-impl ChainStore for DummyChainStore {
+impl ChainView for DummyChainStore {
     fn get_block_hash_by_number(&self, _number: u64) -> Result<Option<H256>, gw_db::error::Error> {
         Err("dummy chain store".to_string().into())
     }
@@ -138,12 +154,14 @@ impl SudtLog {
         if data.len() > (1 + 32 + 32 + 16) {
             return Err(format!("Invalid data length: {}", data.len()));
         }
-        let short_addr_len: usize = data[0] as usize;
-        let from_addr = data[1..1 + short_addr_len].to_vec();
-        let to_addr = data[1 + short_addr_len..1 + short_addr_len * 2].to_vec();
+        let short_script_hash_len: usize = data[0] as usize;
+        let from_addr = data[1..1 + short_script_hash_len].to_vec();
+        let to_addr = data[1 + short_script_hash_len..1 + short_script_hash_len * 2].to_vec();
 
         let mut u128_bytes = [0u8; 16];
-        u128_bytes.copy_from_slice(&data[1 + short_addr_len * 2..1 + short_addr_len * 2 + 16]);
+        u128_bytes.copy_from_slice(
+            &data[1 + short_script_hash_len * 2..1 + short_script_hash_len * 2 + 16],
+        );
         let amount = u128::from_le_bytes(u128_bytes);
         Ok(SudtLog {
             sudt_id,
@@ -159,7 +177,7 @@ pub fn check_transfer_logs(
     logs: &[LogItem],
     sudt_id: u32,
     block_producer_script_hash: H256,
-    fee: u128,
+    fee: u64,
     from_script_hash: H256,
     to_script_hash: H256,
     amount: u128,
@@ -167,21 +185,27 @@ pub fn check_transfer_logs(
     // pay fee log
     let sudt_fee_log = SudtLog::from_log_item(&logs[0]).unwrap();
     assert_eq!(sudt_fee_log.sudt_id, sudt_id);
-    assert_eq!(sudt_fee_log.from_addr, to_short_address(&from_script_hash));
+    assert_eq!(
+        sudt_fee_log.from_addr,
+        to_short_script_hash(&from_script_hash)
+    );
     assert_eq!(
         sudt_fee_log.to_addr,
-        to_short_address(&block_producer_script_hash),
+        to_short_script_hash(&block_producer_script_hash),
     );
-    assert_eq!(sudt_fee_log.amount, fee);
+    assert_eq!(sudt_fee_log.amount, fee as u128);
     assert_eq!(sudt_fee_log.log_type, SudtLogType::PayFee);
     // transfer to `to_id`
     let sudt_transfer_log = SudtLog::from_log_item(&logs[1]).unwrap();
     assert_eq!(sudt_transfer_log.sudt_id, sudt_id);
     assert_eq!(
         sudt_transfer_log.from_addr,
-        to_short_address(&from_script_hash),
+        to_short_script_hash(&from_script_hash),
     );
-    assert_eq!(sudt_transfer_log.to_addr, to_short_address(&to_script_hash));
+    assert_eq!(
+        sudt_transfer_log.to_addr,
+        to_short_script_hash(&to_script_hash)
+    );
     assert_eq!(sudt_transfer_log.amount, amount);
     assert_eq!(sudt_transfer_log.log_type, SudtLogType::Transfer);
 }
@@ -205,15 +229,16 @@ pub fn run_contract_get_result<S: State + CodeStore>(
         rollup_config: rollup_config.clone(),
         rollup_script_hash: [42u8; 32].into(),
     };
-    let generator = Generator::new(
-        backend_manage,
-        account_lock_manage,
-        rollup_ctx,
-        Some(RPCConfig::default()),
-    );
+    let generator = Generator::new(backend_manage, account_lock_manage, rollup_ctx);
     let chain_view = DummyChainStore;
-    let run_result =
-        generator.execute_transaction(&chain_view, tree, block_info, &raw_tx, L2TX_MAX_CYCLES)?;
+    let run_result = generator.execute_transaction(
+        &chain_view,
+        tree,
+        block_info,
+        &raw_tx,
+        L2TX_MAX_CYCLES,
+        None,
+    )?;
     tree.apply_run_result(&run_result).expect("update state");
     Ok(run_result)
 }

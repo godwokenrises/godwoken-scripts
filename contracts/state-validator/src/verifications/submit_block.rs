@@ -36,7 +36,7 @@ use gw_common::{
     error::Error as StateError,
     h256_ext::H256Ext,
     merkle_utils::{calculate_ckb_merkle_root, calculate_state_checkpoint, ckb_merkle_leaf_hash},
-    state::{to_short_address, State},
+    state::{to_short_script_hash, State},
     CKB_SUDT_SCRIPT_ARGS, H256,
 };
 use gw_types::{
@@ -231,7 +231,7 @@ fn check_layer2_deposit(
         if !config
             .allowed_eoa_type_hashes()
             .into_iter()
-            .any(|code_hash| code_hash == request.account_script.code_hash())
+            .any(|type_hash| type_hash.hash() == request.account_script.code_hash())
         {
             return Err(Error::UnknownEOAScript);
         }
@@ -242,11 +242,11 @@ fn check_layer2_deposit(
         {
             let _new_id = kv_state.create_account(request.account_script_hash)?;
         }
-        let short_address = to_short_address(&request.account_script_hash);
+        let short_script_hash = to_short_script_hash(&request.account_script_hash);
         // mint CKB
         kv_state.mint_sudt(
             CKB_SUDT_ACCOUNT_ID,
-            short_address,
+            short_script_hash,
             request.value.capacity.into(),
         )?;
         if request.value.sudt_script_hash.as_slice() == CKB_SUDT_SCRIPT_ARGS {
@@ -269,7 +269,7 @@ fn check_layer2_deposit(
             return Err(Error::InvalidDepositCell);
         }
         // mint SUDT
-        kv_state.mint_sudt(sudt_id, short_address, request.value.amount)?;
+        kv_state.mint_sudt(sudt_id, short_script_hash, request.value.amount)?;
     }
 
     Ok(())
@@ -284,13 +284,16 @@ fn check_layer2_withdrawal(
     /// Pay fee to block producer
     fn pay_fee(
         kv_state: &mut KVState,
-        payer_short_address: &[u8],
-        block_producer_short_address: &[u8],
-        sudt_id: u32,
-        amount: u128,
+        payer_short_script_hash: &[u8],
+        block_producer_short_script_hash: &[u8],
+        amount: u64,
     ) -> Result<(), Error> {
-        kv_state.burn_sudt(sudt_id, payer_short_address, amount)?;
-        kv_state.mint_sudt(sudt_id, block_producer_short_address, amount)?;
+        kv_state.burn_sudt(CKB_SUDT_ACCOUNT_ID, payer_short_script_hash, amount.into())?;
+        kv_state.mint_sudt(
+            CKB_SUDT_ACCOUNT_ID,
+            block_producer_short_script_hash,
+            amount.into(),
+        )?;
         Ok(())
     }
 
@@ -304,7 +307,7 @@ fn check_layer2_withdrawal(
         let block_producer_id = block.raw().block_producer_id().unpack();
         kv_state.get_script_hash(block_producer_id)?
     };
-    let block_producer_short_address = to_short_address(&block_producer_script_hash);
+    let block_producer_short_script_hash = to_short_script_hash(&block_producer_script_hash);
 
     for request in withdrawals.iter() {
         let raw = request.raw();
@@ -315,24 +318,21 @@ fn check_layer2_withdrawal(
         let id = kv_state
             .get_account_id_by_script_hash(&account_script_hash)?
             .ok_or(StateError::MissingKey)?;
-        let short_address = to_short_address(&account_script_hash);
+        let short_script_hash = to_short_script_hash(&account_script_hash);
         // pay fee
         {
-            let fee = raw.fee();
-            let fee_sudt_id = fee.sudt_id().unpack();
-            let fee_amount = fee.amount().unpack();
+            let fee = raw.fee().unpack();
             pay_fee(
                 kv_state,
-                short_address,
-                block_producer_short_address,
-                fee_sudt_id,
-                fee_amount,
+                short_script_hash,
+                block_producer_short_script_hash,
+                fee,
             )?;
         }
         // burn CKB
         kv_state.burn_sudt(
             CKB_SUDT_ACCOUNT_ID,
-            short_address,
+            short_script_hash,
             raw.capacity().unpack() as u128,
         )?;
         // find Simple UDT account
@@ -340,7 +340,7 @@ fn check_layer2_withdrawal(
             .get_account_id_by_script_hash(&l2_sudt_script_hash.into())?
             .ok_or(StateError::MissingKey)?;
         // burn sudt
-        kv_state.burn_sudt(sudt_id, short_address, raw.amount().unpack())?;
+        kv_state.burn_sudt(sudt_id, short_script_hash, raw.amount().unpack())?;
         // update nonce
         let nonce = kv_state.get_nonce(id)?;
         let withdrawal_nonce: u32 = raw.nonce().unpack();

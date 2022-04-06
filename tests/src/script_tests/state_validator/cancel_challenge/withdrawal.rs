@@ -16,23 +16,32 @@ use crate::testing_tool::chain::{
 use crate::testing_tool::programs::STATE_VALIDATOR_CODE_HASH;
 use ckb_types::{
     packed::{CellInput, CellOutput},
-    prelude::{Pack as CKBPack, Unpack},
+    prelude::{Pack as CKBPack, Unpack as CKBUnpack},
 };
 use gw_common::H256;
-use gw_generator::account_lock_manage::{always_success::AlwaysSuccess, AccountLockManage};
+use gw_generator::account_lock_manage::{
+    eip712::{
+        traits::EIP712Encode,
+        types::{EIP712Domain, Withdrawal},
+    },
+    {always_success::AlwaysSuccess, AccountLockManage},
+};
+use gw_types::core::SigningType;
+use gw_types::packed::AllowedTypeHash;
+use gw_types::packed::CCWithdrawalWitness;
+use gw_types::packed::WithdrawalRequestExtra;
 use gw_types::prelude::*;
 use gw_types::{
     bytes::Bytes,
     core::{ChallengeTargetType, ScriptHashType, Status},
     packed::{
-        Byte32, ChallengeLockArgs, ChallengeTarget, DepositRequest, RawWithdrawalRequest,
-        RollupAction, RollupActionUnion, RollupCancelChallenge, RollupConfig, Script,
-        VerifyWithdrawalWitness, WithdrawalRequest,
+        ChallengeLockArgs, ChallengeTarget, DepositRequest, RawWithdrawalRequest, RollupAction,
+        RollupActionUnion, RollupCancelChallenge, RollupConfig, Script, WithdrawalRequest,
     },
 };
 
-#[test]
-fn test_cancel_withdrawal() {
+#[tokio::test]
+async fn test_cancel_withdrawal() {
     init_env_log();
     let input_out_point = random_out_point();
     let type_id = calculate_state_validator_type_id(input_out_point.clone());
@@ -49,7 +58,8 @@ fn test_cancel_withdrawal() {
     let eoa_lock_type = build_type_id_script(b"eoa_lock_type_id");
     let challenge_script_type_hash: [u8; 32] = challenge_lock_type.calc_script_hash().unpack();
     let eoa_lock_type_hash: [u8; 32] = eoa_lock_type.calc_script_hash().unpack();
-    let allowed_eoa_type_hashes: Vec<Byte32> = vec![Pack::pack(&eoa_lock_type_hash)];
+    let allowed_eoa_type_hashes: Vec<AllowedTypeHash> =
+        vec![AllowedTypeHash::from_unknown(eoa_lock_type_hash)];
     let finality_blocks = 10;
     let rollup_config = RollupConfig::new_builder()
         .challenge_script_type_hash(Pack::pack(&challenge_script_type_hash))
@@ -63,8 +73,9 @@ fn test_cancel_withdrawal() {
         rollup_type_script.clone(),
         rollup_config.clone(),
         account_lock_manage,
-    );
-    chain.complete_initial_syncing().unwrap();
+    )
+    .await;
+    chain.complete_initial_syncing().await.unwrap();
     // create a rollup cell
     let capacity = 1000_00000000u64;
     let rollup_cell = build_always_success_cell(
@@ -75,6 +86,8 @@ fn test_cancel_withdrawal() {
     );
     // produce a block so we can challenge it
     let rollup_script_hash = rollup_type_script.hash();
+
+    let withdrawal_extra;
     let sender_script = {
         // deposit two account
         let mut sender_args = rollup_script_hash.to_vec();
@@ -103,8 +116,10 @@ fn test_cancel_withdrawal() {
         ];
         let produce_block_result = {
             let mem_pool = chain.mem_pool().as_ref().unwrap();
-            let mut mem_pool = smol::block_on(mem_pool.lock());
-            construct_block(&chain, &mut mem_pool, deposit_requests.clone()).unwrap()
+            let mut mem_pool = mem_pool.lock().await;
+            construct_block(&chain, &mut mem_pool, deposit_requests.clone())
+                .await
+                .unwrap()
         };
         let rollup_cell = gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes());
         let asset_scripts = HashSet::new();
@@ -114,23 +129,37 @@ fn test_cancel_withdrawal() {
             produce_block_result,
             deposit_requests,
             asset_scripts,
-        );
-        let withdrawal_capacity = 300_00000000u64;
-        let withdrawal = WithdrawalRequest::new_builder()
-            .raw(
-                RawWithdrawalRequest::new_builder()
-                    .nonce(Pack::pack(&0u32))
-                    .capacity(Pack::pack(&withdrawal_capacity))
-                    .account_script_hash(Pack::pack(&sender_script.hash()))
-                    .sell_capacity(Pack::pack(&withdrawal_capacity))
-                    .build(),
-            )
-            .build();
+        )
+        .await;
+        let withdrawal_capacity = 400_00000000u64;
+        withdrawal_extra = {
+            let owner_lock = Script::default();
+            WithdrawalRequestExtra::new_builder()
+                .request(
+                    WithdrawalRequest::new_builder()
+                        .raw(
+                            RawWithdrawalRequest::new_builder()
+                                .nonce(Pack::pack(&0u32))
+                                .capacity(Pack::pack(&withdrawal_capacity))
+                                .account_script_hash(Pack::pack(&sender_script.hash()))
+                                .owner_lock_hash(Pack::pack(&owner_lock.hash()))
+                                .build(),
+                        )
+                        .build(),
+                )
+                .owner_lock(owner_lock)
+                .build()
+        };
         let produce_block_result = {
             let mem_pool = chain.mem_pool().as_ref().unwrap();
-            let mut mem_pool = smol::block_on(mem_pool.lock());
-            mem_pool.push_withdrawal_request(withdrawal).unwrap();
-            construct_block(&chain, &mut mem_pool, Vec::default()).unwrap()
+            let mut mem_pool = mem_pool.lock().await;
+            mem_pool
+                .push_withdrawal_request(withdrawal_extra.clone())
+                .await
+                .unwrap();
+            construct_block(&chain, &mut mem_pool, Vec::default())
+                .await
+                .unwrap()
         };
         let asset_scripts = HashSet::new();
         apply_block_result(
@@ -139,7 +168,8 @@ fn test_cancel_withdrawal() {
             produce_block_result,
             vec![],
             asset_scripts,
-        );
+        )
+        .await;
         sender_script
     };
     // deploy scripts
@@ -205,9 +235,11 @@ fn test_cancel_withdrawal() {
                 .collect();
             let proof = build_merkle_proof(&leaves, &[challenge_target_index]);
             // we do not actually execute the signature verification in this test
-            VerifyWithdrawalWitness::new_builder()
+            CCWithdrawalWitness::new_builder()
                 .raw_l2block(challenged_block.raw())
-                .withdrawal_request(withdrawal.clone())
+                .withdrawal(withdrawal.clone())
+                .sender(sender_script.clone())
+                .owner_lock(withdrawal_extra.owner_lock())
                 .withdrawal_proof(proof)
                 .build()
         };
@@ -223,11 +255,24 @@ fn test_cancel_withdrawal() {
             .capacity(CKBPack::pack(&42u64))
             .build();
         let owner_lock_hash = vec![42u8; 32];
-        let message = withdrawal
-            .raw()
-            .calc_message(&rollup_type_script.hash().into());
+        let message = {
+            let withdrawal = Withdrawal::from_withdrawal_request(
+                withdrawal.raw(),
+                withdrawal_extra.owner_lock(),
+            )
+            .unwrap();
+            let domain = EIP712Domain {
+                name: "Godwoken".to_string(),
+                version: "1".to_string(),
+                chain_id: withdrawal_extra.raw().chain_id().unpack(),
+                verifying_contract: None,
+                salt: None,
+            };
+            withdrawal.eip712_message(domain.hash_struct())
+        };
         let mut buf = owner_lock_hash;
-        buf.extend_from_slice(message.as_slice());
+        buf.push(SigningType::Raw.into());
+        buf.extend_from_slice(&message);
         let out_point = ctx.insert_cell(cell, Bytes::from(buf));
         CellInput::new_builder().previous_output(out_point).build()
     };

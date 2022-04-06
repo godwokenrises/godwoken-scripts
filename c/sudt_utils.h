@@ -14,39 +14,42 @@
 #define WITHDRAWAL_BLOCK_NUMBER 3
 
 #define SUDT_KEY_FLAG_BALANCE 1
+#define SUDT_KEY_FLAG_TOTAL_SUPPLY 2
+#define CKB_SUDT_ACCOUNT_ID 1
 
-void _sudt_build_key(uint32_t key_flag, const uint8_t *short_addr,
-                     uint32_t short_addr_len, uint8_t *key) {
+void _sudt_build_key(uint32_t key_flag, const uint8_t *short_script_hash,
+                     uint32_t short_script_hash_len, uint8_t *key) {
   memcpy(key, (uint8_t *)(&key_flag), 4);
-  memcpy(key + 4, (uint8_t *)(&short_addr_len), 4);
-  memcpy(key + 8, short_addr, short_addr_len);
+  memcpy(key + 4, (uint8_t *)(&short_script_hash_len), 4);
+  memcpy(key + 8, short_script_hash, short_script_hash_len);
 }
 
 int _sudt_emit_log(gw_context_t *ctx, const uint32_t sudt_id,
-                   const uint64_t short_addr_len, const uint8_t *from_addr,
-                   const uint8_t *to_addr, const uint128_t amount,
-                   uint8_t service_flag) {
+                   const uint64_t short_script_hash_len,
+                   const uint8_t *from_addr, const uint8_t *to_addr,
+                   const uint128_t amount, uint8_t service_flag) {
 #ifdef GW_VALIDATOR
   uint32_t data_size = 0;
   uint8_t *data = NULL;
 #else
-  uint32_t data_size = 1 + short_addr_len * 2 + 16;
+  uint32_t data_size = 1 + short_script_hash_len * 2 + 16;
   uint8_t data[128] = {0};
-  data[0] = (uint8_t)short_addr_len;
-  memcpy(data + 1, from_addr, short_addr_len);
-  memcpy(data + 1 + short_addr_len, to_addr, short_addr_len);
-  memcpy(data + 1 + short_addr_len * 2, (uint8_t *)(&amount), 16);
+  data[0] = (uint8_t)short_script_hash_len;
+  memcpy(data + 1, from_addr, short_script_hash_len);
+  memcpy(data + 1 + short_script_hash_len, to_addr, short_script_hash_len);
+  memcpy(data + 1 + short_script_hash_len * 2, (uint8_t *)(&amount), 16);
 #endif
   return ctx->sys_log(ctx, sudt_id, service_flag, data_size, data);
 }
 
 int _sudt_get_balance(gw_context_t *ctx, uint32_t sudt_id,
-                      const uint8_t *short_addr, const uint64_t short_addr_len,
+                      const uint8_t *short_script_hash,
+                      const uint64_t short_script_hash_len,
                       uint128_t *balance) {
   uint8_t key[32 + 8] = {0};
-  uint64_t key_len = short_addr_len + 8;
-  _sudt_build_key(SUDT_KEY_FLAG_BALANCE, short_addr, (uint32_t)short_addr_len,
-                  key);
+  uint64_t key_len = short_script_hash_len + 8;
+  _sudt_build_key(SUDT_KEY_FLAG_BALANCE, short_script_hash,
+                  (uint32_t)short_script_hash_len, key);
   uint8_t value[32] = {0};
   int ret = ctx->sys_load(ctx, sudt_id, key, key_len, value);
   if (ret != 0) {
@@ -57,12 +60,12 @@ int _sudt_get_balance(gw_context_t *ctx, uint32_t sudt_id,
 }
 
 int _sudt_set_balance(gw_context_t *ctx, uint32_t sudt_id,
-                      const uint8_t *short_addr, const uint64_t short_addr_len,
-                      uint128_t balance) {
+                      const uint8_t *short_script_hash,
+                      const uint64_t short_script_hash_len, uint128_t balance) {
   uint8_t key[32 + 8] = {0};
-  uint64_t key_len = short_addr_len + 8;
-  _sudt_build_key(SUDT_KEY_FLAG_BALANCE, short_addr, (uint32_t)short_addr_len,
-                  key);
+  uint64_t key_len = short_script_hash_len + 8;
+  _sudt_build_key(SUDT_KEY_FLAG_BALANCE, short_script_hash,
+                  (uint32_t)short_script_hash_len, key);
 
   uint8_t value[32] = {0};
   *(uint128_t *)value = balance;
@@ -71,24 +74,49 @@ int _sudt_set_balance(gw_context_t *ctx, uint32_t sudt_id,
 }
 
 int sudt_get_balance(gw_context_t *ctx, const uint32_t sudt_id,
-                     const uint64_t short_addr_len,
-                     const uint8_t *short_address, uint128_t *balance) {
-  if (short_addr_len > 32) {
-    return GW_SUDT_ERROR_SHORT_ADDR_LEN;
+                     const uint64_t short_script_hash_len,
+                     const uint8_t *short_script_hash, uint128_t *balance) {
+  if (short_script_hash_len > 32) {
+    return GW_SUDT_ERROR_SHORT_SCRIPT_HASH_LEN;
   }
   int ret = gw_verify_sudt_account(ctx, sudt_id);
   if (ret != 0) {
     return ret;
   }
-  return _sudt_get_balance(ctx, sudt_id, short_address, short_addr_len,
-                           balance);
+  return _sudt_get_balance(ctx, sudt_id, short_script_hash,
+                           short_script_hash_len, balance);
+}
+
+int _sudt_get_total_supply(gw_context_t *ctx, uint32_t sudt_id,
+                           uint8_t total_supply[32]) {
+  int ret;
+  uint8_t script_hash[32] = {0};
+  ret = ctx->sys_get_script_hash_by_account_id(ctx, sudt_id, script_hash);
+  if (ret != 0) {
+    return ret;
+  }
+
+  uint8_t key[32 + 8] = {0};
+  uint64_t key_len = 32 + 8;
+  _sudt_build_key(SUDT_KEY_FLAG_TOTAL_SUPPLY, script_hash, (uint32_t)32, key);
+  return ctx->sys_load(ctx, sudt_id, key, key_len, total_supply);
+}
+
+int sudt_get_total_supply(gw_context_t *ctx, uint32_t sudt_id,
+                          uint8_t total_supply[32]) {
+  int ret = gw_verify_sudt_account(ctx, sudt_id);
+  if (ret != 0) {
+    return ret;
+  }
+
+  return _sudt_get_total_supply(ctx, sudt_id, total_supply);
 }
 
 /* Transfer Simple UDT */
 int _sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
-                   const uint64_t short_addr_len, const uint8_t *from_addr,
-                   const uint8_t *to_addr, const uint128_t amount,
-                   uint8_t service_flag) {
+                   const uint64_t short_script_hash_len,
+                   const uint8_t *from_addr, const uint8_t *to_addr,
+                   const uint128_t amount, uint8_t service_flag) {
   int ret;
   ret = gw_verify_sudt_account(ctx, sudt_id);
   if (ret != 0) {
@@ -98,8 +126,8 @@ int _sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
 
   /* check from account */
   uint128_t from_balance = 0;
-  ret =
-      _sudt_get_balance(ctx, sudt_id, from_addr, short_addr_len, &from_balance);
+  ret = _sudt_get_balance(ctx, sudt_id, from_addr, short_script_hash_len,
+                          &from_balance);
   if (ret != 0) {
     printf("transfer: can't get sender's balance");
     return ret;
@@ -109,14 +137,14 @@ int _sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
     return GW_SUDT_ERROR_INSUFFICIENT_BALANCE;
   }
 
-  if (memcmp(from_addr, to_addr, short_addr_len) == 0) {
+  if (memcmp(from_addr, to_addr, short_script_hash_len) == 0) {
     printf("transfer: [warning] transfer to self");
   }
 
   uint128_t new_from_balance = from_balance - amount;
 
   /* update sender balance */
-  ret = _sudt_set_balance(ctx, sudt_id, from_addr, short_addr_len,
+  ret = _sudt_set_balance(ctx, sudt_id, from_addr, short_script_hash_len,
                           new_from_balance);
   if (ret != 0) {
     printf("transfer: update sender's balance failed");
@@ -125,7 +153,8 @@ int _sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
 
   /* check to account */
   uint128_t to_balance = 0;
-  ret = _sudt_get_balance(ctx, sudt_id, to_addr, short_addr_len, &to_balance);
+  ret = _sudt_get_balance(ctx, sudt_id, to_addr, short_script_hash_len,
+                          &to_balance);
   if (ret != 0) {
     printf("transfer: can't get receiver's balance");
     return ret;
@@ -139,16 +168,16 @@ int _sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
   }
 
   /* update receiver balance */
-  ret =
-      _sudt_set_balance(ctx, sudt_id, to_addr, short_addr_len, new_to_balance);
+  ret = _sudt_set_balance(ctx, sudt_id, to_addr, short_script_hash_len,
+                          new_to_balance);
   if (ret != 0) {
     printf("transfer: update receiver's balance failed");
     return ret;
   }
 
   /* emit log */
-  ret = _sudt_emit_log(ctx, sudt_id, short_addr_len, from_addr, to_addr, amount,
-                       service_flag);
+  ret = _sudt_emit_log(ctx, sudt_id, short_script_hash_len, from_addr, to_addr,
+                       amount, service_flag);
   if (ret != 0) {
     printf("transfer: emit log failed");
   }
@@ -156,22 +185,23 @@ int _sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
 }
 
 int sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
-                  const uint64_t short_addr_len, const uint8_t *from_addr,
-                  const uint8_t *to_addr, const uint128_t amount) {
-  if (short_addr_len > 32) {
-    return GW_SUDT_ERROR_SHORT_ADDR_LEN;
+                  const uint64_t short_script_hash_len,
+                  const uint8_t *from_addr, const uint8_t *to_addr,
+                  const uint128_t amount) {
+  if (short_script_hash_len > 32) {
+    return GW_SUDT_ERROR_SHORT_SCRIPT_HASH_LEN;
   }
-  return _sudt_transfer(ctx, sudt_id, short_addr_len, from_addr, to_addr,
+  return _sudt_transfer(ctx, sudt_id, short_script_hash_len, from_addr, to_addr,
                         amount, GW_LOG_SUDT_TRANSFER);
 }
 
 /* Pay fee */
 int sudt_pay_fee(gw_context_t *ctx, const uint32_t sudt_id,
-                 const uint64_t short_addr_len, const uint8_t *from_addr,
+                 const uint64_t short_script_hash_len, const uint8_t *from_addr,
                  const uint128_t amount) {
-  if (short_addr_len > 32) {
-    printf("invalid short address len");
-    return GW_SUDT_ERROR_SHORT_ADDR_LEN;
+  if (short_script_hash_len > 32) {
+    printf("invalid short script hash len");
+    return GW_SUDT_ERROR_SHORT_SCRIPT_HASH_LEN;
   }
   uint32_t to_id = ctx->block_info.block_producer_id;
   /* The script hash's pointer also it's prefix's pointer */
@@ -181,13 +211,15 @@ int sudt_pay_fee(gw_context_t *ctx, const uint32_t sudt_id,
     printf("can't find to id");
     return ret;
   }
-  ret = _sudt_transfer(ctx, sudt_id, short_addr_len, from_addr, to_script_hash,
-                       amount, GW_LOG_SUDT_PAY_FEE);
+  ret = _sudt_transfer(ctx, sudt_id, short_script_hash_len, from_addr,
+                       to_script_hash, amount, GW_LOG_SUDT_PAY_FEE);
   if (ret != 0) {
     printf("pay fee transfer failed");
     return ret;
   }
-  ret = ctx->sys_pay_fee(ctx, from_addr, short_addr_len, sudt_id, amount);
+
+  ret =
+      ctx->sys_pay_fee(ctx, from_addr, short_script_hash_len, sudt_id, amount);
   if (ret != 0) {
     printf("sys pay fee failed");
   }

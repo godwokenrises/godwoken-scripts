@@ -32,7 +32,10 @@ pub fn load_rollup_config(rollup_config_hash: &[u8; 32]) -> Result<RollupConfig,
     let data = load_cell_data(index, Source::CellDep)?;
     match RollupConfigReader::verify(&data, false) {
         Ok(_) => Ok(RollupConfig::new_unchecked(data.into())),
-        Err(_) => Err(Error::Encoding),
+        Err(_) => {
+            debug!("Invalid encoding of RollupConfig");
+            Err(Error::Encoding)
+        }
     }
 }
 
@@ -53,7 +56,10 @@ pub fn search_rollup_state(
             let global_state_v0 = GlobalStateV0::new_unchecked(data.into());
             Ok(Some(GlobalState::from(global_state_v0)))
         }
-        Err(_) => Err(SysError::Encoding),
+        Err(_) => {
+            debug!("Invalid encoding of Global state");
+            Err(SysError::Encoding)
+        }
     }
 }
 

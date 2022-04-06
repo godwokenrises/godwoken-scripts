@@ -21,11 +21,10 @@ pub enum Error {
     AccountNotFound,
     MerkleProof,
     AmountOverflow,
-    InvalidShortAddress,
+    InvalidShortScriptHash,
     InsufficientAmount,
     InsufficientInputFinalizedAssets,
     InsufficientOutputFinalizedAssets,
-    NotForSell,
     SMTKeyMissing,
     InvalidStateCheckpoint,
     InvalidBlock,
@@ -51,6 +50,7 @@ pub enum Error {
     UnexpectedTxNonce,
     // raise from signature verification script
     WrongSignature,
+    DuplicatedScriptHash,
 }
 
 impl From<SysError> for Error {
@@ -73,7 +73,8 @@ impl From<CommonError> for Error {
             SMT(_) | Store | MissingKey => Self::SMTKeyMissing,
             MerkleProof => Self::MerkleProof,
             AmountOverflow => Self::AmountOverflow,
-            InvalidShortAddress => Self::InvalidShortAddress,
+            InvalidShortScriptHash => Self::InvalidShortScriptHash,
+            DuplicatedScriptHash => Self::DuplicatedScriptHash,
         }
     }
 }

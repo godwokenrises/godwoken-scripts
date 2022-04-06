@@ -13,13 +13,15 @@ use crate::testing_tool::chain::{apply_block_result, construct_block, setup_chai
 use crate::testing_tool::programs::{ALWAYS_SUCCESS_CODE_HASH, STATE_VALIDATOR_CODE_HASH};
 use ckb_error::assert_error_eq;
 use ckb_script::ScriptError;
+use ckb_types::packed::CellOutput;
 use ckb_types::prelude::{Pack as CKBPack, Unpack};
 use gw_chain::chain::Chain;
 use gw_common::{
     builtins::CKB_SUDT_ACCOUNT_ID,
-    state::{to_short_address, State},
+    state::{to_short_script_hash, State},
 };
 use gw_store::state::state_db::StateContext;
+use gw_types::packed::AllowedTypeHash;
 use gw_types::prelude::*;
 use gw_types::{
     bytes::Bytes,
@@ -31,10 +33,10 @@ use gw_types::{
     },
 };
 
-const INVALID_CHALLENGE_TARGET_ERROR: i8 = 34;
+const INVALID_CHALLENGE_TARGET_ERROR: i8 = 33;
 
-#[test]
-fn test_enter_challenge() {
+#[tokio::test]
+async fn test_enter_challenge() {
     init_env_log();
     let input_out_point = random_out_point();
     let type_id = calculate_state_validator_type_id(input_out_point.clone());
@@ -53,10 +55,12 @@ fn test_enter_challenge() {
     let rollup_config = RollupConfig::new_builder()
         .challenge_script_type_hash(Pack::pack(&challenge_script_type_hash))
         .finality_blocks(Pack::pack(&finality_blocks))
-        .allowed_eoa_type_hashes(vec![*ALWAYS_SUCCESS_CODE_HASH].pack())
+        .allowed_eoa_type_hashes(
+            vec![AllowedTypeHash::from_unknown(*ALWAYS_SUCCESS_CODE_HASH)].pack(),
+        )
         .build();
     // setup chain
-    let mut chain = setup_chain(rollup_type_script.clone(), rollup_config.clone());
+    let mut chain = setup_chain(rollup_type_script.clone(), rollup_config.clone()).await;
     // create a rollup cell
     let capacity = 1000_00000000u64;
     let rollup_cell = build_always_success_cell(
@@ -95,8 +99,10 @@ fn test_enter_challenge() {
         ];
         let produce_block_result = {
             let mem_pool = chain.mem_pool().as_ref().unwrap();
-            let mut mem_pool = smol::block_on(mem_pool.lock());
-            construct_block(&chain, &mut mem_pool, deposit_requests.clone()).unwrap()
+            let mut mem_pool = mem_pool.lock().await;
+            construct_block(&chain, &mut mem_pool, deposit_requests.clone())
+                .await
+                .unwrap()
         };
         let rollup_cell = gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes());
         let asset_scripts = HashSet::new();
@@ -106,7 +112,8 @@ fn test_enter_challenge() {
             produce_block_result,
             deposit_requests,
             asset_scripts,
-        );
+        )
+        .await;
         let db = chain.store().begin_transaction();
         let tree = db.state_tree(StateContext::ReadOnly).unwrap();
         let sender_id = tree
@@ -118,7 +125,7 @@ fn test_enter_challenge() {
             .unwrap()
             .unwrap();
         let receiver_script_hash = tree.get_script_hash(receiver_id).expect("get script hash");
-        let receiver_address = Bytes::copy_from_slice(to_short_address(&receiver_script_hash));
+        let receiver_address = Bytes::copy_from_slice(to_short_script_hash(&receiver_script_hash));
         let produce_block_result = {
             let args = SUDTArgs::new_builder()
                 .set(SUDTArgsUnion::SUDTTransfer(
@@ -140,9 +147,11 @@ fn test_enter_challenge() {
                 )
                 .build();
             let mem_pool = chain.mem_pool().as_ref().unwrap();
-            let mut mem_pool = smol::block_on(mem_pool.lock());
-            mem_pool.push_transaction(tx).unwrap();
-            construct_block(&chain, &mut mem_pool, Vec::default()).unwrap()
+            let mut mem_pool = mem_pool.lock().await;
+            mem_pool.push_transaction(tx).await.unwrap();
+            construct_block(&chain, &mut mem_pool, Vec::default())
+                .await
+                .unwrap()
         };
         let asset_scripts = HashSet::new();
         apply_block_result(
@@ -151,7 +160,8 @@ fn test_enter_challenge() {
             produce_block_result,
             vec![],
             asset_scripts,
-        );
+        )
+        .await;
     }
     // deploy scripts
     let param = CellContextParam {
@@ -235,8 +245,8 @@ fn test_enter_challenge() {
     ctx.verify_tx(tx).expect("return success");
 }
 
-#[test]
-fn test_enter_challenge_finalized_block() {
+#[tokio::test]
+async fn test_enter_challenge_finalized_block() {
     init_env_log();
     let input_out_point = random_out_point();
     let type_id = calculate_state_validator_type_id(input_out_point.clone());
@@ -255,10 +265,12 @@ fn test_enter_challenge_finalized_block() {
     let rollup_config = RollupConfig::new_builder()
         .challenge_script_type_hash(Pack::pack(&challenge_script_type_hash))
         .finality_blocks(Pack::pack(&finality_blocks))
-        .allowed_eoa_type_hashes(vec![*ALWAYS_SUCCESS_CODE_HASH].pack())
+        .allowed_eoa_type_hashes(
+            vec![AllowedTypeHash::from_unknown(*ALWAYS_SUCCESS_CODE_HASH)].pack(),
+        )
         .build();
     // setup chain
-    let mut chain = setup_chain(rollup_type_script.clone(), rollup_config.clone());
+    let mut chain = setup_chain(rollup_type_script.clone(), rollup_config.clone()).await;
     // create a rollup cell
     let capacity = 1000_00000000u64;
     let rollup_cell = build_always_success_cell(
@@ -297,8 +309,10 @@ fn test_enter_challenge_finalized_block() {
         ];
         let produce_block_result = {
             let mem_pool = chain.mem_pool().as_ref().unwrap();
-            let mut mem_pool = smol::block_on(mem_pool.lock());
-            construct_block(&chain, &mut mem_pool, deposit_requests.clone()).unwrap()
+            let mut mem_pool = mem_pool.lock().await;
+            construct_block(&chain, &mut mem_pool, deposit_requests.clone())
+                .await
+                .unwrap()
         };
         let rollup_cell = gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes());
         let asset_scripts = HashSet::new();
@@ -308,7 +322,8 @@ fn test_enter_challenge_finalized_block() {
             produce_block_result,
             deposit_requests,
             asset_scripts,
-        );
+        )
+        .await;
         let db = chain.store().begin_transaction();
         let tree = db.state_tree(StateContext::ReadOnly).unwrap();
         let sender_id = tree
@@ -320,55 +335,32 @@ fn test_enter_challenge_finalized_block() {
             .unwrap()
             .unwrap();
         let receiver_script_hash = tree.get_script_hash(receiver_id).expect("get script hash");
-        let receiver_address = Bytes::copy_from_slice(to_short_address(&receiver_script_hash));
+        let receiver_address = Bytes::copy_from_slice(to_short_script_hash(&receiver_script_hash));
 
         (sender_id, receiver_address)
     };
 
-    let produce_block = |chain: &mut Chain, nonce: u32| {
-        let rollup_cell = gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes());
-        let produce_block_result = {
-            let args = SUDTArgs::new_builder()
-                .set(SUDTArgsUnion::SUDTTransfer(
-                    SUDTTransfer::new_builder()
-                        .amount(Pack::pack(&50_00000000u128))
-                        .to(Pack::pack(&receiver_address))
-                        .build(),
-                ))
-                .build()
-                .as_bytes();
-            let tx = L2Transaction::new_builder()
-                .raw(
-                    RawL2Transaction::new_builder()
-                        .from_id(Pack::pack(&sender_id))
-                        .to_id(Pack::pack(&CKB_SUDT_ACCOUNT_ID))
-                        .nonce(Pack::pack(&nonce))
-                        .args(Pack::pack(&args))
-                        .build(),
-                )
-                .build();
-            let mem_pool = chain.mem_pool().as_ref().unwrap();
-            let mut mem_pool = smol::block_on(mem_pool.lock());
-            mem_pool.push_transaction(tx).unwrap();
-            construct_block(chain, &mut mem_pool, Vec::default()).unwrap()
-        };
-        let asset_scripts = HashSet::new();
-        apply_block_result(
-            chain,
-            rollup_cell,
-            produce_block_result,
-            vec![],
-            asset_scripts,
-        );
-    };
-
     // produce two blocks and challenge first one
     let mut nonce = 0u32;
-    produce_block(&mut chain, nonce);
+    produce_block(
+        &mut chain,
+        &rollup_cell,
+        sender_id,
+        &receiver_address,
+        nonce,
+    )
+    .await;
     nonce += 1;
 
     let challenged_block = chain.local_state().tip().clone();
-    produce_block(&mut chain, nonce); // Make first block finalized
+    produce_block(
+        &mut chain,
+        &rollup_cell,
+        sender_id,
+        &receiver_address,
+        nonce,
+    )
+    .await;
 
     // deploy scripts
     let param = CellContextParam {
@@ -460,4 +452,50 @@ fn test_enter_challenge_finalized_block() {
     )
     .input_type_script(0);
     assert_error_eq!(err, expected_err);
+}
+
+async fn produce_block(
+    chain: &mut Chain,
+    rollup_cell: &CellOutput,
+    sender_id: u32,
+    receiver_address: &Bytes,
+    nonce: u32,
+) {
+    let rollup_cell = gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes());
+    let produce_block_result = {
+        let args = SUDTArgs::new_builder()
+            .set(SUDTArgsUnion::SUDTTransfer(
+                SUDTTransfer::new_builder()
+                    .amount(Pack::pack(&50_00000000u128))
+                    .to(Pack::pack(receiver_address))
+                    .build(),
+            ))
+            .build()
+            .as_bytes();
+        let tx = L2Transaction::new_builder()
+            .raw(
+                RawL2Transaction::new_builder()
+                    .from_id(Pack::pack(&sender_id))
+                    .to_id(Pack::pack(&CKB_SUDT_ACCOUNT_ID))
+                    .nonce(Pack::pack(&nonce))
+                    .args(Pack::pack(&args))
+                    .build(),
+            )
+            .build();
+        let mem_pool = chain.mem_pool().as_ref().unwrap();
+        let mut mem_pool = mem_pool.lock().await;
+        mem_pool.push_transaction(tx).await.unwrap();
+        construct_block(chain, &mut mem_pool, Vec::default())
+            .await
+            .unwrap()
+    };
+    let asset_scripts = HashSet::new();
+    apply_block_result(
+        chain,
+        rollup_cell,
+        produce_block_result,
+        vec![],
+        asset_scripts,
+    )
+    .await;
 }

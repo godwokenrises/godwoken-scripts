@@ -1,5 +1,5 @@
 use super::{check_transfer_logs, new_block_info, run_contract, run_contract_get_result};
-use gw_common::state::{to_short_address, State};
+use gw_common::state::{to_short_script_hash, State};
 use gw_generator::dummy_state::DummyState;
 use gw_generator::syscalls::error_codes::{
     GW_SUDT_ERROR_AMOUNT_OVERFLOW, GW_SUDT_ERROR_INSUFFICIENT_BALANCE,
@@ -26,6 +26,15 @@ fn test_sudt() {
     let init_a_balance: u128 = 10000;
 
     // init accounts
+    let _meta = tree
+        .create_account_from_script(
+            Script::new_builder()
+                .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
+                .args([1u8; 64].to_vec().pack())
+                .hash_type(ScriptHashType::Type.into())
+                .build(),
+        )
+        .expect("create account");
     let sudt_id = tree
         .create_account_from_script(
             Script::new_builder()
@@ -70,12 +79,16 @@ fn test_sudt() {
     let block_info = new_block_info(block_producer_id, 1, 0);
 
     // init balance for a
-    tree.mint_sudt(sudt_id, to_short_address(&a_script_hash), init_a_balance)
-        .expect("init balance");
+    tree.mint_sudt(
+        sudt_id,
+        to_short_script_hash(&a_script_hash),
+        init_a_balance,
+    )
+    .expect("init balance");
 
-    let a_address = to_short_address(&a_script_hash).to_vec();
-    let b_address = to_short_address(&b_script_hash).to_vec();
-    let block_producer_address = to_short_address(&block_producer_script_hash).to_vec();
+    let a_address = to_short_script_hash(&a_script_hash).to_vec();
+    let b_address = to_short_script_hash(&b_script_hash).to_vec();
+    let block_producer_address = to_short_script_hash(&block_producer_script_hash).to_vec();
     // check balance of A, B
     {
         check_balance(
@@ -102,7 +115,7 @@ fn test_sudt() {
     // transfer from A to B
     {
         let value = 4000u128;
-        let fee = 42u128;
+        let fee = 42u64;
         let sender_nonce = tree.get_nonce(a_id).unwrap();
         let args = SUDTArgs::new_builder()
             .set(
@@ -144,7 +157,7 @@ fn test_sudt() {
                 a_id,
                 sudt_id,
                 &a_address,
-                init_a_balance - value - fee,
+                init_a_balance - value - fee as u128,
             );
 
             check_balance(
@@ -164,7 +177,7 @@ fn test_sudt() {
                 a_id,
                 sudt_id,
                 &block_producer_address,
-                fee,
+                fee as u128,
             );
         }
     }
@@ -180,6 +193,15 @@ fn test_insufficient_balance() {
         .build();
 
     // init accounts
+    let _meta = tree
+        .create_account_from_script(
+            Script::new_builder()
+                .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
+                .args([1u8; 20].to_vec().pack())
+                .hash_type(ScriptHashType::Type.into())
+                .build(),
+        )
+        .expect("create account");
     let sudt_id = tree
         .create_account_from_script(
             Script::new_builder()
@@ -189,6 +211,7 @@ fn test_insufficient_balance() {
                 .build(),
         )
         .expect("create account");
+    assert_eq!(sudt_id, 1);
     let a_id = tree
         .create_account_from_script(
             Script::new_builder()
@@ -213,10 +236,14 @@ fn test_insufficient_balance() {
     let block_info = new_block_info(0, 10, 0);
 
     // init balance for a
-    tree.mint_sudt(sudt_id, to_short_address(&a_script_hash), init_a_balance)
-        .expect("init balance");
+    tree.mint_sudt(
+        sudt_id,
+        to_short_script_hash(&a_script_hash),
+        init_a_balance,
+    )
+    .expect("init balance");
 
-    let b_address = to_short_address(&b_script_hash).to_vec();
+    let b_address = to_short_script_hash(&b_script_hash).to_vec();
     // transfer from A to B
     {
         let value = 10001u128;
@@ -255,6 +282,15 @@ fn test_transfer_to_non_exist_account() {
         .build();
 
     // init accounts
+    let _meta = tree
+        .create_account_from_script(
+            Script::new_builder()
+                .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
+                .args([1u8; 20].to_vec().pack())
+                .hash_type(ScriptHashType::Type.into())
+                .build(),
+        )
+        .expect("create account");
     let sudt_id = tree
         .create_account_from_script(
             Script::new_builder()
@@ -280,8 +316,12 @@ fn test_transfer_to_non_exist_account() {
     let block_info = new_block_info(0, 10, 0);
 
     // init balance for a
-    tree.mint_sudt(sudt_id, to_short_address(&a_script_hash), init_a_balance)
-        .expect("init balance");
+    tree.mint_sudt(
+        sudt_id,
+        to_short_script_hash(&a_script_hash),
+        init_a_balance,
+    )
+    .expect("init balance");
 
     // transfer from A to B
     {
@@ -289,7 +329,7 @@ fn test_transfer_to_non_exist_account() {
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
-                    .to(b_address.pack())
+                    .to(b_address.to_vec().pack())
                     .amount(value.pack())
                     .build(),
             )
@@ -316,6 +356,15 @@ fn test_transfer_to_self() {
         .build();
 
     // init accounts
+    let _meta = tree
+        .create_account_from_script(
+            Script::new_builder()
+                .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
+                .args([1u8; 20].to_vec().pack())
+                .hash_type(ScriptHashType::Type.into())
+                .build(),
+        )
+        .expect("create account");
     let sudt_id = tree
         .create_account_from_script(
             Script::new_builder()
@@ -336,7 +385,7 @@ fn test_transfer_to_self() {
         .expect("create account");
     let a_script_hash = tree.get_script_hash(a_id).expect("get script hash");
     // non-exist account id
-    let a_address = to_short_address(&a_script_hash).to_vec();
+    let a_address = to_short_script_hash(&a_script_hash).to_vec();
 
     let block_producer_id = tree
         .create_account_from_script(
@@ -350,18 +399,22 @@ fn test_transfer_to_self() {
     let block_producer_script_hash = tree
         .get_script_hash(block_producer_id)
         .expect("get script hash");
-    let block_producer_address = to_short_address(&block_producer_script_hash).to_vec();
+    let block_producer_address = to_short_script_hash(&block_producer_script_hash).to_vec();
     let block_producer_balance = 0;
     let block_info = new_block_info(block_producer_id, 10, 0);
 
     // init balance for a
-    tree.mint_sudt(sudt_id, to_short_address(&a_script_hash), init_a_balance)
-        .expect("init balance");
+    tree.mint_sudt(
+        sudt_id,
+        to_short_script_hash(&a_script_hash),
+        init_a_balance,
+    )
+    .expect("init balance");
 
     // transfer from A to A, zero value
     {
         let value: u128 = 0;
-        let fee: u128 = 0;
+        let fee: u64 = 0;
         let sender_nonce = tree.get_nonce(a_id).unwrap();
         let args = SUDTArgs::new_builder()
             .set(
@@ -414,7 +467,7 @@ fn test_transfer_to_self() {
     }
 
     // transfer from A to A, normal value
-    let fee: u128 = 20;
+    let fee: u64 = 20;
     {
         let value: u128 = 1000;
         let args = SUDTArgs::new_builder()
@@ -452,7 +505,7 @@ fn test_transfer_to_self() {
             a_id,
             sudt_id,
             &a_address,
-            init_a_balance - fee,
+            init_a_balance - fee as u128,
         );
         check_balance(
             &rollup_config,
@@ -461,7 +514,7 @@ fn test_transfer_to_self() {
             a_id,
             sudt_id,
             &block_producer_address,
-            block_producer_balance + fee,
+            block_producer_balance + fee as u128,
         );
     }
 
@@ -497,7 +550,7 @@ fn test_transfer_to_self() {
             a_id,
             sudt_id,
             &a_address,
-            init_a_balance - fee,
+            init_a_balance - fee as u128,
         );
         check_balance(
             &rollup_config,
@@ -506,7 +559,7 @@ fn test_transfer_to_self() {
             a_id,
             sudt_id,
             &block_producer_address,
-            block_producer_balance + fee,
+            block_producer_balance + fee as u128,
         );
     }
 }
@@ -521,6 +574,15 @@ fn test_transfer_to_self_overflow() {
         .build();
 
     // init accounts
+    let _meta = tree
+        .create_account_from_script(
+            Script::new_builder()
+                .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
+                .args([1u8; 20].to_vec().pack())
+                .hash_type(ScriptHashType::Type.into())
+                .build(),
+        )
+        .expect("create account");
     let sudt_id = tree
         .create_account_from_script(
             Script::new_builder()
@@ -541,7 +603,7 @@ fn test_transfer_to_self_overflow() {
         .expect("create account");
     let a_script_hash = tree.get_script_hash(a_id).expect("get script hash");
     // non-exist account id
-    let a_address = to_short_address(&a_script_hash).to_vec();
+    let a_address = to_short_script_hash(&a_script_hash).to_vec();
 
     let block_producer_id = tree
         .create_account_from_script(
@@ -555,18 +617,22 @@ fn test_transfer_to_self_overflow() {
     let block_producer_script_hash = tree
         .get_script_hash(block_producer_id)
         .expect("get script hash");
-    let block_producer_address = to_short_address(&block_producer_script_hash).to_vec();
+    let block_producer_address = to_short_script_hash(&block_producer_script_hash).to_vec();
     let block_producer_balance = 0;
     let block_info = new_block_info(block_producer_id, 10, 0);
 
     // init balance for a
-    tree.mint_sudt(sudt_id, to_short_address(&a_script_hash), init_a_balance)
-        .expect("init balance");
+    tree.mint_sudt(
+        sudt_id,
+        to_short_script_hash(&a_script_hash),
+        init_a_balance,
+    )
+    .expect("init balance");
 
     // transfer from A to A, zero value
     {
         let value: u128 = 0;
-        let fee: u128 = 0;
+        let fee: u64 = 0;
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
@@ -590,7 +656,7 @@ fn test_transfer_to_self_overflow() {
             &run_result.logs,
             sudt_id,
             block_producer_script_hash,
-            fee,
+            fee.into(),
             a_script_hash,
             a_script_hash,
             value,
@@ -619,7 +685,7 @@ fn test_transfer_to_self_overflow() {
     // transfer from A to A, 1 value
     {
         let value: u128 = 1;
-        let fee: u128 = 0;
+        let fee: u64 = 0;
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
@@ -643,7 +709,7 @@ fn test_transfer_to_self_overflow() {
             &run_result.logs,
             sudt_id,
             block_producer_script_hash,
-            fee,
+            fee.into(),
             a_script_hash,
             a_script_hash,
             value,
@@ -780,6 +846,15 @@ fn test_transfer_overflow() {
         .build();
 
     // init accounts
+    let _meta = tree
+        .create_account_from_script(
+            Script::new_builder()
+                .code_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.clone().pack())
+                .args([1u8; 20].to_vec().pack())
+                .hash_type(ScriptHashType::Type.into())
+                .build(),
+        )
+        .expect("create account");
     let sudt_id = tree
         .create_account_from_script(
             Script::new_builder()
@@ -799,7 +874,7 @@ fn test_transfer_overflow() {
         )
         .expect("create account");
     let a_script_hash = tree.get_script_hash(a_id).expect("get script hash");
-    let a_address = to_short_address(&a_script_hash).to_vec();
+    let a_address = to_short_script_hash(&a_script_hash).to_vec();
     let b_id = tree
         .create_account_from_script(
             Script::new_builder()
@@ -814,12 +889,20 @@ fn test_transfer_overflow() {
     let block_info = new_block_info(0, 10, 0);
 
     // init balance for a
-    tree.mint_sudt(sudt_id, to_short_address(&a_script_hash), init_a_balance)
-        .expect("init balance");
-    tree.mint_sudt(sudt_id, to_short_address(&b_script_hash), init_b_balance)
-        .expect("init balance");
+    tree.mint_sudt(
+        sudt_id,
+        to_short_script_hash(&a_script_hash),
+        init_a_balance,
+    )
+    .expect("init balance");
+    tree.mint_sudt(
+        sudt_id,
+        to_short_script_hash(&b_script_hash),
+        init_b_balance,
+    )
+    .expect("init balance");
 
-    let b_address = to_short_address(&b_script_hash).to_vec();
+    let b_address = to_short_script_hash(&b_script_hash).to_vec();
     // transfer from A to B overflow
     {
         let value: u128 = 1000;
@@ -875,24 +958,24 @@ fn check_balance<S: State + CodeStore>(
     block_info: &BlockInfo,
     sender_id: u32,
     sudt_id: u32,
-    short_address: &[u8],
+    short_script_hash: &[u8],
     expected_balance: u128,
 ) {
     // check balance
     let args = SUDTArgs::new_builder()
         .set(
             SUDTQuery::new_builder()
-                .short_address(short_address.pack())
+                .short_script_hash(short_script_hash.pack())
                 .build(),
         )
         .build();
     let return_data = run_contract(
-        &rollup_config,
+        rollup_config,
         tree,
         sender_id,
         sudt_id,
         args.as_bytes(),
-        &block_info,
+        block_info,
     )
     .expect("execute");
     let balance = {

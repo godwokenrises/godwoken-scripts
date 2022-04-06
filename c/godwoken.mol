@@ -36,6 +36,18 @@ struct GlobalState {
     version: byte,
 }
 
+struct AllowedTypeHash {
+    type_: byte,
+    hash: Byte32,
+}
+
+vector AllowedTypeHashVec <AllowedTypeHash>;
+
+// allowed eoa:
+// 0: unknown, 1: eth, 2: tron
+//
+// allowed contract:
+// 0: unknown, 1: meta, 2: sudt, 3: polyjuice, 4: eth addr reg
 table RollupConfig {
     l1_sudt_script_type_hash: Byte32,
     custodian_script_type_hash: Byte32,
@@ -49,8 +61,9 @@ table RollupConfig {
     challenge_maturity_blocks: Uint64,
     finality_blocks: Uint64,
     reward_burn_rate: byte, // * reward_burn_rate / 100
-    allowed_eoa_type_hashes: Byte32Vec, // list of script code_hash allowed an EOA(external owned account) to use
-    allowed_contract_type_hashes: Byte32Vec, // list of script code_hash allowed a contract account to use
+    compatible_chain_id: Uint32, // compatible chain id
+    allowed_eoa_type_hashes: AllowedTypeHashVec, // list of script code_hash allowed an EOA(external owned account) to use
+    allowed_contract_type_hashes: AllowedTypeHashVec, // list of script code_hash allowed a contract account to use
 }
 
 table RawL2Transaction {
@@ -67,7 +80,7 @@ table L2Transaction {
 
 vector L2TransactionVec <L2Transaction>;
 
-table SubmitTransactions {
+struct SubmitTransactions {
     tx_witness_root: Byte32,
     tx_count: Uint32,
     // hash(account_root | account_count) before apply all txs
@@ -117,6 +130,8 @@ vector DepositRequestVec <DepositRequest>;
 
 struct RawWithdrawalRequest {
     nonce: Uint32,
+    // chain id
+    chain_id: Uint64,
     // CKB amount
     capacity: Uint64,
     // SUDT amount
@@ -124,15 +139,10 @@ struct RawWithdrawalRequest {
     sudt_script_hash: Byte32,
     // layer2 account_script_hash
     account_script_hash: Byte32,
-    // buyer can pay sell_amount and sell_capacity to unlock
-    sell_amount: Uint128,
-    sell_capacity: Uint64,
     // layer1 lock to withdraw after challenge period
     owner_lock_hash: Byte32,
-    // layer1 lock to receive the payment, must exists on the chain
-    payment_lock_hash: Byte32,
     // withdrawal fee, paid to block producer
-    fee: Fee,
+    fee: Uint64,
 }
 
 vector WithdrawalRequestVec <WithdrawalRequest>;
@@ -144,7 +154,7 @@ table WithdrawalRequest {
 
 // --- contract execution ---
 
-table KVPair { k: Byte32, v: Byte32, }
+struct KVPair { k: Byte32, v: Byte32, }
 vector KVPairVec <KVPair>;
 
 struct BlockInfo {
@@ -168,11 +178,11 @@ table DepositLockArgs {
 // --- custodian lock ---
 // a rollup_type_hash exists before this args, to make args friendly to prefix search
 table CustodianLockArgs {
+    deposit_block_hash: Byte32,
+    deposit_block_number: Uint64,
     // used for revert this cell to deposit request cell
     // after finalize, this lock is meaningless
     deposit_lock_args: DepositLockArgs,
-    deposit_block_hash: Byte32,
-    deposit_block_number: Uint64,
 }
 
 struct UnlockCustodianViaRevertWitness {
@@ -184,31 +194,21 @@ struct UnlockCustodianViaRevertWitness {
 // --- withdrawal lock ---
 // a rollup_type_hash exists before this args, to make args friendly to prefix search
 struct WithdrawalLockArgs {
-    account_script_hash: Byte32,
     withdrawal_block_hash: Byte32,
     withdrawal_block_number: Uint64,
-    // buyer can pay sell_amount token to unlock
-    sudt_script_hash: Byte32,
-    sell_amount: Uint128,
-    sell_capacity: Uint64,
+    account_script_hash: Byte32,
     // layer1 lock to withdraw after challenge period
     owner_lock_hash: Byte32,
-    // layer1 lock to receive the payment, must exists on the chain
-    payment_lock_hash: Byte32,
 }
 
 union UnlockWithdrawalWitness {
     UnlockWithdrawalViaFinalize,
     UnlockWithdrawalViaRevert,
-    UnlockWithdrawalViaTrade,
 }
 table UnlockWithdrawalViaFinalize {
 }
 struct UnlockWithdrawalViaRevert {
     custodian_lock_hash: Byte32,
-}
-table UnlockWithdrawalViaTrade {
-    owner_lock: Script,
 }
 // --- end of withdrawal lock ---
 
@@ -225,14 +225,9 @@ union MetaContractArgs {
     CreateAccount,
 }
 
-struct Fee {
-    sudt_id: Uint32,
-    amount: Uint128,
-}
-
 table CreateAccount {
     script: Script,
-    fee: Fee,
+    fee: Uint64,
 }
 // --- end of Meta contract
 
@@ -243,15 +238,16 @@ union SUDTArgs {
 }
 
 table SUDTQuery {
-    // godwoken short address (script_hash[0..n])
-    short_address: Bytes,
+    // godwoken short script hash (script_hash[0..n])
+    short_script_hash: Bytes,
 }
 
 table SUDTTransfer {
-    // godwoken short address (script_hash[0..n])
+    // godwoken short script hash (script_hash[0..n])
     to: Bytes,
     amount: Uint128,
-    fee: Uint128,
+    // paid fee(ckb)
+    fee: Uint64,
 }
 // --- end of layer2 SUDT ---
 
@@ -287,7 +283,19 @@ struct BlockHashEntry {
 
 vector BlockHashEntryVec <BlockHashEntry>;
 
-table VerifyTransactionContext {
+// CKB merkle proof
+table CKBMerkleProof {
+    indices:                Uint32Vec,
+    lemmas:                 Byte32Vec,
+}
+
+// cancel challenge by execute the transaction
+table CCTransactionWitness {
+    l2tx: L2Transaction,
+    raw_l2block: RawL2Block,
+    tx_proof: CKBMerkleProof,
+    kv_state_proof: Bytes,
+    block_hashes_proof: Bytes,
     account_count: Uint32,
     kv_state: KVPairVec,
     load_data: BytesVec,
@@ -296,40 +304,24 @@ table VerifyTransactionContext {
     block_hashes: BlockHashEntryVec,
 }
 
-// CKB merkle proof
-table CKBMerkleProof {
-    indices:                Uint32Vec,
-    lemmas:                 Byte32Vec,
-}
-
-// cancel challenge by execute the transaction
-table VerifyTransactionWitness {
-    l2tx: L2Transaction,
-    raw_l2block: RawL2Block,
-    tx_proof: CKBMerkleProof,
-    kv_state_proof: Bytes,
-    block_hashes_proof: Bytes,
-    context: VerifyTransactionContext,
-}
-
-table VerifyTransactionSignatureContext {
-    account_count: Uint32,
-    kv_state: KVPairVec,
-    scripts: ScriptVec,
-}
-
 // cancel challenge by verify tx signature
-table VerifyTransactionSignatureWitness {
+table CCTransactionSignatureWitness {
     raw_l2block: RawL2Block,
     l2tx: L2Transaction,
     tx_proof: CKBMerkleProof,
+    kv_state: KVPairVec,
     kv_state_proof: Bytes,
-    context: VerifyTransactionSignatureContext,
+    account_count: Uint32,
+    sender: Script,
+    receiver: Script,
 }
 
-table VerifyWithdrawalWitness {
+// cancel challenge by verify witness signature
+table CCWithdrawalWitness {
     raw_l2block: RawL2Block,
-    withdrawal_request: WithdrawalRequest,
+    withdrawal: WithdrawalRequest,
+    sender: Script,
+    owner_lock: Script,
     withdrawal_proof: CKBMerkleProof,
 }
 
@@ -362,3 +354,34 @@ union RollupAction {
     RollupRevert,
 }
 // --- end of Rollup ---
+
+
+// --- ETH Address Registry ---
+array Byte20 [byte; 20];
+
+union ETHAddrRegArgs {
+    EthToGw,
+    GwToEth,
+    SetMapping,
+    BatchSetMapping,
+}
+
+struct EthToGw {
+    eth_address: Byte20,
+}
+
+struct GwToEth {
+    gw_script_hash: Byte32,
+}
+
+struct SetMapping {
+    gw_script_hash: Byte32,
+    fee: Uint64,
+}
+
+table BatchSetMapping {
+    gw_script_hashes: Byte32Vec,
+    fee: Uint64,
+}
+
+// --- end of ETH Address Registry ---

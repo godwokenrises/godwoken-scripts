@@ -169,30 +169,16 @@ int _ensure_account_exists(gw_context_t *ctx, uint32_t account_id) {
 int _check_account_exists_by_script_hash(gw_context_t *ctx,
                                          uint8_t script_hash[32],
                                          int *is_exist) {
-  /* Compare with meta contract */
-  uint8_t meta_script_hash[32] = {0};
-  uint8_t raw_key[32] = {0};
-  gw_build_account_field_key(0, GW_ACCOUNT_SCRIPT_HASH, raw_key);
-  int ret = ctx->_internal_load_raw(ctx, raw_key, meta_script_hash);
-  if (ret != 0) {
-    return ret;
-  }
-  if (memcmp(meta_script_hash, script_hash, 32) == 0) {
-    *is_exist = true;
-    return 0;
-  }
-
   /* check script_hash to account_id */
+  uint8_t raw_key[32] = {0};
   uint8_t value[32] = {0};
   gw_build_script_hash_to_account_id_key(script_hash, raw_key);
-  ret = ctx->_internal_load_raw(ctx, raw_key, value);
+  int ret = ctx->_internal_load_raw(ctx, raw_key, value);
   if (ret != 0) {
     return ret;
   }
-  uint32_t account_id = 0;
-  _gw_fast_memcpy((uint8_t *)&account_id, value, sizeof(uint32_t));
 
-  *is_exist = account_id != 0;
+  *is_exist = value[4] == 1;
   return 0;
 }
 

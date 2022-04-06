@@ -205,18 +205,13 @@ int sys_get_account_id_by_script_hash(gw_context_t *ctx,
     return ret;
   }
   *account_id = *((uint32_t *)value);
-
-  /* if account_id is greater than 0, it is exist */
-  if (*account_id > 0) {
+  /* check exists flag */
+  int exists = value[4] == 1;
+  if (exists) {
     return 0;
   }
 
-  ret = _ensure_account_exists(ctx, *account_id);
-  if (ret != 0) {
-    return ret;
-  }
-
-  return 0;
+  return GW_ERROR_ACCOUNT_NOT_EXISTS;
 }
 
 /* Get account script_hash by account id */
@@ -631,7 +626,10 @@ int sys_create(gw_context_t *ctx, uint8_t *script, uint64_t script_len,
   uint8_t script_hash_to_id_key[32] = {0};
   uint8_t script_hash_to_id_value[32] = {0};
   gw_build_script_hash_to_account_id_key(script_hash, script_hash_to_id_key);
+  /* set id */
   _gw_fast_memcpy(script_hash_to_id_value, (uint8_t *)(&id), 4);
+  /* set exists flag */
+  script_hash_to_id_value[4] = 1;
   ret =
       _internal_store_raw(ctx, script_hash_to_id_key, script_hash_to_id_value);
   if (ret != 0) {
@@ -683,8 +681,8 @@ int sys_log(gw_context_t *ctx, uint32_t account_id, uint8_t service_flag,
   return 0;
 }
 
-int sys_pay_fee(gw_context_t *ctx, const uint8_t *payer_addr,
-                const uint64_t short_addr_len, uint32_t sudt_id,
+int sys_pay_fee(gw_context_t *ctx, const uint8_t *payer_short_script_hash,
+                const uint64_t short_script_hash_len, uint32_t sudt_id,
                 uint128_t amount) {
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
@@ -1119,16 +1117,15 @@ int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
     printf("WitnessArgs has no input field");
     return GW_FATAL_INVALID_DATA;
   }
-  mol_seg_t verify_tx_witness_seg = MolReader_Bytes_raw_bytes(&content_seg);
-  if (MolReader_VerifyTransactionWitness_verify(&verify_tx_witness_seg,
-                                                false) != MOL_OK) {
+  mol_seg_t cc_tx_witness_seg = MolReader_Bytes_raw_bytes(&content_seg);
+  if (MolReader_CCTransactionWitness_verify(&cc_tx_witness_seg, false) !=
+      MOL_OK) {
     printf("input field is not VerifyTransactionWitness");
     return GW_FATAL_INVALID_DATA;
   }
 
   mol_seg_t raw_l2block_seg =
-      MolReader_VerifyTransactionWitness_get_raw_l2block(
-          &verify_tx_witness_seg);
+      MolReader_CCTransactionWitness_get_raw_l2block(&cc_tx_witness_seg);
 
   /* verify challenged block */
   uint8_t block_hash[32] = {0};
@@ -1144,7 +1141,7 @@ int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
 
   /* verify tx is challenge target */
   mol_seg_t l2tx_seg =
-      MolReader_VerifyTransactionWitness_get_l2tx(&verify_tx_witness_seg);
+      MolReader_CCTransactionWitness_get_l2tx(&cc_tx_witness_seg);
   mol_seg_t raw_l2tx_seg = MolReader_L2Transaction_get_raw(&l2tx_seg);
 
   /* verify tx merkle proof */
@@ -1153,7 +1150,7 @@ int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
   mol_seg_t tx_witness_root_seg =
       MolReader_SubmitTransactions_get_tx_witness_root(&submit_txs_seg);
   mol_seg_t tx_proof_seg =
-      MolReader_VerifyTransactionWitness_get_tx_proof(&verify_tx_witness_seg);
+      MolReader_CCTransactionWitness_get_tx_proof(&cc_tx_witness_seg);
 
   ret = _gw_verify_cbmt_tx_proof(&tx_proof_seg, &tx_witness_root_seg, tx_index,
                                  &l2tx_seg);
@@ -1180,13 +1177,9 @@ int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
   ctx->block_info.timestamp = *((uint64_t *)timestamp_seg.ptr);
   ctx->block_info.block_producer_id = *((uint32_t *)block_producer_id_seg.ptr);
 
-  /* Load VerifyTransactionContext */
-  mol_seg_t verify_tx_ctx_seg =
-      MolReader_VerifyTransactionWitness_get_context(&verify_tx_witness_seg);
-
   /* load block hashes */
   mol_seg_t block_hashes_seg =
-      MolReader_VerifyTransactionContext_get_block_hashes(&verify_tx_ctx_seg);
+      MolReader_CCTransactionWitness_get_block_hashes(&cc_tx_witness_seg);
   uint32_t block_hashes_size =
       MolReader_BlockHashEntryVec_length(&block_hashes_seg);
   smt_state_init(&ctx->block_hashes_state, ctx->block_hashes_pairs,
@@ -1227,8 +1220,8 @@ int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
   /* Merkle proof */
   if (block_hashes_size > 0) {
     mol_seg_t block_hashes_proof_seg =
-        MolReader_VerifyTransactionWitness_get_block_hashes_proof(
-            &verify_tx_witness_seg);
+        MolReader_CCTransactionWitness_get_block_hashes_proof(
+            &cc_tx_witness_seg);
     smt_state_normalize(&ctx->block_hashes_state);
     ret = smt_verify(block_merkle_root, &ctx->block_hashes_state,
                      block_hashes_proof_seg.ptr, block_hashes_proof_seg.size);
@@ -1240,7 +1233,7 @@ int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
 
   /* load kv state */
   mol_seg_t kv_state_seg =
-      MolReader_VerifyTransactionContext_get_kv_state(&verify_tx_ctx_seg);
+      MolReader_CCTransactionWitness_get_kv_state(&cc_tx_witness_seg);
   uint32_t kv_pairs_len = MolReader_KVPairVec_length(&kv_state_seg);
   if (kv_pairs_len > GW_MAX_KV_PAIRS) {
     printf("too many key/value pair");
@@ -1265,8 +1258,7 @@ int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
 
   /* load kv state proof */
   mol_seg_t kv_state_proof_seg =
-      MolReader_VerifyTransactionWitness_get_kv_state_proof(
-          &verify_tx_witness_seg);
+      MolReader_CCTransactionWitness_get_kv_state_proof(&cc_tx_witness_seg);
   mol_seg_t kv_state_proof_bytes_seg =
       MolReader_Bytes_raw_bytes(&kv_state_proof_seg);
   if (kv_state_proof_bytes_seg.size > GW_MAX_KV_PROOF_SIZE) {
@@ -1285,7 +1277,7 @@ int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
   }
 
   mol_seg_t account_count_seg =
-      MolReader_VerifyTransactionContext_get_account_count(&verify_tx_ctx_seg);
+      MolReader_CCTransactionWitness_get_account_count(&cc_tx_witness_seg);
   ctx->account_count = *((uint32_t *)account_count_seg.ptr);
 
   /* load prev account state */
@@ -1309,7 +1301,7 @@ int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
 
   /* load scripts */
   mol_seg_t scripts_seg =
-      MolReader_VerifyTransactionContext_get_scripts(&verify_tx_ctx_seg);
+      MolReader_CCTransactionWitness_get_scripts(&cc_tx_witness_seg);
   uint32_t entries_size = MolReader_ScriptVec_length(&scripts_seg);
   if (entries_size > GW_MAX_SCRIPT_ENTRIES_SIZE) {
     printf("script size is exceeded maximum");
@@ -1346,7 +1338,7 @@ int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
 
   /* load data */
   mol_seg_t load_data_seg =
-      MolReader_VerifyTransactionContext_get_load_data(&verify_tx_ctx_seg);
+      MolReader_CCTransactionWitness_get_load_data(&cc_tx_witness_seg);
   entries_size = MolReader_BytesVec_length(&load_data_seg);
   if (entries_size > GW_MAX_LOAD_DATA_ENTRIES_SIZE) {
     printf("load data size is exceeded maximum");
@@ -1390,8 +1382,7 @@ int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
 
   /* load return data hash */
   mol_seg_t return_data_hash_seg =
-      MolReader_VerifyTransactionContext_get_return_data_hash(
-          &verify_tx_ctx_seg);
+      MolReader_CCTransactionWitness_get_return_data_hash(&cc_tx_witness_seg);
   _gw_fast_memcpy(ctx->return_data_hash, return_data_hash_seg.ptr, 32);
 
   return 0;
@@ -1439,18 +1430,25 @@ int _gw_check_account_script_is_allowed(uint8_t rollup_script_hash[32],
   /* check allowed EOA list */
   mol_seg_t allowed_eoa_list_seg =
       MolReader_RollupConfig_get_allowed_eoa_type_hashes(rollup_config_seg);
-  uint32_t len = MolReader_Byte32Vec_length(&allowed_eoa_list_seg);
+  uint32_t len = MolReader_AllowedTypeHashVec_length(&allowed_eoa_list_seg);
   for (uint32_t i = 0; i < len; i++) {
-    mol_seg_res_t code_hash_res =
-        MolReader_Byte32Vec_get(&allowed_eoa_list_seg, i);
+    mol_seg_res_t allowed_type_hash_res =
+        MolReader_AllowedTypeHashVec_get(&allowed_eoa_list_seg, i);
 
-    if (code_hash_res.errno != MOL_OK ||
-        code_hash_res.seg.size != script_code_hash_seg.size) {
-      printf("[check account script] failed to get EOA code_hash");
+    if (allowed_type_hash_res.errno != MOL_OK) {
+      printf("[check account script] failed to get EOA code hash");
       return GW_FATAL_INVALID_DATA;
     }
 
-    if (memcmp(code_hash_res.seg.ptr, script_code_hash_seg.ptr,
+    mol_seg_t code_hash_seg =
+        MolReader_AllowedTypeHash_get_hash(&allowed_type_hash_res.seg);
+    if (code_hash_seg.size != script_code_hash_seg.size) {
+      printf(
+          "[check account script] failed to get EOA code hash, size mismatch");
+      return GW_FATAL_INVALID_DATA;
+    }
+
+    if (memcmp(code_hash_seg.ptr, script_code_hash_seg.ptr,
                script_code_hash_seg.size) == 0) {
       /* found a valid code_hash */
       printf("[check account script] script is EOA");
@@ -1462,16 +1460,25 @@ int _gw_check_account_script_is_allowed(uint8_t rollup_script_hash[32],
   mol_seg_t allowed_contract_list_seg =
       MolReader_RollupConfig_get_allowed_contract_type_hashes(
           rollup_config_seg);
-  len = MolReader_Byte32Vec_length(&allowed_contract_list_seg);
+  len = MolReader_AllowedTypeHashVec_length(&allowed_contract_list_seg);
   for (uint32_t i = 0; i < len; i++) {
-    mol_seg_res_t code_hash_res =
-        MolReader_Byte32Vec_get(&allowed_contract_list_seg, i);
-    if (code_hash_res.errno != MOL_OK ||
-        code_hash_res.seg.size != script_code_hash_seg.size) {
-      printf("[check account script] failed to get contract code_hash");
+    mol_seg_res_t allowed_type_hash_res =
+        MolReader_AllowedTypeHashVec_get(&allowed_contract_list_seg, i);
+    if (allowed_type_hash_res.errno != MOL_OK) {
+      printf("[check account script] failed to get contract code hash");
       return GW_FATAL_INVALID_DATA;
     }
-    if (memcmp(code_hash_res.seg.ptr, script_code_hash_seg.ptr,
+
+    mol_seg_t code_hash_seg =
+        MolReader_AllowedTypeHash_get_hash(&allowed_type_hash_res.seg);
+    if (code_hash_seg.size != script_code_hash_seg.size) {
+      printf(
+          "[check account script] failed to get contract code hash, size "
+          "mismatch");
+      return GW_FATAL_INVALID_DATA;
+    }
+
+    if (memcmp(code_hash_seg.ptr, script_code_hash_seg.ptr,
                script_code_hash_seg.size) == 0) {
       /* found a valid code_hash */
       printf("[check account script] script is contract");
@@ -1521,7 +1528,8 @@ int _check_owner_lock_hash() {
 
     if (ret != 0) {
       printf(
-          "check owner lock hash failed: failed to load cell lock_hash ret: %d",
+          "check owner lock hash failed: failed to load cell lock_hash ret: "
+          "%d",
           ret);
       return GW_FATAL_INVALID_CONTEXT;
     }

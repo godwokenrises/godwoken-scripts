@@ -1,6 +1,7 @@
 #![allow(clippy::mutable_key_type)]
 
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use crate::script_tests::utils::init_env_log;
 use crate::script_tests::utils::layer1::build_simple_tx_with_out_point;
@@ -17,13 +18,16 @@ use ckb_types::{
     prelude::{Pack as CKBPack, Unpack},
 };
 use gw_common::merkle_utils::ckb_merkle_leaf_hash;
-use gw_common::{state::to_short_address, state::State, H256};
+use gw_common::{state::to_short_script_hash, state::State, H256};
 use gw_generator::account_lock_manage::always_success::AlwaysSuccess;
 use gw_generator::account_lock_manage::AccountLockManage;
-use gw_store::state::mem_state_db::MemStateContext;
+use gw_store::mem_pool_state::MemPoolState;
+use gw_store::mem_pool_state::MemStore;
 use gw_store::state::state_db::StateContext;
 use gw_traits::CodeStore;
-use gw_types::packed::Byte32;
+use gw_types::core::SigningType;
+use gw_types::packed::AllowedTypeHash;
+use gw_types::packed::CCTransactionSignatureWitness;
 use gw_types::prelude::*;
 use gw_types::{
     bytes::Bytes,
@@ -31,13 +35,12 @@ use gw_types::{
     packed::{
         ChallengeLockArgs, ChallengeTarget, DepositRequest, L2Transaction, RawL2Transaction,
         RollupAction, RollupActionUnion, RollupCancelChallenge, RollupConfig, SUDTArgs,
-        SUDTTransfer, Script, ScriptVec, VerifyTransactionSignatureContext,
-        VerifyTransactionSignatureWitness,
+        SUDTTransfer, Script,
     },
 };
 
-#[test]
-fn test_cancel_tx_signature() {
+#[tokio::test]
+async fn test_cancel_tx_signature() {
     init_env_log();
     let input_out_point = random_out_point();
     let type_id = calculate_state_validator_type_id(input_out_point.clone());
@@ -57,13 +60,16 @@ fn test_cancel_tx_signature() {
     let eoa_lock_type_hash: [u8; 32] = eoa_lock_type.calc_script_hash().unpack();
     let l2_sudt_type_hash: [u8; 32] = l2_sudt_type.calc_script_hash().unpack();
 
-    let allowed_eoa_type_hashes: Vec<Byte32> = vec![Pack::pack(&eoa_lock_type_hash)];
+    let allowed_eoa_type_hashes: Vec<AllowedTypeHash> =
+        vec![AllowedTypeHash::from_unknown(eoa_lock_type_hash)];
     let finality_blocks = 10;
     let rollup_config = RollupConfig::new_builder()
         .challenge_script_type_hash(Pack::pack(&challenge_script_type_hash))
         .allowed_eoa_type_hashes(PackVec::pack(allowed_eoa_type_hashes))
         .l2_sudt_validator_script_type_hash(Pack::pack(&l2_sudt_type_hash))
-        .allowed_contract_type_hashes(PackVec::pack(vec![Pack::pack(&l2_sudt_type_hash)]))
+        .allowed_contract_type_hashes(PackVec::pack(vec![AllowedTypeHash::from_unknown(
+            l2_sudt_type_hash,
+        )]))
         .finality_blocks(Pack::pack(&finality_blocks))
         .build();
     // setup chain
@@ -73,8 +79,9 @@ fn test_cancel_tx_signature() {
         rollup_type_script.clone(),
         rollup_config.clone(),
         account_lock_manage,
-    );
-    chain.complete_initial_syncing().unwrap();
+    )
+    .await;
+    chain.complete_initial_syncing().await.unwrap();
     // create a rollup cell
     let capacity = 1000_00000000u64;
     let rollup_cell = build_always_success_cell(
@@ -115,8 +122,10 @@ fn test_cancel_tx_signature() {
         ];
         let produce_block_result = {
             let mem_pool = chain.mem_pool().as_ref().unwrap();
-            let mut mem_pool = smol::block_on(mem_pool.lock());
-            construct_block(&chain, &mut mem_pool, deposit_requests.clone()).unwrap()
+            let mut mem_pool = mem_pool.lock().await;
+            construct_block(&chain, &mut mem_pool, deposit_requests.clone())
+                .await
+                .unwrap()
         };
         let rollup_cell = gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes());
         let asset_scripts = HashSet::new();
@@ -126,7 +135,8 @@ fn test_cancel_tx_signature() {
             produce_block_result,
             deposit_requests,
             asset_scripts,
-        );
+        )
+        .await;
         let db = chain.store().begin_transaction();
         let tree = db.state_tree(StateContext::ReadOnly).unwrap();
         let sender_id = tree
@@ -138,11 +148,11 @@ fn test_cancel_tx_signature() {
             .unwrap()
             .unwrap();
         let receiver_script_hash = tree.get_script_hash(receiver_id).expect("get script hash");
-        let receiver_address = Bytes::copy_from_slice(to_short_address(&receiver_script_hash));
+        let receiver_address = Bytes::copy_from_slice(to_short_script_hash(&receiver_script_hash));
         let sudt_script_hash = tree.get_script_hash(sudt_id).unwrap();
         let sudt_script = tree.get_script(&sudt_script_hash).unwrap();
         let transfer_capacity = 2_00000000u128;
-        let fee_capacity = 1_00000000u128;
+        let fee_capacity = 1_00000000u64;
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
@@ -165,9 +175,11 @@ fn test_cancel_tx_signature() {
             .build();
         let produce_block_result = {
             let mem_pool = chain.mem_pool().as_ref().unwrap();
-            let mut mem_pool = smol::block_on(mem_pool.lock());
-            mem_pool.push_transaction(tx).unwrap();
-            construct_block(&chain, &mut mem_pool, Vec::default()).unwrap()
+            let mut mem_pool = mem_pool.lock().await;
+            mem_pool.push_transaction(tx).await.unwrap();
+            construct_block(&chain, &mut mem_pool, Vec::default())
+                .await
+                .unwrap()
         };
         let asset_scripts = HashSet::new();
         apply_block_result(
@@ -176,7 +188,8 @@ fn test_cancel_tx_signature() {
             produce_block_result,
             vec![],
             asset_scripts,
-        );
+        )
+        .await;
         (sender_script, receiver_script, sudt_script)
     };
     // deploy scripts
@@ -245,12 +258,26 @@ fn test_cancel_tx_signature() {
             let tx_proof = super::build_merkle_proof(&leaves, &[challenge_target_index]);
             let challenged_block_number =
                 gw_types::prelude::Unpack::unpack(&challenged_block.raw().number());
+
+            // Detach block to get right state snapshot
             let db = chain.store().begin_transaction();
-            let mut tree = {
-                let smt_store = db.account_smt_store().unwrap();
-                let mem_ctx = MemStateContext::History(challenged_block_number - 1);
-                db.in_mem_state_tree(smt_store, mem_ctx).unwrap()
+            {
+                db.detach_block(&challenged_block).unwrap();
+                {
+                    let mut tree = db
+                        .state_tree(StateContext::DetachBlock(challenged_block_number))
+                        .unwrap();
+                    tree.detach_block_state().unwrap();
+                }
+            }
+            db.commit().unwrap();
+
+            let state = {
+                let mem_store = MemStore::new(chain.store().get_snapshot());
+                MemPoolState::new(Arc::new(mem_store))
             };
+            let snap = state.load();
+            let mut tree = snap.state().unwrap();
             tree.tracker_mut().enable();
             let sender_id = tree
                 .get_account_id_by_script_hash(&sender_script.hash().into())
@@ -266,14 +293,11 @@ fn test_cancel_tx_signature() {
             tree.get_nonce(receiver_id).unwrap();
             tree.get_script_hash(sudt_id).unwrap();
             let account_count = tree.get_account_count().unwrap();
-            let touched_keys: Vec<H256> = tree
-                .tracker_mut()
-                .touched_keys()
-                .unwrap()
-                .borrow()
-                .clone()
-                .into_iter()
-                .collect();
+            let touched_keys: Vec<H256> = {
+                let keys = tree.tracker_mut().touched_keys().unwrap();
+                let unlock = keys.lock().unwrap();
+                unlock.clone().into_iter().collect()
+            };
 
             let kv_state = touched_keys
                 .iter()
@@ -284,13 +308,6 @@ fn test_cancel_tx_signature() {
                 .collect::<Vec<(H256, H256)>>();
 
             let kv_state_proof: Bytes = {
-                db.detach_block(&challenged_block).unwrap();
-                {
-                    let mut tree = db
-                        .state_tree(StateContext::DetachBlock(challenged_block_number))
-                        .unwrap();
-                    tree.detach_block_state().unwrap();
-                }
                 let account_smt = db.account_smt().unwrap();
                 account_smt
                     .merkle_proof(touched_keys)
@@ -300,22 +317,15 @@ fn test_cancel_tx_signature() {
                     .0
                     .into()
             };
-            let context = VerifyTransactionSignatureContext::new_builder()
-                .scripts(
-                    ScriptVec::new_builder()
-                        .push(sender_script.clone())
-                        .push(sudt_script.clone())
-                        .build(),
-                )
-                .account_count(Pack::pack(&account_count))
-                .kv_state(kv_state.pack())
-                .build();
-            VerifyTransactionSignatureWitness::new_builder()
+            CCTransactionSignatureWitness::new_builder()
                 .l2tx(tx.clone())
                 .raw_l2block(challenged_block.raw())
                 .kv_state_proof(Pack::pack(&kv_state_proof))
                 .tx_proof(tx_proof)
-                .context(context)
+                .sender(sender_script.clone())
+                .receiver(sudt_script.clone())
+                .account_count(Pack::pack(&account_count))
+                .kv_state(kv_state.pack())
                 .build()
         };
         ckb_types::packed::WitnessArgs::new_builder()
@@ -338,6 +348,7 @@ fn test_cancel_tx_signature() {
         );
         let data: Bytes = {
             let mut buf = owner_lock_hash.to_vec();
+            buf.push(SigningType::WithPrefix.into());
             buf.extend_from_slice(message.as_slice());
             buf.into()
         };
