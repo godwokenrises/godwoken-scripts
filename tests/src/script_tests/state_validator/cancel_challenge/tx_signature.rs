@@ -287,7 +287,7 @@ async fn test_cancel_tx_signature() {
 
             let state = {
                 let mem_store = MemStore::new(chain.store().get_snapshot());
-                MemPoolState::new(Arc::new(mem_store))
+                MemPoolState::new(Arc::new(mem_store), true)
             };
             let snap = state.load();
             let mut tree = snap.state().unwrap();

@@ -20,7 +20,6 @@ use ckb_types::{
     prelude::{Pack as CKBPack, Unpack as CKBUnpack},
 };
 use gw_common::builtins::ETH_REGISTRY_ACCOUNT_ID;
-use gw_common::registry_address::RegistryAddress;
 use gw_common::state::State;
 use gw_common::H256;
 use gw_generator::account_lock_manage::{
@@ -32,7 +31,6 @@ use gw_generator::account_lock_manage::{
 };
 use gw_store::mem_pool_state::MemPoolState;
 use gw_store::mem_pool_state::MemStore;
-use gw_store::state::state_db::StateContext;
 use gw_types::core::AllowedEoaType;
 use gw_types::core::SigningType;
 use gw_types::packed::AllowedTypeHash;
@@ -241,7 +239,7 @@ async fn test_cancel_withdrawal() {
         .unwrap();
     let state = {
         let mem_store = MemStore::new(chain.store().get_snapshot());
-        MemPoolState::new(Arc::new(mem_store))
+        MemPoolState::new(Arc::new(mem_store), true)
     };
     let snap = state.load();
     let mut tree = snap.state().unwrap();
