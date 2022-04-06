@@ -92,10 +92,7 @@ pub fn verify_tx_signature(
         sender_address,
     } = verify_tx_context(input)?;
 
-    let (message, signing_type) = match try_assemble_polyjuice_args(
-        &raw_tx,
-        receiver,
-    ) {
+    let (message, signing_type) = match try_assemble_polyjuice_args(&raw_tx, receiver) {
         Some(rlp_data) => {
             let mut hasher = Keccak256::new();
             hasher.update(&*rlp_data);
