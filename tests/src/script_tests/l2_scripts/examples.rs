@@ -6,7 +6,10 @@ use super::{
     SUDT_TOTAL_SUPPLY_PROGRAM, SUDT_TOTAL_SUPPLY_PROGRAM_CODE_HASH, SUM_PROGRAM,
     SUM_PROGRAM_CODE_HASH,
 };
-use gw_common::{h256_ext::H256Ext, registry_address::RegistryAddress, state::State, H256, U256};
+use gw_common::{
+    builtins::ETH_REGISTRY_ACCOUNT_ID, h256_ext::H256Ext, registry_address::RegistryAddress,
+    state::State, H256, U256,
+};
 use gw_config::BackendType;
 use gw_generator::{
     account_lock_manage::{always_success::AlwaysSuccess, secp256k1::Secp256k1, AccountLockManage},
@@ -339,7 +342,7 @@ fn test_example_account_operation() {
     // Log: success
     {
         let account_id = 0;
-        let registry_id = 2;
+        let registry_id = ETH_REGISTRY_ACCOUNT_ID;
         let from_addr = RegistryAddress::new(registry_id, vec![0x33u8; 20]);
         let to_addr = RegistryAddress::new(registry_id, vec![0x44u8; 20]);
         let amount: u128 = 101;

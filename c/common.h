@@ -247,12 +247,12 @@ int _gw_build_registry_address_to_script_hash_key(uint8_t key[32],
   registry_address: registry_id(4 bytes) | address_len(4 bytes) | address(n
   bytes) */
   if (GW_REG_ADDR_SIZE((*addr)) != 28) {
-    /* raw_key 32 bytes = 3 + 1 + 4 + 4 + 20 */
     printf(
         "_gw_build_registry_address_to_script_hash_key: invalid addr size, "
         "expect 28");
     return GW_FATAL_BUFFER_OVERFLOW;
   }
+  /* raw_key 32 bytes = 3 + 1 + 4 + 4 + 20 */
   memcpy(key, (uint8_t *)"reg", 3);
   key[3] = GW_REGISTRY_KEY_FLAG_NATIVE_TO_SCRIPT_HASH;
   memcpy(key + 4, (uint8_t *)&addr->reg_id, 4);

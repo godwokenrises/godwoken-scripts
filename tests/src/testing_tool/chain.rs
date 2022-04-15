@@ -4,7 +4,7 @@ use gw_block_producer::produce_block::{
     generate_produce_block_param, produce_block, ProduceBlockParam, ProduceBlockResult,
 };
 use gw_chain::chain::{Chain, L1Action, L1ActionContext, SyncParam};
-use gw_common::{registry_address::RegistryAddress, H256};
+use gw_common::{builtins::ETH_REGISTRY_ACCOUNT_ID, registry_address::RegistryAddress, H256};
 use gw_config::{BackendConfig, BackendType, ChainConfig, GenesisConfig, MemPoolConfig, NodeMode};
 use gw_generator::{
     account_lock_manage::{always_success::AlwaysSuccess, AccountLockManage},
@@ -158,7 +158,7 @@ pub async fn setup_chain_with_account_lock_manage(
         ..Default::default()
     };
     let args = MemPoolCreateArgs {
-        block_producer: RegistryAddress::new(1, Vec::default()),
+        block_producer: RegistryAddress::new(ETH_REGISTRY_ACCOUNT_ID, Vec::default()),
         store: store.clone(),
         generator: Arc::clone(&generator),
         provider,
