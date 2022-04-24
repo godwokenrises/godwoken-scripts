@@ -280,20 +280,19 @@ dependencies = [
 [[package]]
 name = "gw-common"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=b4db76522b7982f650cc5a6053d5f3957b7cbfd0#b4db76522b7982f650cc5a6053d5f3957b7cbfd0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=1090567d2c54384f5456a0363e5574e0af1b7268#1090567d2c54384f5456a0363e5574e0af1b7268"
 dependencies = [
  "cfg-if 0.1.10",
  "gw-hash",
  "gw-types",
  "merkle-cbt",
- "primitive-types",
  "sparse-merkle-tree",
 ]
 
 [[package]]
 name = "gw-hash"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=b4db76522b7982f650cc5a6053d5f3957b7cbfd0#b4db76522b7982f650cc5a6053d5f3957b7cbfd0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=1090567d2c54384f5456a0363e5574e0af1b7268#1090567d2c54384f5456a0363e5574e0af1b7268"
 dependencies = [
  "blake2b-ref",
 ]
@@ -309,11 +308,12 @@ dependencies = [
 [[package]]
 name = "gw-types"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=b4db76522b7982f650cc5a6053d5f3957b7cbfd0#b4db76522b7982f650cc5a6053d5f3957b7cbfd0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=1090567d2c54384f5456a0363e5574e0af1b7268#1090567d2c54384f5456a0363e5574e0af1b7268"
 dependencies = [
  "cfg-if 0.1.10",
  "gw-hash",
  "molecule 0.7.2",
+ "primitive-types",
  "sparse-merkle-tree",
 ]
 
@@ -331,6 +331,24 @@ name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
+name = "impl-rlp"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f28220f89297a075ddc7245cd538076ee98b01f2a9c23a53a4f1105d5a322808"
+dependencies = [
+ "rlp",
+]
+
+[[package]]
+name = "impl-serde"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4551f042f3438e64dbd6226b20527fc84a6e1fe65688b58746a2f53623f25f5c"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "keccak"
@@ -384,6 +402,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05e4722c697a58a99d5d06a08c30821d7c082a4632198de1eaa5a6c22ef42373"
 dependencies = [
  "fixed-hash",
+ "impl-rlp",
+ "impl-serde",
  "uint",
 ]
 
@@ -409,6 +429,12 @@ version = "0.1.0"
 dependencies = [
  "cc",
 ]
+
+[[package]]
+name = "serde"
+version = "1.0.136"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce31e24b01e1e524df96f1c2fdd054405f8d7376249a5110886fb4b658484789"
 
 [[package]]
 name = "sha3"

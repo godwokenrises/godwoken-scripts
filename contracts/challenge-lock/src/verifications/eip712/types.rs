@@ -7,7 +7,7 @@ use alloc::{
 use gw_utils::{
     ckb_std::debug,
     error::Error,
-    gw_types::{core::ScriptHashType, packed::RawWithdrawalRequest, prelude::Unpack},
+    gw_types::{core::ScriptHashType, packed::RawWithdrawalRequest, prelude::Unpack, U256},
 };
 use sha3::{Digest, Keccak256};
 
@@ -199,7 +199,7 @@ pub struct Withdrawal {
     nonce: u32,
     chain_id: u64,
     // withdrawal fee, paid to block producer
-    fee: u64,
+    fee: U256,
     // layer1 lock to withdraw after challenge period
     layer1_owner_lock: Script,
     // CKB amount
