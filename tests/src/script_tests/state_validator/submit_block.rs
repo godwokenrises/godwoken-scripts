@@ -36,8 +36,8 @@ use gw_types::{
 const INVALID_BLOCK_ERROR: i8 = 22;
 const INVALID_POST_GLOBAL_STATE: i8 = 25;
 
-#[test]
-fn test_submit_block() {
+#[tokio::test]
+async fn test_submit_block() {
     // calculate type id
     let capacity = 1000_00000000u64;
     let spend_cell = build_always_success_cell(capacity, None);
@@ -57,7 +57,7 @@ fn test_submit_block() {
         .stake_script_type_hash(Pack::pack(&stake_script_type_hash))
         .build();
     // setup chain
-    let chain = setup_chain(rollup_type_script.clone(), rollup_config.clone());
+    let chain = setup_chain(rollup_type_script.clone(), rollup_config.clone()).await;
     // deploy scripts
     let param = CellContextParam {
         stake_lock_type,
@@ -110,8 +110,10 @@ fn test_submit_block() {
     // submit a new block
     let block_result = {
         let mem_pool = chain.mem_pool().as_ref().unwrap();
-        let mut mem_pool = smol::block_on(mem_pool.lock());
-        construct_block(&chain, &mut mem_pool, Vec::default()).unwrap()
+        let mut mem_pool = mem_pool.lock().await;
+        construct_block(&chain, &mut mem_pool, Vec::default())
+            .await
+            .unwrap()
     };
     // verify submit block
     let tip_block_timestamp = block_result.block.raw().timestamp();
@@ -153,8 +155,8 @@ fn test_submit_block() {
     ctx.verify_tx(tx).expect("return success");
 }
 
-#[test]
-fn test_downgrade_rollup_cell() {
+#[tokio::test]
+async fn test_downgrade_rollup_cell() {
     // calculate type id
     let capacity = 1000_00000000u64;
     let spend_cell = build_always_success_cell(capacity, None);
@@ -174,7 +176,7 @@ fn test_downgrade_rollup_cell() {
         .stake_script_type_hash(Pack::pack(&stake_script_type_hash))
         .build();
     // setup chain
-    let chain = setup_chain(rollup_type_script.clone(), rollup_config.clone());
+    let chain = setup_chain(rollup_type_script.clone(), rollup_config.clone()).await;
     // deploy scripts
     let param = CellContextParam {
         stake_lock_type,
@@ -232,8 +234,10 @@ fn test_downgrade_rollup_cell() {
     // submit a new block
     let block_result = {
         let mem_pool = chain.mem_pool().as_ref().unwrap();
-        let mut mem_pool = smol::block_on(mem_pool.lock());
-        construct_block(&chain, &mut mem_pool, Vec::default()).unwrap()
+        let mut mem_pool = mem_pool.lock().await;
+        construct_block(&chain, &mut mem_pool, Vec::default())
+            .await
+            .unwrap()
     };
     // verify submit block
     let tip_block_timestamp = block_result.block.raw().timestamp();
@@ -285,8 +289,8 @@ fn test_downgrade_rollup_cell() {
     assert_error_eq!(err, expected_err);
 }
 
-#[test]
-fn test_v1_block_timestamp_smaller_or_equal_than_previous_block_in_submit_block() {
+#[tokio::test]
+async fn test_v1_block_timestamp_smaller_or_equal_than_previous_block_in_submit_block() {
     // calculate type id
     let capacity = 1000_00000000u64;
     let spend_cell = build_always_success_cell(capacity, None);
@@ -306,7 +310,7 @@ fn test_v1_block_timestamp_smaller_or_equal_than_previous_block_in_submit_block(
         .stake_script_type_hash(Pack::pack(&stake_script_type_hash))
         .build();
     // setup chain
-    let chain = setup_chain(rollup_type_script.clone(), rollup_config.clone());
+    let chain = setup_chain(rollup_type_script.clone(), rollup_config.clone()).await;
     // deploy scripts
     let param = CellContextParam {
         stake_lock_type,
@@ -377,8 +381,10 @@ fn test_v1_block_timestamp_smaller_or_equal_than_previous_block_in_submit_block(
     let block_result = {
         let timestamp = tip_block_timestamp.saturating_sub(100);
         let mem_pool = chain.mem_pool().as_ref().unwrap();
-        let mut mem_pool = smol::block_on(mem_pool.lock());
-        construct_block_from_timestamp(&chain, &mut mem_pool, Vec::default(), timestamp).unwrap()
+        let mut mem_pool = mem_pool.lock().await;
+        construct_block_from_timestamp(&chain, &mut mem_pool, Vec::default(), timestamp)
+            .await
+            .unwrap()
     };
     // verify submit block
     let block_timestamp = GWUnpack::unpack(&block_result.block.raw().timestamp());
@@ -434,8 +440,9 @@ fn test_v1_block_timestamp_smaller_or_equal_than_previous_block_in_submit_block(
     // #### Submit a equal block timestamp
     let block_result = {
         let mem_pool = chain.mem_pool().as_ref().unwrap();
-        let mut mem_pool = smol::block_on(mem_pool.lock());
+        let mut mem_pool = mem_pool.lock().await;
         construct_block_from_timestamp(&chain, &mut mem_pool, Vec::default(), tip_block_timestamp)
+            .await
             .unwrap()
     };
     // verify submit block
@@ -489,8 +496,8 @@ fn test_v1_block_timestamp_smaller_or_equal_than_previous_block_in_submit_block(
     assert_error_eq!(err, expected_err);
 }
 
-#[test]
-fn test_v1_block_timestamp_bigger_than_rollup_input_since_in_submit_block() {
+#[tokio::test]
+async fn test_v1_block_timestamp_bigger_than_rollup_input_since_in_submit_block() {
     // calculate type id
     let capacity = 1000_00000000u64;
     let spend_cell = build_always_success_cell(capacity, None);
@@ -510,7 +517,7 @@ fn test_v1_block_timestamp_bigger_than_rollup_input_since_in_submit_block() {
         .stake_script_type_hash(Pack::pack(&stake_script_type_hash))
         .build();
     // setup chain
-    let chain = setup_chain(rollup_type_script.clone(), rollup_config.clone());
+    let chain = setup_chain(rollup_type_script.clone(), rollup_config.clone()).await;
     // deploy scripts
     let param = CellContextParam {
         stake_lock_type,
@@ -568,8 +575,10 @@ fn test_v1_block_timestamp_bigger_than_rollup_input_since_in_submit_block() {
     // submit a new block
     let block_result = {
         let mem_pool = chain.mem_pool().as_ref().unwrap();
-        let mut mem_pool = smol::block_on(mem_pool.lock());
-        construct_block(&chain, &mut mem_pool, Vec::default()).unwrap()
+        let mut mem_pool = mem_pool.lock().await;
+        construct_block(&chain, &mut mem_pool, Vec::default())
+            .await
+            .unwrap()
     };
     // verify submit block
     let tip_block_timestamp = GWUnpack::unpack(&block_result.block.raw().timestamp());
@@ -622,8 +631,8 @@ fn test_v1_block_timestamp_bigger_than_rollup_input_since_in_submit_block() {
     assert_error_eq!(err, expected_err);
 }
 
-#[test]
-fn test_v0_v1_wrong_global_state_tip_block_timestamp_in_submit_block() {
+#[tokio::test]
+async fn test_v0_v1_wrong_global_state_tip_block_timestamp_in_submit_block() {
     // calculate type id
     let capacity = 1000_00000000u64;
     let spend_cell = build_always_success_cell(capacity, None);
@@ -643,7 +652,7 @@ fn test_v0_v1_wrong_global_state_tip_block_timestamp_in_submit_block() {
         .stake_script_type_hash(Pack::pack(&stake_script_type_hash))
         .build();
     // setup chain
-    let chain = setup_chain(rollup_type_script.clone(), rollup_config.clone());
+    let chain = setup_chain(rollup_type_script.clone(), rollup_config.clone()).await;
     // deploy scripts
     let param = CellContextParam {
         stake_lock_type,
@@ -702,8 +711,10 @@ fn test_v0_v1_wrong_global_state_tip_block_timestamp_in_submit_block() {
     // #### Submit a version 0 global state but block timestamp isn't 0
     let block_result = {
         let mem_pool = chain.mem_pool().as_ref().unwrap();
-        let mut mem_pool = smol::block_on(mem_pool.lock());
-        construct_block(&chain, &mut mem_pool, Vec::default()).unwrap()
+        let mut mem_pool = mem_pool.lock().await;
+        construct_block(&chain, &mut mem_pool, Vec::default())
+            .await
+            .unwrap()
     };
     // verify submit block
     let tip_block_timestamp = GWUnpack::unpack(&block_result.block.raw().timestamp());
@@ -829,8 +840,8 @@ fn test_v0_v1_wrong_global_state_tip_block_timestamp_in_submit_block() {
     assert_error_eq!(err, expected_err);
 }
 
-#[test]
-fn test_check_reverted_cells_in_submit_block() {
+#[tokio::test]
+async fn test_check_reverted_cells_in_submit_block() {
     let capacity = 1000_00000000u64;
     let input_out_point = random_out_point();
     let type_id = calculate_state_validator_type_id(input_out_point.clone());
@@ -857,7 +868,7 @@ fn test_check_reverted_cells_in_submit_block() {
         .withdrawal_script_type_hash(Pack::pack(&withdrawal_script_type_hash))
         .build();
     // setup chain
-    let chain = setup_chain(rollup_type_script.clone(), rollup_config.clone());
+    let chain = setup_chain(rollup_type_script.clone(), rollup_config.clone()).await;
     // deploy scripts
     let param = CellContextParam {
         stake_lock_type,
@@ -1013,8 +1024,10 @@ fn test_check_reverted_cells_in_submit_block() {
     // submit a new block
     let block_result = {
         let mem_pool = chain.mem_pool().as_ref().unwrap();
-        let mut mem_pool = smol::block_on(mem_pool.lock());
-        construct_block(&chain, &mut mem_pool, Vec::default()).unwrap()
+        let mut mem_pool = mem_pool.lock().await;
+        construct_block(&chain, &mut mem_pool, Vec::default())
+            .await
+            .unwrap()
     };
     // verify submit block
     let tip_block_timestamp = block_result.block.raw().timestamp();
@@ -1075,8 +1088,8 @@ fn test_check_reverted_cells_in_submit_block() {
     ctx.verify_tx(tx).expect("return success");
 }
 
-#[test]
-fn test_withdrawal_cell_lock_args_with_owner_lock_in_submit_block() {
+#[tokio::test]
+async fn test_withdrawal_cell_lock_args_with_owner_lock_in_submit_block() {
     let _ = env_logger::builder().is_test(true).try_init();
 
     let capacity = 1000_00000000u64;
@@ -1105,7 +1118,7 @@ fn test_withdrawal_cell_lock_args_with_owner_lock_in_submit_block() {
         .build();
 
     // setup chain
-    let mut chain = setup_chain(rollup_type_script.clone(), rollup_config.clone());
+    let mut chain = setup_chain(rollup_type_script.clone(), rollup_config.clone()).await;
 
     // create a rollup cell
     let rollup_cell = build_always_success_cell(
@@ -1134,8 +1147,10 @@ fn test_withdrawal_cell_lock_args_with_owner_lock_in_submit_block() {
 
     let block_result = {
         let mem_pool = chain.mem_pool().as_ref().unwrap();
-        let mut mem_pool = smol::block_on(mem_pool.lock());
-        construct_block(&chain, &mut mem_pool, vec![deposit.clone()]).unwrap()
+        let mut mem_pool = mem_pool.lock().await;
+        construct_block(&chain, &mut mem_pool, vec![deposit.clone()])
+            .await
+            .unwrap()
     };
     let apply_deposits = L1Action {
         context: L1ActionContext::SubmitBlock {
@@ -1155,7 +1170,7 @@ fn test_withdrawal_cell_lock_args_with_owner_lock_in_submit_block() {
         updates: vec![apply_deposits],
         reverts: Default::default(),
     };
-    chain.sync(param).unwrap();
+    chain.sync(param).await.unwrap();
     assert!(chain.last_sync_event().is_success());
 
     // Withdraw
@@ -1171,12 +1186,15 @@ fn test_withdrawal_cell_lock_args_with_owner_lock_in_submit_block() {
     // submit a new block
     let block_result = {
         let mem_pool = chain.mem_pool().as_ref().unwrap();
-        let mut mem_pool = smol::block_on(mem_pool.lock());
+        let mut mem_pool = mem_pool.lock().await;
         mem_pool
-            .push_withdrawal_request(withdrawal_request)
+            .push_withdrawal_request(withdrawal_request.into())
+            .await
             .unwrap();
-        mem_pool.reset_mem_block().unwrap();
-        construct_block(&chain, &mut mem_pool, Vec::default()).unwrap()
+        mem_pool.reset_mem_block().await.unwrap();
+        construct_block(&chain, &mut mem_pool, Vec::default())
+            .await
+            .unwrap()
     };
     assert_eq!(block_result.block.withdrawals().len(), 1);
 

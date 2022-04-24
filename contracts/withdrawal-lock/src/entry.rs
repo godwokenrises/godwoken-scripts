@@ -8,10 +8,6 @@ use gw_types::{
 use gw_utils::cells::rollup::{
     load_rollup_config, parse_rollup_action, search_rollup_cell, search_rollup_state,
 };
-use gw_utils::ckb_std::{
-    debug,
-    high_level::{load_cell_lock_hash, QueryIter},
-};
 use gw_utils::gw_types::packed::{
     CustodianLockArgs, CustodianLockArgsReader, RollupActionUnionReader,
     UnlockWithdrawalWitnessUnion, WithdrawalLockArgs,
@@ -21,6 +17,13 @@ use gw_utils::{
     gw_types::{self, core::ScriptHashType},
 };
 use gw_utils::{cells::utils::search_lock_hash, ckb_std::high_level::load_cell_lock};
+use gw_utils::{
+    ckb_std::{
+        debug,
+        high_level::{load_cell_lock_hash, QueryIter},
+    },
+    withdrawal::OwnerLock,
+};
 
 // Import CKB syscalls and structures
 // https://nervosnetwork.github.io/ckb-std/riscv64imac-unknown-none-elf/doc/ckb_std/index.html
@@ -40,10 +43,10 @@ const FINALIZED_BLOCK_HASH: [u8; 32] = [0u8; 32];
 struct ParsedLockArgs {
     rollup_type_hash: [u8; 32],
     lock_args: WithdrawalLockArgs,
-    opt_owner_lock_hash: Option<[u8; 32]>,
+    owner_lock: OwnerLock,
 }
 
-/// args: rollup_type_hash | withdrawal lock args | owner lock len (optional) | owner lock (optional)
+/// args: rollup_type_hash | withdrawal lock args | owner lock len (optional) | owner lock (optional) | withdrawal_to_v1 flag byte (optional)
 fn parse_lock_args(script: &ckb_types::packed::Script) -> Result<ParsedLockArgs, Error> {
     let mut rollup_type_hash = [0u8; 32];
     let args: Bytes = script.args().unpack();
@@ -54,11 +57,12 @@ fn parse_lock_args(script: &ckb_types::packed::Script) -> Result<ParsedLockArgs,
     rollup_type_hash.copy_from_slice(&args[..32]);
     let parsed = gw_utils::withdrawal::parse_lock_args(&args)?;
 
-    Ok(ParsedLockArgs {
+    let parsed_lock_args = ParsedLockArgs {
         rollup_type_hash,
         lock_args: parsed.lock_args,
-        opt_owner_lock_hash: parsed.opt_owner_lock.map(|l| l.hash()),
-    })
+        owner_lock: parsed.owner_lock,
+    };
+    Ok(parsed_lock_args)
 }
 
 pub fn main() -> Result<(), Error> {
@@ -66,7 +70,7 @@ pub fn main() -> Result<(), Error> {
     let ParsedLockArgs {
         rollup_type_hash,
         lock_args,
-        opt_owner_lock_hash,
+        owner_lock,
     } = parse_lock_args(&script)?;
 
     // load unlock arguments from witness
@@ -173,7 +177,7 @@ pub fn main() -> Result<(), Error> {
             }
 
             // withdrawal lock is finalized, unlock for owner
-            if let Some(owner_lock_hash) = opt_owner_lock_hash {
+            if let OwnerLock::Owner(owner_lock) = owner_lock {
                 // check whether output cell at same index only change lock script
                 let withdrawal_lock_hash = load_cell_lock_hash(0, Source::GroupInput)?;
 
@@ -189,7 +193,7 @@ pub fn main() -> Result<(), Error> {
                     }
 
                     let maybe_output_lock_hash = load_cell_lock_hash(index, Source::Output);
-                    if maybe_output_lock_hash != Ok(owner_lock_hash) {
+                    if maybe_output_lock_hash != Ok(owner_lock.hash()) {
                         debug!("[via finalize] output cell owner lock not match, fallback to input owner cell");
                         invalid_output_found = true;
                         break;
@@ -211,6 +215,33 @@ pub fn main() -> Result<(), Error> {
 
         UnlockWithdrawalWitnessUnion::UnlockWithdrawalViaTrade(_unlock_args) => {
             Err(Error::NotForSell)
+        }
+
+        UnlockWithdrawalWitnessUnion::UnlockWithdrawalToV1(_unlock_args) => {
+            let deposit_lock = match owner_lock {
+                OwnerLock::V1Deposit(script) => script,
+                _ => return Err(Error::InvalidArgs),
+            };
+
+            // check whether output cell at same index only change lock script
+            let withdrawal_lock_hash = load_cell_lock_hash(0, Source::GroupInput)?;
+            for (index, _) in QueryIter::new(load_cell_lock_hash, Source::Input)
+                .enumerate()
+                .filter(|(_idx, lock_hash)| lock_hash == &withdrawal_lock_hash)
+            {
+                if check_output_cell_has_same_content(index, Source::Input, index).is_err() {
+                    debug!("[withdrawal to v1] output cell content not match");
+                    return Err(Error::InvalidOutput);
+                }
+
+                let maybe_output_lock_hash = load_cell_lock_hash(index, Source::Output);
+                if maybe_output_lock_hash != Ok(deposit_lock.hash()) {
+                    debug!("[withdrawal to v1] output cell owner lock not match");
+                    return Err(Error::InvalidOutput);
+                }
+            }
+
+            Ok(())
         }
     }
 }

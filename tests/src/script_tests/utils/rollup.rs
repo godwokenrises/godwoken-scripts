@@ -17,6 +17,8 @@ use gw_ckb_hardfork::{GLOBAL_CURRENT_EPOCH_NUMBER, GLOBAL_HARDFORK_SWITCH};
 use gw_common::blake2b::new_blake2b;
 use gw_types::{bytes::Bytes, core::ScriptHashType, packed::RollupConfig, prelude::*};
 
+use std::sync::atomic::Ordering;
+
 pub struct CellContextParam {
     pub stake_lock_type: ckb_types::packed::Script,
     pub challenge_lock_type: ckb_types::packed::Script,
@@ -270,8 +272,8 @@ impl CellContext {
         &self,
         tx: ckb_types::core::TransactionView,
     ) -> Result<ckb_types::core::Cycle, ckb_error::Error> {
-        let hardfork_switch = smol::block_on(async {
-            let switch = &*GLOBAL_HARDFORK_SWITCH.lock().await;
+        let hardfork_switch = {
+            let switch = GLOBAL_HARDFORK_SWITCH.load();
             HardForkSwitch::new_without_any_enabled()
                 .as_builder()
                 .rfc_0028(switch.rfc_0028())
@@ -283,12 +285,11 @@ impl CellContext {
                 .rfc_0038(switch.rfc_0038())
                 .build()
                 .unwrap()
-        });
+        };
         let consensus = ConsensusBuilder::default()
             .hardfork_switch(hardfork_switch)
             .build();
-        let current_epoch_number =
-            smol::block_on(async { *GLOBAL_CURRENT_EPOCH_NUMBER.lock().await });
+        let current_epoch_number = GLOBAL_CURRENT_EPOCH_NUMBER.load(Ordering::SeqCst);
         let tx_verify_env = TxVerifyEnv::new_submit(
             &HeaderView::new_advanced_builder()
                 .epoch(CKBPack::pack(&current_epoch_number))

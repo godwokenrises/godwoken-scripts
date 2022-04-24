@@ -16,8 +16,9 @@ use gw_types::bytes::Bytes;
 use gw_types::core::ScriptHashType;
 use gw_types::packed::{
     CellDep, CellInput, CellOutput, GlobalState, OutPoint, RollupConfig, Script,
-    UnlockWithdrawalViaFinalize, UnlockWithdrawalViaTrade, UnlockWithdrawalWitness,
-    UnlockWithdrawalWitnessUnion, WithdrawalLockArgs, WithdrawalLockArgsReader, WitnessArgs,
+    UnlockWithdrawalToV1, UnlockWithdrawalViaFinalize, UnlockWithdrawalViaTrade,
+    UnlockWithdrawalWitness, UnlockWithdrawalWitnessUnion, WithdrawalLockArgs,
+    WithdrawalLockArgsReader, WitnessArgs,
 };
 use gw_types::prelude::{Pack, Unpack};
 use secp256k1::rand::rngs::OsRng;
@@ -323,6 +324,183 @@ fn test_unlock_withdrawal_via_finalize_by_switch_indexed_output_to_owner_lock() 
             ckb_types::H256(script_ctx.withdrawal.script.hash())
         ),
         OWNER_CELL_NOT_FOUND_ERROR,
+    )
+    .input_lock_script(0);
+    assert_error_eq!(err, expected_err);
+
+    // Fill correct output
+    let tx = tx
+        .as_advanced_builder()
+        .output(output_cell.0)
+        .output_data(output_cell.1.to_ckb())
+        .build();
+
+    verify_ctx.verify_tx(tx).expect("success");
+}
+
+#[test]
+fn test_unlock_withdrawal_to_v1_deposit_by_switch_indexed_output_to_v1_deposit_lock() {
+    init_env_log();
+
+    const DEFAULT_CAPACITY: u64 = 1000 * 10u64.pow(8);
+
+    let rollup_type_script = random_always_success_script();
+    let rollup_type_hash = rollup_type_script.hash();
+    let (mut verify_ctx, script_ctx) = build_verify_context();
+
+    let last_finalized_block_number = rand::random::<u64>() + 100;
+    let rollup_cell = {
+        let global_state = GlobalState::new_builder()
+            .last_finalized_block_number(last_finalized_block_number.pack())
+            .build();
+
+        let output = CellOutput::new_builder()
+            .lock(random_always_success_script())
+            .type_(Some(rollup_type_script).pack())
+            .capacity(DEFAULT_CAPACITY.pack())
+            .build();
+
+        (output, global_state.as_bytes())
+    };
+    let rollup_dep = {
+        let out_point = verify_ctx.insert_cell(rollup_cell.0.to_ckb(), rollup_cell.1);
+        CellDep::new_builder().out_point(out_point.to_gw()).build()
+    };
+
+    let owner_lock = random_always_success_script();
+    let unfinalized_to_v1_withdrawal_cell = {
+        let lock_args = WithdrawalLockArgs::new_builder()
+            .account_script_hash(random_always_success_script().hash().pack())
+            .withdrawal_block_hash(random_always_success_script().hash().pack())
+            .withdrawal_block_number(last_finalized_block_number.saturating_add(100).pack())
+            .sell_amount(0u128.pack())
+            .sell_capacity(0u64.pack())
+            .owner_lock_hash(owner_lock.hash().pack())
+            .payment_lock_hash(owner_lock.hash().pack())
+            .build();
+
+        let mut args = Vec::new();
+        args.extend_from_slice(&lock_args.as_bytes());
+        args.extend_from_slice(&(owner_lock.as_bytes().len() as u32).to_be_bytes());
+        args.extend_from_slice(&owner_lock.as_bytes());
+        args.push(1);
+
+        let output = build_rollup_locked_cell(
+            &rollup_type_hash,
+            &script_ctx.withdrawal.script.hash(),
+            DEFAULT_CAPACITY,
+            Bytes::from(args),
+        );
+
+        (output, 0u128.pack().as_bytes())
+    };
+    let to_v1_withdrawal_input_1 = {
+        let out_point = verify_ctx.insert_cell(
+            unfinalized_to_v1_withdrawal_cell.0.clone(),
+            0u128.pack().as_bytes(),
+        );
+        CellInput::new_builder()
+            .previous_output(out_point.to_gw())
+            .build()
+    };
+    let to_v1_withdrawal_input_2 = {
+        let out_point = verify_ctx.insert_cell(
+            unfinalized_to_v1_withdrawal_cell.0.clone(),
+            0u128.pack().as_bytes(),
+        );
+        CellInput::new_builder()
+            .previous_output(out_point.to_gw())
+            .build()
+    };
+    let output_cell = {
+        let output = CellOutput::new_builder()
+            .capacity(DEFAULT_CAPACITY.pack())
+            .lock(owner_lock)
+            .build();
+
+        (output.to_ckb(), 0u128.pack().as_bytes())
+    };
+    let unlock_to_v1_deposit_witness = {
+        let unlock_args = UnlockWithdrawalToV1::new_builder().build();
+        let unlock_witness = UnlockWithdrawalWitness::new_builder()
+            .set(UnlockWithdrawalWitnessUnion::UnlockWithdrawalToV1(
+                unlock_args,
+            ))
+            .build();
+        WitnessArgs::new_builder()
+            .lock(Some(unlock_witness.as_bytes()).pack())
+            .build()
+    };
+
+    // Try single withdrawal
+    let tx = build_simple_tx_with_out_point(
+        &mut verify_ctx.inner,
+        unfinalized_to_v1_withdrawal_cell,
+        to_v1_withdrawal_input_1.to_ckb().previous_output(),
+        output_cell.clone(),
+    )
+    .as_advanced_builder()
+    .witness(unlock_to_v1_deposit_witness.as_bytes().to_ckb())
+    .cell_dep(script_ctx.withdrawal.dep.to_ckb())
+    .cell_dep(rollup_dep.to_ckb())
+    .build();
+
+    verify_ctx.verify_tx(tx.clone()).expect("success");
+
+    // Try multiple withdrawals without indexed output
+    let tx = tx
+        .as_advanced_builder()
+        .input(to_v1_withdrawal_input_2.to_ckb())
+        .witness(Default::default())
+        .build();
+
+    let err = verify_ctx.verify_tx(tx.clone()).unwrap_err();
+    let expected_err = ScriptError::ValidationFailure(
+        format!(
+            "by-type-hash/{}",
+            ckb_types::H256(script_ctx.withdrawal.script.hash())
+        ),
+        INVALID_OUTPUT_ERROR,
+    )
+    .input_lock_script(0);
+    assert_error_eq!(err, expected_err);
+
+    // Fill incorrect output
+    let err_tx = tx
+        .as_advanced_builder()
+        .output(output_cell.0.clone())
+        .output_data(1u128.pack().as_bytes().to_ckb()) // ERROR: change output data
+        .build();
+
+    let err = verify_ctx.verify_tx(err_tx).unwrap_err();
+    let expected_err = ScriptError::ValidationFailure(
+        format!(
+            "by-type-hash/{}",
+            ckb_types::H256(script_ctx.withdrawal.script.hash())
+        ),
+        INVALID_OUTPUT_ERROR,
+    )
+    .input_lock_script(0);
+    assert_error_eq!(err, expected_err);
+
+    // Fill incorrect output lock
+    let err_output = CellOutput::new_builder()
+        .capacity(DEFAULT_CAPACITY.pack())
+        .lock(random_always_success_script()) // ERROR: dirrerent output lock
+        .build();
+    let err_tx = tx
+        .as_advanced_builder()
+        .output(err_output.to_ckb())
+        .output_data(output_cell.1.to_ckb())
+        .build();
+
+    let err = verify_ctx.verify_tx(err_tx).unwrap_err();
+    let expected_err = ScriptError::ValidationFailure(
+        format!(
+            "by-type-hash/{}",
+            ckb_types::H256(script_ctx.withdrawal.script.hash())
+        ),
+        INVALID_OUTPUT_ERROR,
     )
     .input_lock_script(0);
     assert_error_eq!(err, expected_err);
