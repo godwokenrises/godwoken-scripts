@@ -28,9 +28,9 @@
  */
 
 #include "ckb_syscalls.h"
-#include "gw_sudt_ckb_utils.h"
 #include "gw_syscalls.h"
 #include "stdio.h"
+#include "sudt_utils.h"
 
 /* MSG_TYPE */
 #define MSG_QUERY 0
@@ -65,13 +65,13 @@ int main() {
     if (ret != 0) {
       return ret;
     }
-    uint128_t balance = 0;
+    uint256_t balance = {0};
     ret = sudt_get_balance(&ctx, sudt_id, addr, &balance);
     if (ret != 0) {
       return ret;
     }
     ret = ctx.sys_set_program_return_data(&ctx, (uint8_t *)&balance,
-                                          sizeof(uint128_t));
+                                          sizeof(uint256_t));
     if (ret != 0) {
       return ret;
     }
@@ -114,9 +114,15 @@ int main() {
       return ret;
     }
 
-    uint128_t amount = *(uint128_t *)amount_seg.ptr;
+    uint256_t amount = {0};
+    ret = uint256_from_little_endian(amount_seg.ptr, amount_seg.size, &amount);
+    if (ret != 0) {
+      ckb_debug("failed to fetch uint256 amount");
+      return ret;
+    }
+
     /* pay fee */
-    ret = ckb_pay_fee(&ctx, from_addr, fee_amount);
+    ret = sudt_pay_fee(&ctx, CKB_SUDT_ACCOUNT_ID, from_addr, fee_amount);
     if (ret != 0) {
       printf("pay fee failed");
       return ret;

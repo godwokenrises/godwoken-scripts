@@ -7,8 +7,8 @@
  */
 
 #include "ckb_syscalls.h"
-#include "gw_sudt_ckb_utils.h"
 #include "gw_syscalls.h"
+#include "sudt_utils.h"
 
 /* MSG_TYPE */
 #define MSG_CREATE_ACCOUNT 0
@@ -35,7 +35,7 @@ int handle_fee(gw_context_t *ctx, uint32_t registry_id, uint256_t amount) {
   }
 
   /* pay fee */
-  ret = ckb_pay_fee(ctx, payer_addr, amount);
+  ret = sudt_pay_fee(ctx, CKB_SUDT_ACCOUNT_ID, payer_addr, amount);
   if (ret != 0) {
     ckb_debug("failed to pay fee");
     return ret;

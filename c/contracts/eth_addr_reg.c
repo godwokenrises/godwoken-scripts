@@ -13,7 +13,7 @@
  */
 
 #include "gw_eth_addr_reg.h"
-#include "gw_sudt_ckb_utils.h"
+#include "sudt_utils.h"
 
 /* MSG_TYPE */
 #define MSG_QUERY_GW_BY_ETH 0
@@ -40,7 +40,7 @@ int handle_fee(gw_context_t *ctx, uint32_t registry_id, uint256_t amount) {
     return ret;
   }
 
-  return ckb_pay_fee(ctx, payer_addr, amount);
+  return sudt_pay_fee(ctx, CKB_SUDT_ACCOUNT_ID, payer_addr, amount);
 }
 
 int main() {

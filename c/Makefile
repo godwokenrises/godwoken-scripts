@@ -51,32 +51,32 @@ debug-all: all
 $(SECP256K1_HELPER):
 	cd deps/ckb-production-scripts && git submodule init && git submodule update -r && make all-via-docker
 
-build/meta-contract-generator: contracts/meta_contract.c gw_sudt_ckb_utils.h gw_def.h generator_utils.h
+build/meta-contract-generator: contracts/meta_contract.c sudt_utils.h gw_def.h generator_utils.h
 	$(CC) $(CFLAGS) $(GENERATOR_FLAGS) $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
 
-build/meta-contract-validator: contracts/meta_contract.c gw_sudt_ckb_utils.h gw_def.h validator_utils.h
+build/meta-contract-validator: contracts/meta_contract.c sudt_utils.h gw_def.h validator_utils.h
 	$(CC) $(CFLAGS) $(VALIDATOR_FLAGS) $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
 
-build/sudt-generator: contracts/sudt.c gw_sudt_ckb_utils.h gw_def.h generator_utils.h
+build/sudt-generator: contracts/sudt.c sudt_utils.h gw_def.h generator_utils.h
 	$(CC) $(CFLAGS) $(GENERATOR_FLAGS) $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
 
-build/sudt-validator: contracts/sudt.c gw_sudt_ckb_utils.h gw_def.h validator_utils.h
+build/sudt-validator: contracts/sudt.c sudt_utils.h gw_def.h validator_utils.h
 	$(CC) $(CFLAGS) $(VALIDATOR_FLAGS) $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
 
-build/eth-addr-reg-generator: contracts/eth_addr_reg.c gw_sudt_ckb_utils.h gw_def.h generator_utils.h
+build/eth-addr-reg-generator: contracts/eth_addr_reg.c sudt_utils.h gw_def.h generator_utils.h
 	$(CC) $(CFLAGS) $(GENERATOR_FLAGS) $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
 
-build/eth-addr-reg-validator: contracts/eth_addr_reg.c gw_sudt_ckb_utils.h gw_def.h validator_utils.h
+build/eth-addr-reg-validator: contracts/eth_addr_reg.c sudt_utils.h gw_def.h validator_utils.h
 	$(CC) $(CFLAGS) $(VALIDATOR_FLAGS) $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@

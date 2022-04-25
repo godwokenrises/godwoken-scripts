@@ -34,7 +34,8 @@
 #include "godwoken.h"
 #include "gw_def.h"
 #include "gw_registry_addr.h"
-#include "overflow_add.h"
+#include "gw_syscalls.h"
+#include "uint256.h"
 
 #define CKB_SUDT_ACCOUNT_ID 1
 #define SUDT_KEY_FLAG_BALANCE 1
@@ -61,19 +62,19 @@ int _sudt_build_key(uint32_t key_flag, gw_reg_addr_t registry_address,
 }
 
 /* format:
- * from_addr | to_addr | amount(16 bytes)
+ * from_addr | to_addr | amount(32 bytes)
  */
 int _sudt_emit_log(gw_context_t *ctx, const uint32_t sudt_id,
                    gw_reg_addr_t from_addr, gw_reg_addr_t to_addr,
-                   const uint128_t amount, uint8_t service_flag) {
+                   const uint256_t amount, uint8_t service_flag) {
 #ifdef GW_VALIDATOR
   uint32_t data_size = 0;
   uint8_t *data = NULL;
 #else
   uint8_t data[256] = {0};
-  /* from_addr + to_addr + amount(16 bytes) */
+  /* from_addr + to_addr + amount(32 bytes) */
   uint32_t data_size =
-      GW_REG_ADDR_SIZE(from_addr) + GW_REG_ADDR_SIZE(to_addr) + 16;
+      GW_REG_ADDR_SIZE(from_addr) + GW_REG_ADDR_SIZE(to_addr) + 32;
   if (data_size > 256) {
     printf("_sudt_emit_log: data is large than buffer");
     return GW_FATAL_BUFFER_OVERFLOW;
@@ -81,13 +82,13 @@ int _sudt_emit_log(gw_context_t *ctx, const uint32_t sudt_id,
   _gw_cpy_addr(data, from_addr);
   _gw_cpy_addr(data + GW_REG_ADDR_SIZE(from_addr), to_addr);
   memcpy(data + GW_REG_ADDR_SIZE(from_addr) + GW_REG_ADDR_SIZE(to_addr),
-         (uint8_t *)(&amount), 16);
+         (uint8_t *)(&amount), 32);
 #endif
   return ctx->sys_log(ctx, sudt_id, service_flag, data_size, data);
 }
 
-int _sudt_get_balance(gw_context_t *ctx, uint32_t sudt_id,
-                      gw_reg_addr_t address, uint128_t *balance) {
+int _sudt_get_balance(gw_context_t *ctx, const uint32_t sudt_id,
+                      gw_reg_addr_t address, uint256_t *balance) {
   uint8_t key[64] = {0};
   uint32_t key_len = 64;
   int ret = _sudt_build_key(SUDT_KEY_FLAG_BALANCE, address, key, &key_len);
@@ -99,12 +100,12 @@ int _sudt_get_balance(gw_context_t *ctx, uint32_t sudt_id,
   if (ret != 0) {
     return ret;
   }
-  *balance = *(uint128_t *)value;
+  uint256_from_little_endian((uint8_t *)&value, 32, balance);
   return 0;
 }
 
-int _sudt_set_balance(gw_context_t *ctx, uint32_t sudt_id,
-                      gw_reg_addr_t address, uint128_t balance) {
+int _sudt_set_balance(gw_context_t *ctx, const uint32_t sudt_id,
+                      gw_reg_addr_t address, uint256_t balance) {
   uint8_t key[64] = {0};
   uint32_t key_len = 64;
   int ret = _sudt_build_key(SUDT_KEY_FLAG_BALANCE, address, key, &key_len);
@@ -113,13 +114,13 @@ int _sudt_set_balance(gw_context_t *ctx, uint32_t sudt_id,
   }
 
   uint8_t value[32] = {0};
-  *(uint128_t *)value = balance;
+  uint256_to_little_endian(balance, (uint8_t *)&value, 32);
   ret = ctx->sys_store(ctx, sudt_id, key, key_len, value);
   return ret;
 }
 
 int sudt_get_balance(gw_context_t *ctx, const uint32_t sudt_id,
-                     gw_reg_addr_t addr, uint128_t *balance) {
+                     gw_reg_addr_t addr, uint256_t *balance) {
   int ret = gw_verify_sudt_account(ctx, sudt_id);
   if (ret != 0) {
     return ret;
@@ -127,25 +128,29 @@ int sudt_get_balance(gw_context_t *ctx, const uint32_t sudt_id,
   return _sudt_get_balance(ctx, sudt_id, addr, balance);
 }
 
-int _sudt_get_total_supply(gw_context_t *ctx, uint32_t sudt_id,
-                           uint8_t total_supply[32]) {
-  return ctx->sys_load(ctx, sudt_id, SUDT_TOTAL_SUPPLY_KEY, 32, total_supply);
+int _sudt_get_total_supply(gw_context_t *ctx, const uint32_t sudt_id,
+                           uint256_t *total_supply) {
+  uint8_t value[32] = {0};
+  int ret = ctx->sys_load(ctx, sudt_id, SUDT_TOTAL_SUPPLY_KEY, 32, value);
+  if (ret != 0) {
+    return ret;
+  }
+  uint256_from_little_endian((uint8_t *)&value, 32, total_supply);
+  return 0;
 }
 
-int sudt_get_total_supply(gw_context_t *ctx, uint32_t sudt_id,
-                          uint8_t total_supply[32]) {
+int sudt_get_total_supply(gw_context_t *ctx, const uint32_t sudt_id,
+                          uint256_t *total_supply) {
   int ret = gw_verify_sudt_account(ctx, sudt_id);
   if (ret != 0) {
     return ret;
   }
-
   return _sudt_get_total_supply(ctx, sudt_id, total_supply);
 }
 
-/* Transfer Simple UDT */
 int _sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
                    gw_reg_addr_t from_addr, gw_reg_addr_t to_addr,
-                   const uint128_t amount, uint8_t service_flag) {
+                   const uint256_t amount, uint8_t service_flag) {
   int ret;
   ret = gw_verify_sudt_account(ctx, sudt_id);
   if (ret != 0) {
@@ -154,13 +159,13 @@ int _sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
   }
 
   /* check from account */
-  uint128_t from_balance = 0;
+  uint256_t from_balance = {0};
   ret = _sudt_get_balance(ctx, sudt_id, from_addr, &from_balance);
   if (ret != 0) {
     printf("transfer: can't get sender's balance");
     return ret;
   }
-  if (from_balance < amount) {
+  if (uint256_cmp(from_balance, amount) == SMALLER) {
     printf("transfer: insufficient balance");
     return GW_SUDT_ERROR_INSUFFICIENT_BALANCE;
   }
@@ -169,7 +174,8 @@ int _sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
     printf("transfer: [warning] transfer to self");
   }
 
-  uint128_t new_from_balance = from_balance - amount;
+  uint256_t new_from_balance = {0};
+  uint256_underflow_sub(from_balance, amount, &new_from_balance);
 
   /* update sender balance */
   ret = _sudt_set_balance(ctx, sudt_id, from_addr, new_from_balance);
@@ -179,15 +185,15 @@ int _sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
   }
 
   /* check to account */
-  uint128_t to_balance = 0;
+  uint256_t to_balance = {0};
   ret = _sudt_get_balance(ctx, sudt_id, to_addr, &to_balance);
   if (ret != 0) {
     printf("transfer: can't get receiver's balance");
     return ret;
   }
 
-  uint128_t new_to_balance = 0;
-  int overflow = uint128_overflow_add(&new_to_balance, to_balance, amount);
+  uint256_t new_to_balance = {0};
+  int overflow = uint256_overflow_add(to_balance, amount, &new_to_balance);
   if (overflow) {
     printf("transfer: balance overflow");
     return GW_SUDT_ERROR_AMOUNT_OVERFLOW;
@@ -210,29 +216,29 @@ int _sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
 
 int sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
                   gw_reg_addr_t from_addr, gw_reg_addr_t to_addr,
-                  const uint128_t amount) {
+                  const uint256_t amount) {
   return _sudt_transfer(ctx, sudt_id, from_addr, to_addr, amount,
                         GW_LOG_SUDT_TRANSFER);
 }
 
 /* Pay fee */
-// int sudt_pay_fee(gw_context_t *ctx, const uint32_t sudt_id,
-//                  gw_reg_addr_t from_addr, const uint128_t amount) {
-//   /* transfer SUDT */
-//   int ret =
-//       _sudt_transfer(ctx, sudt_id, from_addr, ctx->block_info.block_producer,
-//                      amount, GW_LOG_SUDT_PAY_FEE);
-//   if (ret != 0) {
-//     printf("pay fee transfer failed");
-//     return ret;
-//   }
-//
-//   /* call syscall, we use this action to emit event to runtime, this function
-//   do
-//    * not actually pay the fee */
-//   ret = ctx->sys_pay_fee(ctx, from_addr, sudt_id, amount);
-//   if (ret != 0) {
-//     printf("sys pay fee failed");
-//   }
-//   return ret;
-// }
+int sudt_pay_fee(gw_context_t *ctx, const uint32_t sudt_id,
+                 gw_reg_addr_t from_addr, const uint256_t amount) {
+  /* transfer SUDT */
+  int ret =
+      _sudt_transfer(ctx, sudt_id, from_addr, ctx->block_info.block_producer,
+                     amount, GW_LOG_SUDT_PAY_FEE);
+  if (ret != 0) {
+    printf("pay fee transfer failed");
+    return ret;
+  }
+
+  /* call syscall, we use this action to emit event to runtime, this function
+  do
+   * not actually pay the fee */
+  ret = ctx->sys_pay_fee(ctx, from_addr, sudt_id, amount);
+  if (ret != 0) {
+    printf("sys pay fee failed");
+  }
+  return ret;
+}
