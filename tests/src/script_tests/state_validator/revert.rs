@@ -146,7 +146,7 @@ async fn test_revert() {
             let args = SUDTArgs::new_builder()
                 .set(SUDTArgsUnion::SUDTTransfer(
                     SUDTTransfer::new_builder()
-                        .amount(Pack::pack(&150_00000000u128))
+                        .amount(Pack::pack(&U256::from(150_00000000u128)))
                         .fee(
                             Fee::new_builder()
                                 .amount(Pack::pack(&U256::from(1_00000000u64)))

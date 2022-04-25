@@ -23,6 +23,7 @@ use gw_types::core::AllowedEoaType;
 use gw_types::packed::AllowedTypeHash;
 use gw_types::packed::Fee;
 use gw_types::prelude::*;
+use gw_types::U256;
 use gw_types::{
     bytes::Bytes,
     core::{ChallengeTargetType, ScriptHashType, Status},
@@ -139,7 +140,7 @@ async fn test_enter_challenge() {
             let args = SUDTArgs::new_builder()
                 .set(SUDTArgsUnion::SUDTTransfer(
                     SUDTTransfer::new_builder()
-                        .amount(Pack::pack(&150_00000000u128))
+                        .amount(Pack::pack(&U256::from(150_00000000u128)))
                         .to_address(Pack::pack(&Bytes::from(receiver_address.to_bytes())))
                         .fee(
                             Fee::new_builder()
@@ -484,7 +485,7 @@ async fn produce_block(
         let args = SUDTArgs::new_builder()
             .set(SUDTArgsUnion::SUDTTransfer(
                 SUDTTransfer::new_builder()
-                    .amount(Pack::pack(&50_00000000u128))
+                    .amount(Pack::pack(&U256::from(50_00000000u128)))
                     .to_address(Pack::pack(&Bytes::from(receiver_address.to_bytes())))
                     .fee(
                         Fee::new_builder()

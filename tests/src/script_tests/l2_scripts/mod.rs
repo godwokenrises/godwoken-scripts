@@ -174,14 +174,10 @@ impl SudtLog {
             )
         };
 
-        let amount: U256 = if data.len() > (1 + 32 + 32 + 16) {
+        let amount: U256 = {
             let mut u256_bytes = [0u8; 32];
             u256_bytes.copy_from_slice(&data[data.len() - 32..]);
             U256::from_little_endian(&u256_bytes)
-        } else {
-            let mut u128_bytes = [0u8; 16];
-            u128_bytes.copy_from_slice(&data[data.len() - 16..]);
-            u128::from_le_bytes(u128_bytes).into()
         };
 
         Ok(SudtLog {

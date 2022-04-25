@@ -151,7 +151,7 @@ async fn test_cancel_tx_execute() {
             .set(
                 SUDTTransfer::new_builder()
                     .to_address(Pack::pack(&Bytes::from(receiver_address.to_bytes())))
-                    .amount(Pack::pack(&transfer_capacity))
+                    .amount(Pack::pack(&U256::from(transfer_capacity)))
                     .fee(
                         Fee::new_builder()
                             .amount(Pack::pack(&U256::from(fee_capacity)))
