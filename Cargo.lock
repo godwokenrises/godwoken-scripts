@@ -18,6 +18,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f26201604c87b1e01bd3d98f8d5d9a8fcbb815e8cedb41ffccbeb4bf593a35fe"
 
 [[package]]
+name = "aead"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b613b8e1e3cf911a086f53f03bf286f52fd7a7258e4fa606f0ef220d39d8877"
+dependencies = [
+ "generic-array 0.14.5",
+]
+
+[[package]]
 name = "ahash"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -282,6 +291,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "block-buffer"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0bf7fe51849ea569fd452f37822f606a5cabb684dc918707a0193fd4664ff324"
+dependencies = [
+ "generic-array 0.14.5",
+]
+
+[[package]]
 name = "block-padding"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -301,6 +319,12 @@ name = "bs58"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "476e9cd489f9e121e02ffa6014a8ef220ecb15c05ed23fc34cca13925dc283fb"
+
+[[package]]
+name = "bs58"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "771fe0050b883fcc3ea2359b1a96bcfbc090b7116eae7c3c512c7a083fdf23d3"
 
 [[package]]
 name = "bstr"
@@ -403,6 +427,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
+name = "chacha20"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "01b72a433d0cf2aef113ba70f62634c56fddb0f244e6377185c56a7cadbd8f91"
+dependencies = [
+ "cfg-if 1.0.0",
+ "cipher",
+ "cpufeatures",
+ "zeroize",
+]
+
+[[package]]
+name = "chacha20poly1305"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b84ed6d1d5f7aa9bdde921a5090e0ca4d934d250ea3b402a5fab3a994e28a2a"
+dependencies = [
+ "aead",
+ "chacha20",
+ "cipher",
+ "poly1305",
+ "zeroize",
+]
+
+[[package]]
 name = "chrono"
 version = "0.4.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -413,6 +462,15 @@ dependencies = [
  "num-traits",
  "serde",
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "cipher"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7ee52072ec15386f770805afd189a01c8841be8696bed250fa2f13c4c0d6dfb7"
+dependencies = [
+ "generic-array 0.14.5",
 ]
 
 [[package]]
@@ -941,6 +999,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
 
 [[package]]
+name = "crypto-common"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57952ca27b5e3606ff4dd79b0020231aaf9d6aa76dc05fd30137538c50bd3ce8"
+dependencies = [
+ "generic-array 0.14.5",
+ "typenum",
+]
+
+[[package]]
 name = "crypto-mac"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -955,6 +1023,19 @@ name = "cty"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b365fabc795046672053e29c954733ec3b05e4be654ab130fe8f1f94d7051f35"
+
+[[package]]
+name = "curve25519-dalek"
+version = "3.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "90f9d052967f590a76e62eb387bd0bbb1b000182c3cefe5364db6b7211651bc0"
+dependencies = [
+ "byteorder",
+ "digest 0.9.0",
+ "rand_core 0.5.1",
+ "subtle",
+ "zeroize",
+]
 
 [[package]]
 name = "debugid"
@@ -995,6 +1076,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3dd60d1080a57a05ab032377049e0591415d2b31afd7028356dbf3cc6dcb066"
 dependencies = [
  "generic-array 0.14.5",
+]
+
+[[package]]
+name = "digest"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f2fb860ca6fafa5552fb6d0e816a69c8e49f0908bf524e30a90d97c85892d506"
+dependencies = [
+ "block-buffer 0.10.2",
+ "crypto-common",
+ "subtle",
 ]
 
 [[package]]
@@ -1244,7 +1336,7 @@ dependencies = [
  "futures-core",
  "futures-sink",
  "pin-project",
- "spin",
+ "spin 0.9.2",
 ]
 
 [[package]]
@@ -1448,8 +1540,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fc3cb4d91f53b50155bdcfd23f6a4c39ae1969c2ae85982b135750cccaf5fce"
 dependencies = [
  "cfg-if 1.0.0",
+ "js-sys",
  "libc",
  "wasi 0.9.0+wasi-snapshot-preview1",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -1519,7 +1613,7 @@ dependencies = [
 [[package]]
 name = "gw-block-producer"
 version = "1.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=b4db76522b7982f650cc5a6053d5f3957b7cbfd0#b4db76522b7982f650cc5a6053d5f3957b7cbfd0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=1090567d2c54384f5456a0363e5574e0af1b7268#1090567d2c54384f5456a0363e5574e0af1b7268"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -1542,6 +1636,7 @@ dependencies = [
  "gw-generator",
  "gw-jsonrpc-types",
  "gw-mem-pool",
+ "gw-p2p-network",
  "gw-rpc-client",
  "gw-rpc-server",
  "gw-rpc-ws-server",
@@ -1563,6 +1658,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlx",
+ "tentacle",
  "thiserror",
  "tikv-jemallocator",
  "tokio",
@@ -1576,7 +1672,7 @@ dependencies = [
 [[package]]
 name = "gw-chain"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=b4db76522b7982f650cc5a6053d5f3957b7cbfd0#b4db76522b7982f650cc5a6053d5f3957b7cbfd0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=1090567d2c54384f5456a0363e5574e0af1b7268#1090567d2c54384f5456a0363e5574e0af1b7268"
 dependencies = [
  "anyhow",
  "ckb-fixed-hash",
@@ -1602,7 +1698,7 @@ dependencies = [
 [[package]]
 name = "gw-challenge"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=b4db76522b7982f650cc5a6053d5f3957b7cbfd0#b4db76522b7982f650cc5a6053d5f3957b7cbfd0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=1090567d2c54384f5456a0363e5574e0af1b7268#1090567d2c54384f5456a0363e5574e0af1b7268"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -1634,7 +1730,7 @@ dependencies = [
 [[package]]
 name = "gw-ckb-hardfork"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=b4db76522b7982f650cc5a6053d5f3957b7cbfd0#b4db76522b7982f650cc5a6053d5f3957b7cbfd0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=1090567d2c54384f5456a0363e5574e0af1b7268#1090567d2c54384f5456a0363e5574e0af1b7268"
 dependencies = [
  "arc-swap",
  "ckb-types",
@@ -1645,13 +1741,12 @@ dependencies = [
 [[package]]
 name = "gw-common"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=b4db76522b7982f650cc5a6053d5f3957b7cbfd0#b4db76522b7982f650cc5a6053d5f3957b7cbfd0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=1090567d2c54384f5456a0363e5574e0af1b7268#1090567d2c54384f5456a0363e5574e0af1b7268"
 dependencies = [
  "cfg-if 0.1.10",
  "gw-hash",
  "gw-types",
  "merkle-cbt",
- "primitive-types",
  "sparse-merkle-tree",
  "thiserror",
 ]
@@ -1659,7 +1754,7 @@ dependencies = [
 [[package]]
 name = "gw-config"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=b4db76522b7982f650cc5a6053d5f3957b7cbfd0#b4db76522b7982f650cc5a6053d5f3957b7cbfd0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=1090567d2c54384f5456a0363e5574e0af1b7268#1090567d2c54384f5456a0363e5574e0af1b7268"
 dependencies = [
  "ckb-fixed-hash",
  "gw-jsonrpc-types",
@@ -1670,7 +1765,7 @@ dependencies = [
 [[package]]
 name = "gw-db"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=b4db76522b7982f650cc5a6053d5f3957b7cbfd0#b4db76522b7982f650cc5a6053d5f3957b7cbfd0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=1090567d2c54384f5456a0363e5574e0af1b7268#1090567d2c54384f5456a0363e5574e0af1b7268"
 dependencies = [
  "ckb-rocksdb",
  "gw-config",
@@ -1684,7 +1779,7 @@ dependencies = [
 [[package]]
 name = "gw-dynamic-config"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=b4db76522b7982f650cc5a6053d5f3957b7cbfd0#b4db76522b7982f650cc5a6053d5f3957b7cbfd0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=1090567d2c54384f5456a0363e5574e0af1b7268#1090567d2c54384f5456a0363e5574e0af1b7268"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -1700,7 +1795,7 @@ dependencies = [
 [[package]]
 name = "gw-generator"
 version = "0.2.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=b4db76522b7982f650cc5a6053d5f3957b7cbfd0#b4db76522b7982f650cc5a6053d5f3957b7cbfd0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=1090567d2c54384f5456a0363e5574e0af1b7268#1090567d2c54384f5456a0363e5574e0af1b7268"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -1729,7 +1824,7 @@ dependencies = [
 [[package]]
 name = "gw-hash"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=b4db76522b7982f650cc5a6053d5f3957b7cbfd0#b4db76522b7982f650cc5a6053d5f3957b7cbfd0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=1090567d2c54384f5456a0363e5574e0af1b7268#1090567d2c54384f5456a0363e5574e0af1b7268"
 dependencies = [
  "blake2b-ref",
 ]
@@ -1737,7 +1832,7 @@ dependencies = [
 [[package]]
 name = "gw-jsonrpc-types"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=b4db76522b7982f650cc5a6053d5f3957b7cbfd0#b4db76522b7982f650cc5a6053d5f3957b7cbfd0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=1090567d2c54384f5456a0363e5574e0af1b7268#1090567d2c54384f5456a0363e5574e0af1b7268"
 dependencies = [
  "anyhow",
  "ckb-fixed-hash",
@@ -1751,7 +1846,7 @@ dependencies = [
 [[package]]
 name = "gw-mem-pool"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=b4db76522b7982f650cc5a6053d5f3957b7cbfd0#b4db76522b7982f650cc5a6053d5f3957b7cbfd0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=1090567d2c54384f5456a0363e5574e0af1b7268#1090567d2c54384f5456a0363e5574e0af1b7268"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1761,6 +1856,7 @@ dependencies = [
  "gw-config",
  "gw-dynamic-config",
  "gw-generator",
+ "gw-p2p-network",
  "gw-rpc-client",
  "gw-rpc-ws-server",
  "gw-store",
@@ -1770,14 +1866,30 @@ dependencies = [
  "hex",
  "log",
  "rdkafka",
+ "tentacle",
  "tokio",
  "tracing",
 ]
 
 [[package]]
+name = "gw-p2p-network"
+version = "0.1.0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=1090567d2c54384f5456a0363e5574e0af1b7268#1090567d2c54384f5456a0363e5574e0af1b7268"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "gw-config",
+ "gw-types",
+ "log",
+ "socket2",
+ "tentacle",
+ "tokio",
+]
+
+[[package]]
 name = "gw-rpc-client"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=b4db76522b7982f650cc5a6053d5f3957b7cbfd0#b4db76522b7982f650cc5a6053d5f3957b7cbfd0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=1090567d2c54384f5456a0363e5574e0af1b7268#1090567d2c54384f5456a0363e5574e0af1b7268"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -1811,7 +1923,7 @@ dependencies = [
 [[package]]
 name = "gw-rpc-server"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=b4db76522b7982f650cc5a6053d5f3957b7cbfd0#b4db76522b7982f650cc5a6053d5f3957b7cbfd0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=1090567d2c54384f5456a0363e5574e0af1b7268#1090567d2c54384f5456a0363e5574e0af1b7268"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -1859,7 +1971,7 @@ dependencies = [
 [[package]]
 name = "gw-rpc-ws-server"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=b4db76522b7982f650cc5a6053d5f3957b7cbfd0#b4db76522b7982f650cc5a6053d5f3957b7cbfd0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=1090567d2c54384f5456a0363e5574e0af1b7268#1090567d2c54384f5456a0363e5574e0af1b7268"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -1884,7 +1996,7 @@ dependencies = [
 [[package]]
 name = "gw-store"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=b4db76522b7982f650cc5a6053d5f3957b7cbfd0#b4db76522b7982f650cc5a6053d5f3957b7cbfd0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=1090567d2c54384f5456a0363e5574e0af1b7268#1090567d2c54384f5456a0363e5574e0af1b7268"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -1933,7 +2045,7 @@ dependencies = [
  "secp256k1 0.20.3",
  "sha3",
  "tempfile",
- "tentacle-multiaddr",
+ "tentacle-multiaddr 0.2.0",
  "thiserror",
  "tokio",
 ]
@@ -1941,7 +2053,7 @@ dependencies = [
 [[package]]
 name = "gw-traits"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=b4db76522b7982f650cc5a6053d5f3957b7cbfd0#b4db76522b7982f650cc5a6053d5f3957b7cbfd0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=1090567d2c54384f5456a0363e5574e0af1b7268#1090567d2c54384f5456a0363e5574e0af1b7268"
 dependencies = [
  "gw-common",
  "gw-db",
@@ -1951,7 +2063,7 @@ dependencies = [
 [[package]]
 name = "gw-tx-filter"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=b4db76522b7982f650cc5a6053d5f3957b7cbfd0#b4db76522b7982f650cc5a6053d5f3957b7cbfd0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=1090567d2c54384f5456a0363e5574e0af1b7268#1090567d2c54384f5456a0363e5574e0af1b7268"
 dependencies = [
  "gw-common",
  "gw-config",
@@ -1965,20 +2077,21 @@ dependencies = [
 [[package]]
 name = "gw-types"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=b4db76522b7982f650cc5a6053d5f3957b7cbfd0#b4db76522b7982f650cc5a6053d5f3957b7cbfd0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=1090567d2c54384f5456a0363e5574e0af1b7268#1090567d2c54384f5456a0363e5574e0af1b7268"
 dependencies = [
  "cfg-if 0.1.10",
  "ckb-fixed-hash",
  "ckb-types",
  "gw-hash",
  "molecule 0.7.2",
+ "primitive-types",
  "sparse-merkle-tree",
 ]
 
 [[package]]
 name = "gw-utils"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=b4db76522b7982f650cc5a6053d5f3957b7cbfd0#b4db76522b7982f650cc5a6053d5f3957b7cbfd0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=1090567d2c54384f5456a0363e5574e0af1b7268#1090567d2c54384f5456a0363e5574e0af1b7268"
 dependencies = [
  "anyhow",
  "ckb-crypto",
@@ -1994,7 +2107,7 @@ dependencies = [
 [[package]]
 name = "gw-version"
 version = "1.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=b4db76522b7982f650cc5a6053d5f3957b7cbfd0#b4db76522b7982f650cc5a6053d5f3957b7cbfd0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=1090567d2c54384f5456a0363e5574e0af1b7268#1090567d2c54384f5456a0363e5574e0af1b7268"
 dependencies = [
  "anyhow",
 ]
@@ -2002,7 +2115,7 @@ dependencies = [
 [[package]]
 name = "gw-web3-indexer"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?rev=b4db76522b7982f650cc5a6053d5f3957b7cbfd0#b4db76522b7982f650cc5a6053d5f3957b7cbfd0"
+source = "git+https://github.com/nervosnetwork/godwoken.git?rev=1090567d2c54384f5456a0363e5574e0af1b7268#1090567d2c54384f5456a0363e5574e0af1b7268"
 dependencies = [
  "anyhow",
  "ckb-hash",
@@ -2120,6 +2233,15 @@ checksum = "2a2a2320eb7ec0ebe8da8f744d7812d9fc4cb4d09344ac01898dbcb6a20ae69b"
 dependencies = [
  "crypto-mac",
  "digest 0.9.0",
+]
+
+[[package]]
+name = "hmac"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c49c37c09c17a53d937dfbb742eb3a961d65a994e6bcdcf37e7399d0cc8ab5e"
+dependencies = [
+ "digest 0.10.3",
 ]
 
 [[package]]
@@ -2814,6 +2936,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72ef4a56884ca558e5ddb05a1d1e7e1bfd9a68d9ed024c21704cc98872dae1bb"
 
 [[package]]
+name = "nohash-hasher"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2bf50223579dc7cdcfb3bfcacf7069ff68243f8c363f62ffa99cf000a6b9c451"
+
+[[package]]
 name = "nom"
 version = "7.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3283,6 +3411,17 @@ name = "plain"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
+
+[[package]]
+name = "poly1305"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "048aeb476be11a4b6ca432ca569e375810de9294ae78f4774e78ea98a9246ede"
+dependencies = [
+ "cpufeatures",
+ "opaque-debug 0.3.0",
+ "universal-hash",
+]
 
 [[package]]
 name = "pprof"
@@ -3781,6 +3920,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "ring"
+version = "0.16.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3053cf52e236a3ed746dfc745aa9cacf1b791d846bdaf412f60a8d7d6e17c8fc"
+dependencies = [
+ "cc",
+ "libc",
+ "once_cell",
+ "spin 0.5.2",
+ "untrusted",
+ "web-sys",
+ "winapi 0.3.9",
+]
+
+[[package]]
 name = "rlp"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4130,6 +4284,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha2"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "55deaec60f81eefe3cce0dc50bda92d6d8e88f2a27df7c5033b42afeb1ed2676"
+dependencies = [
+ "cfg-if 1.0.0",
+ "cpufeatures",
+ "digest 0.10.3",
+]
+
+[[package]]
 name = "sha3"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4204,6 +4369,12 @@ dependencies = [
 
 [[package]]
 name = "spin"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
+
+[[package]]
+name = "spin"
 version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "511254be0c5bcf062b019a6c89c01a664aa359ded62f78aa72c6fc137c0590e5"
@@ -4257,7 +4428,7 @@ dependencies = [
  "futures-util",
  "hashlink",
  "hex",
- "hmac",
+ "hmac 0.11.0",
  "indexmap",
  "itoa 1.0.1",
  "libc",
@@ -4274,7 +4445,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha-1 0.9.8",
- "sha2",
+ "sha2 0.9.9",
  "smallvec",
  "sqlformat",
  "sqlx-rt",
@@ -4297,7 +4468,7 @@ dependencies = [
  "once_cell",
  "proc-macro2",
  "quote",
- "sha2",
+ "sha2 0.9.9",
  "sqlx-core",
  "sqlx-rt",
  "syn",
@@ -4391,6 +4562,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "synstructure"
+version = "0.12.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f36bdaa60a83aca3921b5259d5400cbf5e90fc51931376a9bd4a0eb79aa7210f"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+ "unicode-xid",
+]
+
+[[package]]
 name = "tap"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4411,16 +4594,84 @@ dependencies = [
 ]
 
 [[package]]
+name = "tentacle"
+version = "0.4.0-beta.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "863528f8370d37ef73e403c59699e0383871f50b464a96262b7320303313255e"
+dependencies = [
+ "async-trait",
+ "bytes 1.1.0",
+ "futures",
+ "js-sys",
+ "libc",
+ "log",
+ "molecule 0.7.2",
+ "nohash-hasher",
+ "once_cell",
+ "rand 0.8.5",
+ "socket2",
+ "tentacle-multiaddr 0.3.2",
+ "tentacle-secio",
+ "thiserror",
+ "tokio",
+ "tokio-util 0.7.1",
+ "tokio-yamux",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "winapi 0.3.9",
+]
+
+[[package]]
 name = "tentacle-multiaddr"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed6476818af8d86ba63c7f961c417c70906700166dd8fdef8b9ac7f47c629f3f"
 dependencies = [
- "bs58",
+ "bs58 0.3.1",
  "bytes 0.5.6",
  "serde",
- "sha2",
- "unsigned-varint",
+ "sha2 0.9.9",
+ "unsigned-varint 0.3.3",
+]
+
+[[package]]
+name = "tentacle-multiaddr"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "faafcea0d508fc5296ca846ca1f2fcb60d740f53b02e771b407c06ae13e23c90"
+dependencies = [
+ "bs58 0.4.0",
+ "bytes 1.1.0",
+ "serde",
+ "sha2 0.10.2",
+ "unsigned-varint 0.7.1",
+]
+
+[[package]]
+name = "tentacle-secio"
+version = "0.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a25404f0ad099d7ac35c4873e854a1f9772014b1c42379780f7b9f55fa464913"
+dependencies = [
+ "bs58 0.4.0",
+ "bytes 1.1.0",
+ "chacha20poly1305",
+ "futures",
+ "hmac 0.12.1",
+ "log",
+ "molecule 0.7.2",
+ "openssl",
+ "openssl-sys",
+ "rand 0.7.3",
+ "rand 0.8.5",
+ "rand_core 0.5.1",
+ "ring",
+ "secp256k1 0.20.3",
+ "sha2 0.10.2",
+ "tokio",
+ "tokio-util 0.7.1",
+ "unsigned-varint 0.7.1",
+ "x25519-dalek",
 ]
 
 [[package]]
@@ -4648,6 +4899,20 @@ dependencies = [
  "pin-project-lite",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "tokio-yamux"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "129b802888b976c5b14aefc5f11d563ed25eaceb74a9e6e03d1d1de50d994cc7"
+dependencies = [
+ "bytes 1.1.0",
+ "futures",
+ "log",
+ "nohash-hasher",
+ "tokio",
+ "tokio-util 0.7.1",
 ]
 
 [[package]]
@@ -4903,10 +5168,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39ec24b3121d976906ece63c9daad25b85969647682eee313cb5779fdd69e14e"
 
 [[package]]
+name = "universal-hash"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f214e8f697e925001e66ec2c6e37a4ef93f0f78c2eed7814394e10c62025b05"
+dependencies = [
+ "generic-array 0.14.5",
+ "subtle",
+]
+
+[[package]]
 name = "unsigned-varint"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f67332660eb59a6f1eb24ff1220c9e8d01738a8503c6002e30bcfe4bd9f2b4a9"
+
+[[package]]
+name = "unsigned-varint"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d86a8dc7f45e4c1b0d30e43038c38f274e77af056aa5f74b93c2cf9eb3c1c836"
+
+[[package]]
+name = "untrusted"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a156c684c91ea7d62626509bce3cb4e1d9ed5c4d978f7b4352658f96a4c26b4a"
 
 [[package]]
 name = "url"
@@ -5201,3 +5488,35 @@ name = "wyz"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85e60b0d1b5f99db2556934e21937020776a5d31520bf169e851ac44e6420214"
+
+[[package]]
+name = "x25519-dalek"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2392b6b94a576b4e2bf3c5b2757d63f10ada8020a2e4d08ac849ebcf6ea8e077"
+dependencies = [
+ "curve25519-dalek",
+ "rand_core 0.5.1",
+ "zeroize",
+]
+
+[[package]]
+name = "zeroize"
+version = "1.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4756f7db3f7b5574938c3eb1c117038b8e07f95ee6718c0efad4ac21508f1efd"
+dependencies = [
+ "zeroize_derive",
+]
+
+[[package]]
+name = "zeroize_derive"
+version = "1.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f8f187641dad4f680d25c4bfc4225b418165984179f26ca76ec4fb6441d3a17"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+ "synstructure",
+]

@@ -8,7 +8,7 @@ use super::{
 };
 use gw_common::{
     builtins::ETH_REGISTRY_ACCOUNT_ID, h256_ext::H256Ext, registry_address::RegistryAddress,
-    state::State, H256, U256,
+    state::State, H256,
 };
 use gw_config::BackendType;
 use gw_generator::{
@@ -27,6 +27,7 @@ use gw_types::{
     core::ScriptHashType,
     packed::{RawL2Transaction, RollupConfig, Script},
     prelude::*,
+    U256,
 };
 
 #[test]
@@ -345,11 +346,13 @@ fn test_example_account_operation() {
         let registry_id = ETH_REGISTRY_ACCOUNT_ID;
         let from_addr = RegistryAddress::new(registry_id, vec![0x33u8; 20]);
         let to_addr = RegistryAddress::new(registry_id, vec![0x44u8; 20]);
-        let amount: u128 = 101;
+        let amount: U256 = 101u64.into();
+        let mut buf = [0u8; 32];
+        amount.to_little_endian(&mut buf);
         let mut data = Vec::default();
         data.extend(from_addr.to_bytes());
         data.extend(to_addr.to_bytes());
-        data.extend(&amount.to_le_bytes()[..]);
+        data.extend(&buf);
         let args = AccountOp::Log {
             service_flag: GW_LOG_SUDT_TRANSFER,
             account_id,

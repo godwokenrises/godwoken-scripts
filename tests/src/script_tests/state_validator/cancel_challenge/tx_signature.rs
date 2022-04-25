@@ -36,6 +36,7 @@ use gw_types::packed::AllowedTypeHash;
 use gw_types::packed::CCTransactionSignatureWitness;
 use gw_types::packed::Fee;
 use gw_types::prelude::*;
+use gw_types::U256;
 use gw_types::{
     bytes::Bytes,
     core::{ChallengeTargetType, ScriptHashType, Status},
@@ -167,7 +168,7 @@ async fn test_cancel_tx_signature() {
                     .amount(Pack::pack(&transfer_capacity))
                     .fee(
                         Fee::new_builder()
-                            .amount(Pack::pack(&fee_capacity))
+                            .amount(Pack::pack(&U256::from(fee_capacity)))
                             .registry_id(Pack::pack(&receiver_address.registry_id))
                             .build(),
                     )

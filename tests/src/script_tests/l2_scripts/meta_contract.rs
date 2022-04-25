@@ -12,6 +12,7 @@ use gw_generator::{
     syscalls::error_codes::{GW_ERROR_DUPLICATED_SCRIPT_HASH, GW_SUDT_ERROR_INSUFFICIENT_BALANCE},
     traits::StateExt,
 };
+use gw_types::U256;
 use gw_types::{
     core::ScriptHashType,
     packed::{AllowedTypeHash, CreateAccount, Fee, MetaContractArgs, RollupConfig, Script},
@@ -55,7 +56,7 @@ fn test_meta_contract() {
                 .script(contract_script.clone())
                 .fee(
                     Fee::new_builder()
-                        .amount(1000u64.pack())
+                        .amount(U256::from(1000u64).pack())
                         .registry_id(ctx.eth_registry_id.pack())
                         .build(),
                 )
@@ -136,7 +137,7 @@ fn test_duplicated_script_hash() {
                 .script(contract_script.clone())
                 .fee(
                     Fee::new_builder()
-                        .amount(1000u64.pack())
+                        .amount(U256::from(1000u64).pack())
                         .registry_id(a_address.registry_id.pack())
                         .build(),
                 )
@@ -191,7 +192,7 @@ fn test_insufficient_balance_to_pay_fee() {
                 .script(contract_script.clone())
                 .fee(
                     Fee::new_builder()
-                        .amount(1000u64.pack())
+                        .amount(U256::from(1000u64).pack())
                         .registry_id(ctx.eth_registry_id.pack())
                         .build(),
                 )

@@ -12,6 +12,7 @@ use gw_generator::syscalls::error_codes::{
 use gw_generator::{error::TransactionError, traits::StateExt};
 use gw_traits::CodeStore;
 use gw_types::packed::{BlockInfo, Fee};
+use gw_types::U256;
 use gw_types::{
     core::ScriptHashType,
     packed::{RollupConfig, SUDTArgs, SUDTQuery, SUDTTransfer, Script},
@@ -99,9 +100,9 @@ fn test_sudt() {
         .expect("init balance");
 
     // init ckb for a to pay fee
-    let init_ckb = 100;
+    let init_ckb: U256 = 100u64.into();
     ctx.state
-        .mint_sudt(CKB_SUDT_ACCOUNT_ID, &a_address, init_ckb)
+        .mint_ckb(&a_address, init_ckb)
         .expect("init balance");
 
     // check balance of A, B
@@ -130,7 +131,7 @@ fn test_sudt() {
     // transfer from A to B
     {
         let value = 4000u128;
-        let fee = 42u64;
+        let fee: U256 = 42u64.into();
         let sender_nonce = ctx.state.get_nonce(a_id).unwrap();
         let args = SUDTArgs::new_builder()
             .set(
@@ -178,7 +179,7 @@ fn test_sudt() {
                 a_id,
                 sudt_id,
                 &a_address,
-                init_a_balance - value as u128,
+                init_a_balance - value,
             );
 
             // check sender's ckb
@@ -189,7 +190,7 @@ fn test_sudt() {
                 a_id,
                 CKB_SUDT_ACCOUNT_ID,
                 &a_address,
-                init_ckb - fee as u128,
+                init_ckb - fee,
             );
 
             // check receiver's sudt
@@ -233,7 +234,7 @@ fn test_sudt() {
                 a_id,
                 CKB_SUDT_ACCOUNT_ID,
                 &block_producer,
-                fee as u128,
+                fee,
             );
         }
     }
@@ -419,7 +420,7 @@ fn test_transfer_to_non_exist_account() {
 #[test]
 fn test_transfer_to_self() {
     let init_a_balance: u128 = 10000;
-    let init_ckb: u128 = 100;
+    let init_ckb: U256 = 100u64.into();
 
     let rollup_config = RollupConfig::new_builder()
         .l2_sudt_validator_script_type_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.pack())
@@ -476,7 +477,7 @@ fn test_transfer_to_self() {
         .get_script_hash(block_producer_id)
         .expect("get script hash");
     let block_producer = ctx.create_eth_address(block_producer_script_hash.into(), [42u8; 20]);
-    let block_producer_balance = 0;
+    let block_producer_balance = 0u128;
     let block_info = new_block_info(&block_producer, 10, 0);
 
     // init balance for a
@@ -485,13 +486,13 @@ fn test_transfer_to_self() {
         .expect("init balance");
 
     ctx.state
-        .mint_sudt(CKB_SUDT_ACCOUNT_ID, &a_address, init_ckb)
+        .mint_ckb(&a_address, init_ckb)
         .expect("init balance");
 
     // transfer from A to A, zero value
     {
         let value: u128 = 0;
-        let fee: u64 = 0;
+        let fee: U256 = 0u64.into();
         let sender_nonce = ctx.state.get_nonce(a_id).unwrap();
         let args = SUDTArgs::new_builder()
             .set(
@@ -549,7 +550,7 @@ fn test_transfer_to_self() {
     }
 
     // transfer from A to A, normal value
-    let fee: u64 = 20;
+    let fee: U256 = 20u64.into();
     {
         let value: u128 = 1000;
         let args = SUDTArgs::new_builder()
@@ -594,7 +595,7 @@ fn test_transfer_to_self() {
             a_id,
             sudt_id,
             &a_address,
-            init_a_balance as u128,
+            init_a_balance,
         );
 
         // sender's ckb balance
@@ -605,7 +606,7 @@ fn test_transfer_to_self() {
             a_id,
             CKB_SUDT_ACCOUNT_ID,
             &a_address,
-            init_ckb - fee as u128,
+            init_ckb - fee,
         );
 
         // block producer's balance
@@ -616,7 +617,7 @@ fn test_transfer_to_self() {
             a_id,
             sudt_id,
             &block_producer,
-            block_producer_balance as u128,
+            block_producer_balance,
         );
 
         // block producer's balance
@@ -627,7 +628,7 @@ fn test_transfer_to_self() {
             a_id,
             CKB_SUDT_ACCOUNT_ID,
             &block_producer,
-            fee as u128,
+            fee,
         );
     }
 
@@ -669,7 +670,7 @@ fn test_transfer_to_self() {
             a_id,
             sudt_id,
             &a_address,
-            init_a_balance as u128,
+            init_a_balance,
         );
 
         // sender's ckb
@@ -680,7 +681,7 @@ fn test_transfer_to_self() {
             a_id,
             CKB_SUDT_ACCOUNT_ID,
             &a_address,
-            init_ckb - fee as u128,
+            init_ckb - fee,
         );
         // block producer ckb
         check_balance(
@@ -690,7 +691,7 @@ fn test_transfer_to_self() {
             a_id,
             CKB_SUDT_ACCOUNT_ID,
             &block_producer,
-            fee as u128,
+            fee,
         );
     }
 }
@@ -698,7 +699,7 @@ fn test_transfer_to_self() {
 #[test]
 fn test_transfer_to_self_overflow() {
     let init_a_balance: u128 = u128::MAX - 1;
-    let init_ckb: u128 = 100;
+    let init_ckb: U256 = 100u64.into();
 
     let rollup_config = RollupConfig::new_builder()
         .l2_sudt_validator_script_type_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.pack())
@@ -763,13 +764,13 @@ fn test_transfer_to_self_overflow() {
         .mint_sudt(sudt_id, &a_address, init_a_balance)
         .expect("init balance");
     ctx.state
-        .mint_sudt(CKB_SUDT_ACCOUNT_ID, &a_address, init_ckb)
+        .mint_ckb(&a_address, init_ckb)
         .expect("init balance");
 
     // transfer from A to A, zero value
     {
         let value: u128 = 0;
-        let fee: u64 = 0;
+        let fee: U256 = 0u64.into();
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
@@ -798,7 +799,7 @@ fn test_transfer_to_self_overflow() {
             &run_result.logs,
             sudt_id,
             &block_producer,
-            fee.into(),
+            fee,
             &a_address,
             &a_address,
             value,
@@ -849,7 +850,7 @@ fn test_transfer_to_self_overflow() {
     // transfer from A to A, 1 value
     {
         let value: u128 = 1;
-        let fee: u64 = 0;
+        let fee: U256 = 0u64.into();
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
@@ -878,7 +879,7 @@ fn test_transfer_to_self_overflow() {
             &run_result.logs,
             sudt_id,
             &block_producer,
-            fee.into(),
+            fee,
             &a_address,
             &a_address,
             value,
@@ -1215,7 +1216,7 @@ fn check_balance<S: State + CodeStore>(
     sender_id: u32,
     sudt_id: u32,
     address: &RegistryAddress,
-    expected_balance: u128,
+    expected_balance: impl Into<U256>,
 ) {
     // check balance
     let args = SUDTArgs::new_builder()
@@ -1239,5 +1240,5 @@ fn check_balance<S: State + CodeStore>(
         buf.copy_from_slice(&return_data);
         u128::from_le_bytes(buf)
     };
-    assert_eq!(balance, expected_balance);
+    assert_eq!(U256::from(balance), expected_balance.into());
 }

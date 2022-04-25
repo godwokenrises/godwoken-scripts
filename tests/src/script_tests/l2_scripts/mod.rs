@@ -8,6 +8,7 @@ use gw_generator::{account_lock_manage::AccountLockManage, Generator};
 use gw_generator::{error::TransactionError, traits::StateExt};
 use gw_traits::{ChainView, CodeStore};
 use gw_types::offchain::RollupContext;
+use gw_types::U256;
 use gw_types::{
     bytes::Bytes,
     offchain::RunResult,
@@ -143,7 +144,7 @@ pub struct SudtLog {
     sudt_id: u32,
     from_addr: RegistryAddress,
     to_addr: RegistryAddress,
-    amount: u128,
+    amount: U256,
     log_type: SudtLogType,
 }
 
@@ -154,7 +155,7 @@ impl SudtLog {
         let raw_data = item.data().raw_data();
         let data: &[u8] = raw_data.as_ref();
         let log_type = SudtLogType::from_u8(service_flag)?;
-        if data.len() > (1 + 32 + 32 + 16) {
+        if data.len() > (1 + 32 + 32 + 32) {
             return Err(format!("Invalid data length: {}", data.len()));
         }
         let from_addr = {
@@ -173,9 +174,16 @@ impl SudtLog {
             )
         };
 
-        let mut u128_bytes = [0u8; 16];
-        u128_bytes.copy_from_slice(&data[data.len() - 16..]);
-        let amount = u128::from_le_bytes(u128_bytes);
+        let amount: U256 = if data.len() > (1 + 32 + 32 + 16) {
+            let mut u256_bytes = [0u8; 32];
+            u256_bytes.copy_from_slice(&data[data.len() - 32..]);
+            U256::from_little_endian(&u256_bytes)
+        } else {
+            let mut u128_bytes = [0u8; 16];
+            u128_bytes.copy_from_slice(&data[data.len() - 16..]);
+            u128::from_le_bytes(u128_bytes).into()
+        };
+
         Ok(SudtLog {
             sudt_id,
             from_addr,
@@ -190,24 +198,24 @@ pub fn check_transfer_logs(
     logs: &[LogItem],
     sudt_id: u32,
     block_producer_addr: &RegistryAddress,
-    fee: u64,
+    fee: impl Into<U256>,
     from_addr: &RegistryAddress,
     to_addr: &RegistryAddress,
-    amount: u128,
+    amount: impl Into<U256>,
 ) {
     // pay fee log
     let sudt_fee_log = SudtLog::from_log_item(&logs[0]).unwrap();
     assert_eq!(sudt_fee_log.sudt_id, CKB_SUDT_ACCOUNT_ID);
     assert_eq!(&sudt_fee_log.from_addr, from_addr,);
     assert_eq!(&sudt_fee_log.to_addr, block_producer_addr);
-    assert_eq!(sudt_fee_log.amount, fee as u128);
+    assert_eq!(sudt_fee_log.amount, fee.into());
     assert_eq!(sudt_fee_log.log_type, SudtLogType::PayFee);
     // transfer to `to_id`
     let sudt_transfer_log = SudtLog::from_log_item(&logs[1]).unwrap();
     assert_eq!(sudt_transfer_log.sudt_id, sudt_id);
     assert_eq!(&sudt_transfer_log.from_addr, from_addr);
     assert_eq!(&sudt_transfer_log.to_addr, to_addr);
-    assert_eq!(sudt_transfer_log.amount, amount);
+    assert_eq!(sudt_transfer_log.amount, amount.into());
     assert_eq!(sudt_transfer_log.log_type, SudtLogType::Transfer);
 }
 
