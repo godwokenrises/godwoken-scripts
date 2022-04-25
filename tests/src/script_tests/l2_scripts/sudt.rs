@@ -102,7 +102,7 @@ fn test_sudt() {
     // init ckb for a to pay fee
     let init_ckb: U256 = 100u64.into();
     ctx.state
-        .mint_ckb(&a_address, init_ckb)
+        .mint_sudt(CKB_SUDT_ACCOUNT_ID,&a_address, init_ckb)
         .expect("init balance");
 
     // check balance of A, B
@@ -486,7 +486,7 @@ fn test_transfer_to_self() {
         .expect("init balance");
 
     ctx.state
-        .mint_ckb(&a_address, init_ckb)
+        .mint_sudt(CKB_SUDT_ACCOUNT_ID,&a_address, init_ckb)
         .expect("init balance");
 
     // transfer from A to A, zero value
@@ -764,7 +764,7 @@ fn test_transfer_to_self_overflow() {
         .mint_sudt(sudt_id, &a_address, init_a_balance)
         .expect("init balance");
     ctx.state
-        .mint_ckb(&a_address, init_ckb)
+        .mint_sudt(CKB_SUDT_ACCOUNT_ID,&a_address, init_ckb)
         .expect("init balance");
 
     // transfer from A to A, zero value
