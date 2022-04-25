@@ -6,6 +6,7 @@
 #include "ckb_smt.h"
 #include "ckb_syscalls.h"
 #include "gw_def.h"
+#include "uint256.h"
 
 #define SCRIPT_HASH_TYPE_DATA 0
 #define SCRIPT_HASH_TYPE_TYPE 1
@@ -657,7 +658,7 @@ int sys_log(gw_context_t *ctx, uint32_t account_id, uint8_t service_flag,
 }
 
 int sys_pay_fee(gw_context_t *ctx, gw_reg_addr_t payer_addr, uint32_t sudt_id,
-                uint128_t amount) {
+                uint256_t amount) {
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
   }

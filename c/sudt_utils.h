@@ -35,12 +35,6 @@
 #include "gw_def.h"
 #include "gw_registry_addr.h"
 #include "overflow_add.h"
-#include "stdio.h"
-
-/* Prepare withdrawal fields */
-#define WITHDRAWAL_LOCK_HASH 1
-#define WITHDRAWAL_AMOUNT 2
-#define WITHDRAWAL_BLOCK_NUMBER 3
 
 #define CKB_SUDT_ACCOUNT_ID 1
 #define SUDT_KEY_FLAG_BALANCE 1
@@ -222,22 +216,23 @@ int sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
 }
 
 /* Pay fee */
-int sudt_pay_fee(gw_context_t *ctx, const uint32_t sudt_id,
-                 gw_reg_addr_t from_addr, const uint128_t amount) {
-  /* transfer SUDT */
-  int ret =
-      _sudt_transfer(ctx, sudt_id, from_addr, ctx->block_info.block_producer,
-                     amount, GW_LOG_SUDT_PAY_FEE);
-  if (ret != 0) {
-    printf("pay fee transfer failed");
-    return ret;
-  }
-
-  /* call syscall, we use this action to emit event to runtime, this function do
-   * not actually pay the fee */
-  ret = ctx->sys_pay_fee(ctx, from_addr, sudt_id, amount);
-  if (ret != 0) {
-    printf("sys pay fee failed");
-  }
-  return ret;
-}
+// int sudt_pay_fee(gw_context_t *ctx, const uint32_t sudt_id,
+//                  gw_reg_addr_t from_addr, const uint128_t amount) {
+//   /* transfer SUDT */
+//   int ret =
+//       _sudt_transfer(ctx, sudt_id, from_addr, ctx->block_info.block_producer,
+//                      amount, GW_LOG_SUDT_PAY_FEE);
+//   if (ret != 0) {
+//     printf("pay fee transfer failed");
+//     return ret;
+//   }
+//
+//   /* call syscall, we use this action to emit event to runtime, this function
+//   do
+//    * not actually pay the fee */
+//   ret = ctx->sys_pay_fee(ctx, from_addr, sudt_id, amount);
+//   if (ret != 0) {
+//     printf("sys pay fee failed");
+//   }
+//   return ret;
+// }

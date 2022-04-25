@@ -13,6 +13,7 @@
 
 #include "ckb_syscalls.h"
 #include "gw_def.h"
+#include "uint256.h"
 
 /* syscalls */
 /* Syscall account store / load / create */
@@ -359,7 +360,7 @@ int sys_log(gw_context_t *ctx, uint32_t account_id, uint8_t service_flag,
 }
 
 int sys_pay_fee(gw_context_t *ctx, gw_reg_addr_t addr, uint32_t sudt_id,
-                uint128_t amount) {
+                uint256_t amount) {
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
   }
@@ -377,7 +378,7 @@ int sys_pay_fee(gw_context_t *ctx, gw_reg_addr_t addr, uint32_t sudt_id,
   }
   _gw_cpy_addr(buf, addr);
 
-  return syscall(GW_SYS_PAY_FEE, buf, len, sudt_id, &amount, 0, 0);
+  return syscall(GW_SYS_PAY_FEE, buf, len, sudt_id, (uint8_t *)&amount, 0, 0);
 }
 
 int _sys_load_rollup_config(uint8_t *addr, uint64_t *len) {

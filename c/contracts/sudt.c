@@ -28,9 +28,9 @@
  */
 
 #include "ckb_syscalls.h"
+#include "gw_sudt_ckb_utils.h"
 #include "gw_syscalls.h"
 #include "stdio.h"
-#include "sudt_utils.h"
 
 /* MSG_TYPE */
 #define MSG_QUERY 0
@@ -84,9 +84,15 @@ int main() {
     mol_seg_t fee_seg = MolReader_SUDTTransfer_get_fee(&msg.seg);
     mol_seg_t fee_amount_seg = MolReader_Fee_get_amount(&fee_seg);
     mol_seg_t fee_reg_seg = MolReader_Fee_get_registry_id(&fee_seg);
-    uint32_t reg_id = *(uint32_t *)fee_reg_seg.ptr;
-    uint64_t fee_amount = *(uint64_t *)fee_amount_seg.ptr;
+    uint256_t fee_amount = {0};
+    ret = uint256_from_little_endian(fee_amount_seg.ptr, fee_amount_seg.size,
+                                     &fee_amount);
+    if (ret != 0) {
+      ckb_debug("failed to fetch uint256 fee amount");
+      return ret;
+    }
 
+    uint32_t reg_id = *(uint32_t *)fee_reg_seg.ptr;
     uint32_t from_id = ctx.transaction_context.from_id;
     uint8_t from_script_hash[32] = {0};
     ret =
@@ -110,8 +116,7 @@ int main() {
 
     uint128_t amount = *(uint128_t *)amount_seg.ptr;
     /* pay fee */
-    uint32_t ckb_sudt_id = CKB_SUDT_ACCOUNT_ID;
-    ret = sudt_pay_fee(&ctx, ckb_sudt_id, from_addr, fee_amount);
+    ret = ckb_pay_fee(&ctx, from_addr, fee_amount);
     if (ret != 0) {
       printf("pay fee failed");
       return ret;

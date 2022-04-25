@@ -3,6 +3,7 @@
 
 #include "gw_registry_addr.h"
 #include "stddef.h"
+#include "uint256.h"
 
 typedef unsigned __int128 uint128_t;
 
@@ -253,7 +254,7 @@ typedef int (*gw_log_fn)(struct gw_context_t *ctx, uint32_t account_id,
  * @return                            The status code, 0 is success
  */
 typedef int (*gw_pay_fee_fn)(struct gw_context_t *ctx, gw_reg_addr_t payer_addr,
-                             uint32_t sudt_id, uint128_t amount);
+                             uint32_t sudt_id, uint256_t amount);
 
 /**
  * Get registry address by script_hash
