@@ -261,7 +261,11 @@ fn check_layer2_deposit(
         };
 
         // mint CKB
-        kv_state.mint_sudt(CKB_SUDT_ACCOUNT_ID,&address, ckb_decimal::to_18(request.value.capacity))?;
+        kv_state.mint_sudt(
+            CKB_SUDT_ACCOUNT_ID,
+            &address,
+            ckb_decimal::to_18(request.value.capacity),
+        )?;
         if request.value.sudt_script_hash.as_slice() == CKB_SUDT_SCRIPT_ARGS {
             if request.value.amount != 0 {
                 // SUDT amount must equals to zero if sudt script hash is equals to CKB_SUDT_SCRIPT_ARGS
@@ -301,8 +305,8 @@ fn check_layer2_withdrawal(
         block_producer_address: &RegistryAddress,
         amount: U256,
     ) -> Result<(), Error> {
-        kv_state.burn_sudt(CKB_SUDT_ACCOUNT_ID,payer_address, amount)?;
-        kv_state.mint_sudt(CKB_SUDT_ACCOUNT_ID,block_producer_address, amount)?;
+        kv_state.burn_sudt(CKB_SUDT_ACCOUNT_ID, payer_address, amount)?;
+        kv_state.mint_sudt(CKB_SUDT_ACCOUNT_ID, block_producer_address, amount)?;
         Ok(())
     }
 
@@ -335,7 +339,11 @@ fn check_layer2_withdrawal(
             pay_fee(kv_state, &address, &block_producer_address, fee)?;
         }
         // burn CKB
-        kv_state.burn_sudt(CKB_SUDT_ACCOUNT_ID,&address, ckb_decimal::to_18(raw.capacity().unpack()))?;
+        kv_state.burn_sudt(
+            CKB_SUDT_ACCOUNT_ID,
+            &address,
+            ckb_decimal::to_18(raw.capacity().unpack()),
+        )?;
         // find Simple UDT account
         let sudt_id = kv_state
             .get_account_id_by_script_hash(&l2_sudt_script_hash.into())?
