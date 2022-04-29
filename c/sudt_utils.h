@@ -56,7 +56,7 @@ int _sudt_build_key(uint32_t key_flag, gw_reg_addr_t registry_address,
     return GW_FATAL_BUFFER_OVERFLOW;
   }
   *key_len = 4 + GW_REG_ADDR_SIZE(registry_address);
-  memcpy(key, (uint8_t *)(&key_flag), 4);
+  _gw_fast_memcpy(key, (uint8_t *)(&key_flag), 4);
   _gw_cpy_addr(key + 4, registry_address);
   return 0;
 }
@@ -81,8 +81,9 @@ int _sudt_emit_log(gw_context_t *ctx, const uint32_t sudt_id,
   }
   _gw_cpy_addr(data, from_addr);
   _gw_cpy_addr(data + GW_REG_ADDR_SIZE(from_addr), to_addr);
-  memcpy(data + GW_REG_ADDR_SIZE(from_addr) + GW_REG_ADDR_SIZE(to_addr),
-         (uint8_t *)(&amount), 32);
+  _gw_fast_memcpy(
+      data + GW_REG_ADDR_SIZE(from_addr) + GW_REG_ADDR_SIZE(to_addr),
+      (uint8_t *)(&amount), 32);
 #endif
   return ctx->sys_log(ctx, sudt_id, service_flag, data_size, data);
 }
@@ -100,7 +101,7 @@ int _sudt_get_balance(gw_context_t *ctx, const uint32_t sudt_id,
   if (ret != 0) {
     return ret;
   }
-  uint256_from_little_endian((uint8_t *)&value, 32, balance);
+  _gw_fast_memcpy((uint8_t *)balance, (uint8_t *)(&value), 32);
   return 0;
 }
 
@@ -114,7 +115,7 @@ int _sudt_set_balance(gw_context_t *ctx, const uint32_t sudt_id,
   }
 
   uint8_t value[32] = {0};
-  uint256_to_little_endian(balance, (uint8_t *)&value, 32);
+  _gw_fast_memcpy((uint8_t *)&value, (uint8_t *)(&balance), 32);
   ret = ctx->sys_store(ctx, sudt_id, key, key_len, value);
   return ret;
 }
@@ -135,7 +136,7 @@ int _sudt_get_total_supply(gw_context_t *ctx, const uint32_t sudt_id,
   if (ret != 0) {
     return ret;
   }
-  uint256_from_little_endian((uint8_t *)&value, 32, total_supply);
+  _gw_fast_memcpy((uint8_t *)total_supply, (uint8_t *)(&value), 32);
   return 0;
 }
 

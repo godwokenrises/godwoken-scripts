@@ -84,13 +84,10 @@ int main() {
     mol_seg_t fee_seg = MolReader_SUDTTransfer_get_fee(&msg.seg);
     mol_seg_t fee_amount_seg = MolReader_Fee_get_amount(&fee_seg);
     mol_seg_t fee_reg_seg = MolReader_Fee_get_registry_id(&fee_seg);
+
     uint256_t fee_amount = {0};
-    ret = uint256_from_little_endian(fee_amount_seg.ptr, fee_amount_seg.size,
-                                     &fee_amount);
-    if (ret != 0) {
-      ckb_debug("failed to fetch uint256 fee amount");
-      return ret;
-    }
+    _gw_fast_memcpy((uint8_t *)(&fee_amount), (uint8_t *)fee_amount_seg.ptr,
+                    sizeof(uint128_t));
 
     uint32_t reg_id = *(uint32_t *)fee_reg_seg.ptr;
     uint32_t from_id = ctx.transaction_context.from_id;
@@ -115,11 +112,7 @@ int main() {
     }
 
     uint256_t amount = {0};
-    ret = uint256_from_little_endian(amount_seg.ptr, amount_seg.size, &amount);
-    if (ret != 0) {
-      ckb_debug("failed to fetch uint256 amount");
-      return ret;
-    }
+    _gw_fast_memcpy((uint8_t *)(&amount), (uint8_t *)amount_seg.ptr, 32);
 
     /* pay fee */
     ret = sudt_pay_fee(&ctx, CKB_SUDT_ACCOUNT_ID, from_addr, fee_amount);

@@ -7,30 +7,6 @@ typedef struct uint256_t {
   uint32_t array[8];
 } uint256_t;
 
-int uint256_from_little_endian(uint8_t* bytes, int size, uint256_t* num) {
-  if (size < 32) {
-    return 1;
-  }
-
-  for (int i = 0; i < 8; ++i) {
-    num->array[i] = *(uint32_t*)&bytes[i * 4];
-  }
-
-  return 0;
-}
-
-int uint256_to_little_endian(const uint256_t num, uint8_t* bytes, int size) {
-  if (size < 32) {
-    return 1;
-  }
-
-  for (int i = 0; i < 8; ++i) {
-    *(uint32_t*)&bytes[i * 4] = num.array[i];
-  }
-
-  return 0;
-}
-
 void uint256_zero(uint256_t* num) {
   for (int i = 0; i < 8; ++i) {
     num->array[i] = 0;

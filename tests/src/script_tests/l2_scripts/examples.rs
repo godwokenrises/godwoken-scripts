@@ -576,7 +576,7 @@ fn test_sudt_total_supply() {
     let alice_id = tree
         .create_account_from_script(alice)
         .expect("create alice account");
-    tree.mint_sudt(sudt_id, &alice_address, u128::MAX)
+    tree.mint_sudt(sudt_id, &alice_address, u128::MAX.into())
         .expect("alice mint sudt");
 
     let bob = Script::new_builder()
@@ -588,7 +588,7 @@ fn test_sudt_total_supply() {
     let bob_address = RegistryAddress::new(eth_registry_id, bob_hash.as_slice().to_vec());
     tree.create_account_from_script(bob)
         .expect("create bob account");
-    tree.mint_sudt(sudt_id, &bob_address, u128::MAX)
+    tree.mint_sudt(sudt_id, &bob_address, u128::MAX.into())
         .expect("bob mint sudt");
 
     let contract_id = tree

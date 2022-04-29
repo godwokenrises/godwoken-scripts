@@ -194,10 +194,10 @@ pub fn check_transfer_logs(
     logs: &[LogItem],
     sudt_id: u32,
     block_producer_addr: &RegistryAddress,
-    fee: impl Into<U256>,
+    fee: u128,
     from_addr: &RegistryAddress,
     to_addr: &RegistryAddress,
-    amount: impl Into<U256>,
+    amount: U256,
 ) {
     // pay fee log
     let sudt_fee_log = SudtLog::from_log_item(&logs[0]).unwrap();

@@ -336,7 +336,7 @@ fn check_layer2_withdrawal(
         // pay fee
         {
             let fee = raw.fee().unpack();
-            pay_fee(kv_state, &address, &block_producer_address, fee)?;
+            pay_fee(kv_state, &address, &block_producer_address, fee.into())?;
         }
         // burn CKB
         kv_state.burn_sudt(

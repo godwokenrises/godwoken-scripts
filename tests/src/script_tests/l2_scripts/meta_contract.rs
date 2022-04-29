@@ -39,7 +39,7 @@ fn test_meta_contract() {
         .expect("create account");
     let a_address = ctx.create_eth_address(a_script_hash.into(), [1u8; 20]);
     ctx.state
-        .mint_sudt(CKB_SUDT_ACCOUNT_ID, &a_address, 2000)
+        .mint_sudt(CKB_SUDT_ACCOUNT_ID, &a_address, U256::from(2000u64))
         .expect("mint CKB for account A to pay fee");
 
     let block_info = new_block_info(&a_address, 1, 0);
@@ -56,7 +56,7 @@ fn test_meta_contract() {
                 .script(contract_script.clone())
                 .fee(
                     Fee::new_builder()
-                        .amount(U256::from(1000u64).pack())
+                        .amount(1000u128.pack())
                         .registry_id(ctx.eth_registry_id.pack())
                         .build(),
                 )
@@ -113,7 +113,7 @@ fn test_duplicated_script_hash() {
     let a_address = ctx.create_eth_address(a_script_hash.into(), [1u8; 20]);
 
     ctx.state
-        .mint_sudt(CKB_SUDT_ACCOUNT_ID, &a_address, 1000)
+        .mint_sudt(CKB_SUDT_ACCOUNT_ID, &a_address, U256::from(1000u64))
         .expect("mint CKB for account A to pay fee");
 
     let block_info = new_block_info(&a_address, 1, 0);
@@ -137,7 +137,7 @@ fn test_duplicated_script_hash() {
                 .script(contract_script.clone())
                 .fee(
                     Fee::new_builder()
-                        .amount(U256::from(1000u64).pack())
+                        .amount(1000u128.pack())
                         .registry_id(a_address.registry_id.pack())
                         .build(),
                 )
@@ -192,7 +192,7 @@ fn test_insufficient_balance_to_pay_fee() {
                 .script(contract_script.clone())
                 .fee(
                     Fee::new_builder()
-                        .amount(U256::from(1000u64).pack())
+                        .amount(1000u128.pack())
                         .registry_id(ctx.eth_registry_id.pack())
                         .build(),
                 )
@@ -218,7 +218,7 @@ fn test_insufficient_balance_to_pay_fee() {
     );
 
     ctx.state
-        .mint_sudt(CKB_SUDT_ACCOUNT_ID, &from_address, 999)
+        .mint_sudt(CKB_SUDT_ACCOUNT_ID, &from_address, U256::from(999u64))
         .expect("mint CKB for account A to pay fee");
     let err = run_contract(
         &rollup_config,
@@ -236,7 +236,7 @@ fn test_insufficient_balance_to_pay_fee() {
     assert_eq!(err_code, GW_SUDT_ERROR_INSUFFICIENT_BALANCE);
 
     ctx.state
-        .mint_sudt(CKB_SUDT_ACCOUNT_ID, &from_address, 1000)
+        .mint_sudt(CKB_SUDT_ACCOUNT_ID, &from_address, U256::from(1000u64))
         .expect("mint CKB for account A to pay fee");
     let _return_data = run_contract(
         &rollup_config,

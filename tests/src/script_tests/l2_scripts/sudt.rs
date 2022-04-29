@@ -29,7 +29,7 @@ fn test_sudt() {
         .build();
     let mut ctx = TestingContext::setup(&rollup_config);
 
-    let init_a_balance: U256 = 10000u64.into();
+    let init_a_balance = U256::from(10000u64);
 
     // init accounts
     let _meta = ctx
@@ -124,14 +124,14 @@ fn test_sudt() {
             a_id,
             sudt_id,
             &b_address,
-            0,
+            U256::zero(),
         );
     }
 
     // transfer from A to B
     {
         let value: U256 = 4000u128.into();
-        let fee: U256 = 42u64.into();
+        let fee = 42u128;
         let sender_nonce = ctx.state.get_nonce(a_id).unwrap();
         let args = SUDTArgs::new_builder()
             .set(
@@ -212,7 +212,7 @@ fn test_sudt() {
                 a_id,
                 CKB_SUDT_ACCOUNT_ID,
                 &b_address,
-                0,
+                U256::zero(),
             );
 
             // check producers's sudt
@@ -223,7 +223,7 @@ fn test_sudt() {
                 a_id,
                 sudt_id,
                 &block_producer,
-                0,
+                U256::zero(),
             );
 
             // check producers's ckb
@@ -234,7 +234,7 @@ fn test_sudt() {
                 a_id,
                 CKB_SUDT_ACCOUNT_ID,
                 &block_producer,
-                fee,
+                fee.into(),
             );
         }
     }
@@ -243,7 +243,7 @@ fn test_sudt() {
 #[test]
 fn test_insufficient_balance() {
     init_env_log();
-    let init_a_balance: u128 = 10000;
+    let init_a_balance = U256::from(10000);
 
     let rollup_config = RollupConfig::new_builder()
         .l2_sudt_validator_script_type_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.pack())
@@ -339,7 +339,7 @@ fn test_insufficient_balance() {
 
 #[test]
 fn test_transfer_to_non_exist_account() {
-    let init_a_balance: u128 = 10000;
+    let init_a_balance = U256::from(10000);
 
     let rollup_config = RollupConfig::new_builder()
         .l2_sudt_validator_script_type_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.pack())
@@ -419,7 +419,7 @@ fn test_transfer_to_non_exist_account() {
 
 #[test]
 fn test_transfer_to_self() {
-    let init_a_balance: u128 = 10000;
+    let init_a_balance = U256::from(10000u64);
     let init_ckb: U256 = 100u64.into();
 
     let rollup_config = RollupConfig::new_builder()
@@ -477,7 +477,7 @@ fn test_transfer_to_self() {
         .get_script_hash(block_producer_id)
         .expect("get script hash");
     let block_producer = ctx.create_eth_address(block_producer_script_hash.into(), [42u8; 20]);
-    let block_producer_balance = 0u128;
+    let block_producer_balance = U256::zero();
     let block_info = new_block_info(&block_producer, 10, 0);
 
     // init balance for a
@@ -492,7 +492,7 @@ fn test_transfer_to_self() {
     // transfer from A to A, zero value
     {
         let value = U256::zero();
-        let fee = U256::zero();
+        let fee = 0u128;
         let sender_nonce = ctx.state.get_nonce(a_id).unwrap();
         let args = SUDTArgs::new_builder()
             .set(
@@ -550,7 +550,7 @@ fn test_transfer_to_self() {
     }
 
     // transfer from A to A, normal value
-    let fee: U256 = 20u64.into();
+    let fee = 20u128;
     {
         let value: U256 = 1000u64.into();
         let args = SUDTArgs::new_builder()
@@ -628,7 +628,7 @@ fn test_transfer_to_self() {
             a_id,
             CKB_SUDT_ACCOUNT_ID,
             &block_producer,
-            fee,
+            fee.into(),
         );
     }
 
@@ -691,15 +691,15 @@ fn test_transfer_to_self() {
             a_id,
             CKB_SUDT_ACCOUNT_ID,
             &block_producer,
-            fee,
+            fee.into(),
         );
     }
 }
 
 #[test]
 fn test_transfer_to_self_overflow() {
-    let init_a_balance: U256 = U256::MAX - 1;
-    let init_ckb: U256 = 100u64.into();
+    let init_a_balance: U256 = U256::MAX - U256::one();
+    let init_ckb = U256::from(100u64);
 
     let rollup_config = RollupConfig::new_builder()
         .l2_sudt_validator_script_type_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.pack())
@@ -756,7 +756,7 @@ fn test_transfer_to_self_overflow() {
         .get_script_hash(block_producer_id)
         .expect("get script hash");
     let block_producer = ctx.create_eth_address(block_producer_script_hash.into(), [42u8; 20]);
-    let block_producer_balance = 0;
+    let block_producer_balance = U256::zero();
     let block_info = new_block_info(&block_producer, 10, 0);
 
     // init balance for a
@@ -770,7 +770,7 @@ fn test_transfer_to_self_overflow() {
     // transfer from A to A, zero value
     {
         let value = U256::zero();
-        let fee = U256::zero();
+        let fee = 0u128;
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
@@ -843,14 +843,14 @@ fn test_transfer_to_self_overflow() {
             a_id,
             CKB_SUDT_ACCOUNT_ID,
             &block_producer,
-            0,
+            U256::zero(),
         );
     }
 
     // transfer from A to A, 1 value
     {
         let value = U256::one();
-        let fee = U256::zero();
+        let fee = 0u128;
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
@@ -920,7 +920,7 @@ fn test_transfer_to_self_overflow() {
             a_id,
             CKB_SUDT_ACCOUNT_ID,
             &block_producer,
-            0,
+            U256::zero(),
         );
     }
 
@@ -995,13 +995,13 @@ fn test_transfer_to_self_overflow() {
             a_id,
             CKB_SUDT_ACCOUNT_ID,
             &block_producer,
-            0,
+            U256::zero(),
         );
     }
 
     // transfer from A to A with a large value
     {
-        let value: U256 = U256::MAX - 1;
+        let value: U256 = U256::MAX - U256::one();
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
@@ -1070,7 +1070,7 @@ fn test_transfer_to_self_overflow() {
             a_id,
             CKB_SUDT_ACCOUNT_ID,
             &block_producer,
-            0,
+            U256::zero(),
         );
     }
 }
@@ -1079,9 +1079,9 @@ fn test_transfer_to_self_overflow() {
 #[test]
 #[ignore]
 fn test_transfer_overflow() {
-    let init_a_balance: U256 = 10000u64.into();
+    let init_a_balance = U256::from(10000u64);
     let init_b_balance: U256 = U256::MAX - init_a_balance;
-    let init_a_ckb = 100;
+    let init_a_ckb = U256::from(100u64);
 
     let rollup_config = RollupConfig::new_builder()
         .l2_sudt_validator_script_type_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.pack())
@@ -1218,7 +1218,7 @@ fn check_balance<S: State + CodeStore>(
     sender_id: u32,
     sudt_id: u32,
     address: &RegistryAddress,
-    expected_balance: impl Into<U256>,
+    expected_balance: U256,
 ) {
     // check balance
     let args = SUDTArgs::new_builder()
@@ -1242,5 +1242,5 @@ fn check_balance<S: State + CodeStore>(
         buf.copy_from_slice(&return_data);
         U256::from_little_endian(&buf)
     };
-    assert_eq!(balance, expected_balance.into());
+    assert_eq!(balance, expected_balance);
 }

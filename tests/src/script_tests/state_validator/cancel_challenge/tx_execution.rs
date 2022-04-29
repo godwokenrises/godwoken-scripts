@@ -25,6 +25,7 @@ use gw_store::mem_pool_state::MemPoolState;
 use gw_store::mem_pool_state::MemStore;
 use gw_store::state::state_db::StateContext;
 use gw_traits::CodeStore;
+use gw_types::core::AllowedContractType;
 use gw_types::core::AllowedEoaType;
 use gw_types::packed::AllowedTypeHash;
 use gw_types::packed::CCTransactionWitness;
@@ -73,6 +74,13 @@ async fn test_cancel_tx_execute() {
             vec![AllowedTypeHash::new(
                 AllowedEoaType::Eth,
                 *ALWAYS_SUCCESS_CODE_HASH,
+            )]
+            .pack(),
+        )
+        .allowed_contract_type_hashes(
+            vec![AllowedTypeHash::new(
+                AllowedContractType::Sudt,
+                l2_sudt_type_hash,
             )]
             .pack(),
         )
@@ -146,7 +154,7 @@ async fn test_cancel_tx_execute() {
         let sudt_script_hash = tree.get_script_hash(sudt_id).unwrap();
         let sudt_script = tree.get_script(&sudt_script_hash).unwrap();
         let transfer_capacity = 150_00000000u128;
-        let fee_capacity = 1_00000000u64;
+        let fee_capacity = 1_00000000u128;
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
@@ -154,7 +162,7 @@ async fn test_cancel_tx_execute() {
                     .amount(Pack::pack(&U256::from(transfer_capacity)))
                     .fee(
                         Fee::new_builder()
-                            .amount(Pack::pack(&U256::from(fee_capacity)))
+                            .amount(Pack::pack(&fee_capacity))
                             .registry_id(Pack::pack(&receiver_address.registry_id))
                             .build(),
                     )

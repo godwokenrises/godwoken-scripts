@@ -72,14 +72,10 @@ int main() {
     mol_seg_t fee_seg = MolReader_CreateAccount_get_fee(&msg.seg);
     mol_seg_t amount_seg = MolReader_Fee_get_amount(&fee_seg);
     mol_seg_t reg_id_seg = MolReader_Fee_get_registry_id(&fee_seg);
-    uint256_t fee_amount = {0};
 
-    int ret = uint256_from_little_endian(amount_seg.ptr, amount_seg.size,
-                                         &fee_amount);
-    if (ret != 0) {
-      ckb_debug("failed to fetch uint256 fee amount");
-      return ret;
-    }
+    uint256_t fee_amount = {0};
+    _gw_fast_memcpy((uint8_t *)(&fee_amount), (uint8_t *)amount_seg.ptr,
+                    sizeof(uint128_t));
 
     uint32_t reg_id = *(uint32_t *)reg_id_seg.ptr;
     ret = handle_fee(&ctx, reg_id, fee_amount);

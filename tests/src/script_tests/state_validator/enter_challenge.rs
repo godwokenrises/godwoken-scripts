@@ -19,6 +19,7 @@ use gw_chain::chain::Chain;
 use gw_common::registry_address::RegistryAddress;
 use gw_common::{builtins::CKB_SUDT_ACCOUNT_ID, state::State};
 use gw_store::state::state_db::StateContext;
+use gw_types::core::AllowedContractType;
 use gw_types::core::AllowedEoaType;
 use gw_types::packed::AllowedTypeHash;
 use gw_types::packed::Fee;
@@ -62,6 +63,9 @@ async fn test_enter_challenge() {
                 *ALWAYS_SUCCESS_CODE_HASH,
             )]
             .pack(),
+        )
+        .allowed_contract_type_hashes(
+            vec![AllowedTypeHash::new(AllowedContractType::Sudt, [0u8; 32])].pack(),
         )
         .build();
     // setup chain
@@ -288,6 +292,9 @@ async fn test_enter_challenge_finalized_block() {
                 *ALWAYS_SUCCESS_CODE_HASH,
             )]
             .pack(),
+        )
+        .allowed_contract_type_hashes(
+            vec![AllowedTypeHash::new(AllowedContractType::Sudt, [0u8; 32])].pack(),
         )
         .build();
     // setup chain
