@@ -286,7 +286,7 @@ fn check_layer2_deposit(
             return Err(Error::InvalidDepositCell);
         }
         // mint SUDT
-        kv_state.mint_sudt(sudt_id, &address, request.value.amount)?;
+        kv_state.mint_sudt(sudt_id, &address, request.value.amount.into())?;
     }
 
     Ok(())
@@ -349,7 +349,7 @@ fn check_layer2_withdrawal(
             .get_account_id_by_script_hash(&l2_sudt_script_hash.into())?
             .ok_or(StateError::MissingKey)?;
         // burn sudt
-        kv_state.burn_sudt(sudt_id, &address, raw.amount().unpack())?;
+        kv_state.burn_sudt(sudt_id, &address, raw.amount().unpack().into())?;
         // update nonce
         let nonce = kv_state.get_nonce(id)?;
         let withdrawal_nonce: u32 = raw.nonce().unpack();
