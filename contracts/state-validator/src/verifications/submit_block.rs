@@ -15,7 +15,7 @@ use gw_utils::gw_types::packed::{L2BlockReader, WithdrawalRequestReader};
 // https://nervosnetwork.github.io/ckb-std/riscv64imac-unknown-none-elf/doc/ckb_std/index.html
 use crate::ckb_std::{ckb_constants::Source, debug};
 use gw_state::kv_state::KVState;
-use gw_utils::gw_common::{self, ckb_decimal};
+use gw_utils::gw_common::{self, ckb_decimal::CKBCapacity};
 use gw_utils::gw_types::{self, U256};
 
 use super::check_status;
@@ -264,7 +264,7 @@ fn check_layer2_deposit(
         kv_state.mint_sudt(
             CKB_SUDT_ACCOUNT_ID,
             &address,
-            ckb_decimal::to_18(request.value.capacity),
+            CKBCapacity::from_layer1(request.value.capacity).to_layer2(),
         )?;
         if request.value.sudt_script_hash.as_slice() == CKB_SUDT_SCRIPT_ARGS {
             if request.value.amount != 0 {
@@ -342,7 +342,7 @@ fn check_layer2_withdrawal(
         kv_state.burn_sudt(
             CKB_SUDT_ACCOUNT_ID,
             &address,
-            ckb_decimal::to_18(raw.capacity().unpack()),
+            CKBCapacity::from_layer1(raw.capacity().unpack()).to_layer2(),
         )?;
         // find Simple UDT account
         let sudt_id = kv_state
