@@ -166,7 +166,7 @@ int _sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
     printf("transfer: can't get sender's balance");
     return ret;
   }
-  if (uint256_cmp(from_balance, amount) == SMALLER) {
+  if (gw_uint256_cmp(from_balance, amount) == GW_UINT256_SMALLER) {
     printf("transfer: insufficient balance");
     return GW_SUDT_ERROR_INSUFFICIENT_BALANCE;
   }
@@ -176,7 +176,7 @@ int _sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
   }
 
   uint256_t new_from_balance = {0};
-  uint256_underflow_sub(from_balance, amount, &new_from_balance);
+  gw_uint256_underflow_sub(from_balance, amount, &new_from_balance);
 
   /* update sender balance */
   ret = _sudt_set_balance(ctx, sudt_id, from_addr, new_from_balance);
@@ -194,7 +194,7 @@ int _sudt_transfer(gw_context_t *ctx, const uint32_t sudt_id,
   }
 
   uint256_t new_to_balance = {0};
-  int overflow = uint256_overflow_add(to_balance, amount, &new_to_balance);
+  int overflow = gw_uint256_overflow_add(to_balance, amount, &new_to_balance);
   if (overflow) {
     printf("transfer: balance overflow");
     return GW_SUDT_ERROR_AMOUNT_OVERFLOW;
