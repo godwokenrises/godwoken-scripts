@@ -112,7 +112,8 @@ int main() {
     }
 
     uint256_t amount = {0};
-    _gw_fast_memcpy((uint8_t *)(&amount), (uint8_t *)amount_seg.ptr, 32);
+    _gw_fast_memcpy((uint8_t *)(&amount), (uint8_t *)amount_seg.ptr,
+                    sizeof(uint256_t));
 
     /* pay fee */
     ret = sudt_pay_fee(&ctx, CKB_SUDT_ACCOUNT_ID, from_addr, fee_amount);

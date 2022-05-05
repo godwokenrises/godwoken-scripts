@@ -115,7 +115,7 @@ int _sudt_set_balance(gw_context_t *ctx, const uint32_t sudt_id,
   }
 
   uint8_t value[32] = {0};
-  _gw_fast_memcpy((uint8_t *)&value, (uint8_t *)(&balance), 32);
+  _gw_fast_memcpy((uint8_t *)&value, (uint8_t *)(&balance), sizeof(uint256_t));
   ret = ctx->sys_store(ctx, sudt_id, key, key_len, value);
   return ret;
 }
