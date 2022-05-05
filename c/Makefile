@@ -153,3 +153,10 @@ bindgen: rust-binding/smt_wrapper.h
 	 --allowlist-type ^smt_.+ \
 	 --allowlist-function ^smt_.+ \
 	 -- ${CINCLUDES}
+
+bindgen_uint256: rust-binding/uint256_wrapper.h
+	bindgen rust-binding/uint256_wrapper.h \
+	 --with-derive-partialeq \
+	 --with-derive-eq \
+	 -o ../c-uint256-tests/src/bindings.rs \
+	 -- ${CINCLUDES}
