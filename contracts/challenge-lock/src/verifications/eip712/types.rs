@@ -199,7 +199,7 @@ pub struct Withdrawal {
     nonce: u32,
     chain_id: u64,
     // withdrawal fee, paid to block producer
-    fee: u64,
+    fee: u128,
     // layer1 lock to withdraw after challenge period
     layer1_owner_lock: Script,
     // CKB amount

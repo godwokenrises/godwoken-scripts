@@ -22,8 +22,9 @@ use gw_common::{
 };
 use gw_store::state::state_db::StateContext;
 use gw_store::traits::chain_store::ChainStore;
-use gw_types::core::AllowedEoaType;
+use gw_types::core::{AllowedContractType, AllowedEoaType};
 use gw_types::packed::{AllowedTypeHash, Fee};
+use gw_types::U256;
 use gw_types::{
     bytes::Bytes,
     core::{ChallengeTargetType, ScriptHashType, Status},
@@ -74,6 +75,9 @@ async fn test_revert() {
                 *ALWAYS_SUCCESS_CODE_HASH,
             )]
             .pack(),
+        )
+        .allowed_contract_type_hashes(
+            vec![AllowedTypeHash::new(AllowedContractType::Sudt, [0u8; 32])].pack(),
         )
         .build();
     // setup chain
@@ -145,10 +149,10 @@ async fn test_revert() {
             let args = SUDTArgs::new_builder()
                 .set(SUDTArgsUnion::SUDTTransfer(
                     SUDTTransfer::new_builder()
-                        .amount(Pack::pack(&150_00000000u128))
+                        .amount(Pack::pack(&U256::from(150_00000000u128)))
                         .fee(
                             Fee::new_builder()
-                                .amount(Pack::pack(&1_00000000u64))
+                                .amount(Pack::pack(&1_00000000u128))
                                 .registry_id(Pack::pack(&eth_registry_id))
                                 .build(),
                         )

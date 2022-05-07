@@ -18,12 +18,12 @@ int main() {
   }
   sudt_id = *(uint32_t *)ctx.transaction_context.args;
 
-  uint8_t total_supply[32];
-  ret = sudt_get_total_supply(&ctx, sudt_id, total_supply);
+  uint256_t total_supply = {0};
+  ret = sudt_get_total_supply(&ctx, sudt_id, &total_supply);
   if (ret != 0) {
     return ret;
   }
 
-  ctx.sys_set_program_return_data(&ctx, total_supply, 32);
+  ctx.sys_set_program_return_data(&ctx, (uint8_t *)&total_supply, 32);
   return gw_finalize(&ctx);
 }

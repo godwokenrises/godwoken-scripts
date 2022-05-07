@@ -15,8 +15,8 @@ use gw_utils::gw_types::packed::{L2BlockReader, WithdrawalRequestReader};
 // https://nervosnetwork.github.io/ckb-std/riscv64imac-unknown-none-elf/doc/ckb_std/index.html
 use crate::ckb_std::{ckb_constants::Source, debug};
 use gw_state::kv_state::KVState;
-use gw_utils::gw_common;
-use gw_utils::gw_types;
+use gw_utils::gw_common::{self, ckb_decimal::CKBCapacity};
+use gw_utils::gw_types::{self, U256};
 
 use super::check_status;
 use crate::types::BlockContext;
@@ -261,7 +261,11 @@ fn check_layer2_deposit(
         };
 
         // mint CKB
-        kv_state.mint_sudt(CKB_SUDT_ACCOUNT_ID, &address, request.value.capacity.into())?;
+        kv_state.mint_sudt(
+            CKB_SUDT_ACCOUNT_ID,
+            &address,
+            CKBCapacity::from_layer1(request.value.capacity).to_layer2(),
+        )?;
         if request.value.sudt_script_hash.as_slice() == CKB_SUDT_SCRIPT_ARGS {
             if request.value.amount != 0 {
                 // SUDT amount must equals to zero if sudt script hash is equals to CKB_SUDT_SCRIPT_ARGS
@@ -282,7 +286,7 @@ fn check_layer2_deposit(
             return Err(Error::InvalidDepositCell);
         }
         // mint SUDT
-        kv_state.mint_sudt(sudt_id, &address, request.value.amount)?;
+        kv_state.mint_sudt(sudt_id, &address, request.value.amount.into())?;
     }
 
     Ok(())
@@ -299,10 +303,10 @@ fn check_layer2_withdrawal(
         kv_state: &mut KVState,
         payer_address: &RegistryAddress,
         block_producer_address: &RegistryAddress,
-        amount: u64,
+        amount: U256,
     ) -> Result<(), Error> {
-        kv_state.burn_sudt(CKB_SUDT_ACCOUNT_ID, payer_address, amount.into())?;
-        kv_state.mint_sudt(CKB_SUDT_ACCOUNT_ID, block_producer_address, amount.into())?;
+        kv_state.burn_sudt(CKB_SUDT_ACCOUNT_ID, payer_address, amount)?;
+        kv_state.mint_sudt(CKB_SUDT_ACCOUNT_ID, block_producer_address, amount)?;
         Ok(())
     }
 
@@ -332,20 +336,20 @@ fn check_layer2_withdrawal(
         // pay fee
         {
             let fee = raw.fee().unpack();
-            pay_fee(kv_state, &address, &block_producer_address, fee)?;
+            pay_fee(kv_state, &address, &block_producer_address, fee.into())?;
         }
         // burn CKB
         kv_state.burn_sudt(
             CKB_SUDT_ACCOUNT_ID,
             &address,
-            raw.capacity().unpack() as u128,
+            CKBCapacity::from_layer1(raw.capacity().unpack()).to_layer2(),
         )?;
         // find Simple UDT account
         let sudt_id = kv_state
             .get_account_id_by_script_hash(&l2_sudt_script_hash.into())?
             .ok_or(StateError::MissingKey)?;
         // burn sudt
-        kv_state.burn_sudt(sudt_id, &address, raw.amount().unpack())?;
+        kv_state.burn_sudt(sudt_id, &address, raw.amount().unpack().into())?;
         // update nonce
         let nonce = kv_state.get_nonce(id)?;
         let withdrawal_nonce: u32 = raw.nonce().unpack();

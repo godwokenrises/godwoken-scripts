@@ -10,7 +10,7 @@ VALIDATOR_FLAGS := -DGW_VALIDATOR
 LDFLAGS := -Wl,-static -fdata-sections -ffunction-sections -Wl,--gc-sections
 MOLC := moleculec
 MOLC_VERSION := 0.7.2
-PROTOCOL_VERSION := b4db76522b7982f650cc5a6053d5f3957b7cbfd0
+PROTOCOL_VERSION := 91c324544424292b4d715ce376d31bc45aa3cb5d
 PROTOCOL_SCHEMA_URL := https://raw.githubusercontent.com/nervosnetwork/godwoken/${PROTOCOL_VERSION}/crates/types/schemas
 
 # docker pull nervos/ckb-riscv-gnu-toolchain:gnu-bionic-20191012
@@ -51,12 +51,12 @@ debug-all: all
 $(SECP256K1_HELPER):
 	cd deps/ckb-production-scripts && git submodule init && git submodule update -r && make all-via-docker
 
-build/meta-contract-generator: contracts/meta_contract.c gw_def.h generator_utils.h
+build/meta-contract-generator: contracts/meta_contract.c sudt_utils.h gw_def.h generator_utils.h
 	$(CC) $(CFLAGS) $(GENERATOR_FLAGS) $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
 
-build/meta-contract-validator: contracts/meta_contract.c gw_def.h validator_utils.h
+build/meta-contract-validator: contracts/meta_contract.c sudt_utils.h gw_def.h validator_utils.h
 	$(CC) $(CFLAGS) $(VALIDATOR_FLAGS) $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
@@ -152,4 +152,11 @@ bindgen: rust-binding/smt_wrapper.h
 	 --allowlist-type SMTErrorCode \
 	 --allowlist-type ^smt_.+ \
 	 --allowlist-function ^smt_.+ \
+	 -- ${CINCLUDES}
+
+bindgen_uint256: rust-binding/uint256_wrapper.h
+	bindgen rust-binding/uint256_wrapper.h \
+	 --with-derive-partialeq \
+	 --with-derive-eq \
+	 -o ../c-uint256-tests/src/bindings.rs \
 	 -- ${CINCLUDES}

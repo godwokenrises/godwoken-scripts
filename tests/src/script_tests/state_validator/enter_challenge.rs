@@ -19,10 +19,12 @@ use gw_chain::chain::Chain;
 use gw_common::registry_address::RegistryAddress;
 use gw_common::{builtins::CKB_SUDT_ACCOUNT_ID, state::State};
 use gw_store::state::state_db::StateContext;
+use gw_types::core::AllowedContractType;
 use gw_types::core::AllowedEoaType;
 use gw_types::packed::AllowedTypeHash;
 use gw_types::packed::Fee;
 use gw_types::prelude::*;
+use gw_types::U256;
 use gw_types::{
     bytes::Bytes,
     core::{ChallengeTargetType, ScriptHashType, Status},
@@ -61,6 +63,9 @@ async fn test_enter_challenge() {
                 *ALWAYS_SUCCESS_CODE_HASH,
             )]
             .pack(),
+        )
+        .allowed_contract_type_hashes(
+            vec![AllowedTypeHash::new(AllowedContractType::Sudt, [0u8; 32])].pack(),
         )
         .build();
     // setup chain
@@ -139,7 +144,7 @@ async fn test_enter_challenge() {
             let args = SUDTArgs::new_builder()
                 .set(SUDTArgsUnion::SUDTTransfer(
                     SUDTTransfer::new_builder()
-                        .amount(Pack::pack(&150_00000000u128))
+                        .amount(Pack::pack(&U256::from(150_00000000u128)))
                         .to_address(Pack::pack(&Bytes::from(receiver_address.to_bytes())))
                         .fee(
                             Fee::new_builder()
@@ -287,6 +292,9 @@ async fn test_enter_challenge_finalized_block() {
                 *ALWAYS_SUCCESS_CODE_HASH,
             )]
             .pack(),
+        )
+        .allowed_contract_type_hashes(
+            vec![AllowedTypeHash::new(AllowedContractType::Sudt, [0u8; 32])].pack(),
         )
         .build();
     // setup chain
@@ -484,7 +492,7 @@ async fn produce_block(
         let args = SUDTArgs::new_builder()
             .set(SUDTArgsUnion::SUDTTransfer(
                 SUDTTransfer::new_builder()
-                    .amount(Pack::pack(&50_00000000u128))
+                    .amount(Pack::pack(&U256::from(50_00000000u128)))
                     .to_address(Pack::pack(&Bytes::from(receiver_address.to_bytes())))
                     .fee(
                         Fee::new_builder()

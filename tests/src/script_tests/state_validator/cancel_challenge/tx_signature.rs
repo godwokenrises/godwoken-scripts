@@ -30,12 +30,14 @@ use gw_store::mem_pool_state::MemPoolState;
 use gw_store::mem_pool_state::MemStore;
 use gw_store::state::state_db::StateContext;
 use gw_traits::CodeStore;
+use gw_types::core::AllowedContractType;
 use gw_types::core::AllowedEoaType;
 use gw_types::core::SigningType;
 use gw_types::packed::AllowedTypeHash;
 use gw_types::packed::CCTransactionSignatureWitness;
 use gw_types::packed::Fee;
 use gw_types::prelude::*;
+use gw_types::U256;
 use gw_types::{
     bytes::Bytes,
     core::{ChallengeTargetType, ScriptHashType, Status},
@@ -79,6 +81,13 @@ async fn test_cancel_tx_signature() {
         .allowed_contract_type_hashes(PackVec::pack(vec![AllowedTypeHash::from_unknown(
             l2_sudt_type_hash,
         )]))
+        .allowed_contract_type_hashes(
+            vec![AllowedTypeHash::new(
+                AllowedContractType::Sudt,
+                l2_sudt_type_hash,
+            )]
+            .pack(),
+        )
         .finality_blocks(Pack::pack(&finality_blocks))
         .build();
     // setup chain
@@ -159,12 +168,12 @@ async fn test_cancel_tx_signature() {
         let sudt_script_hash = tree.get_script_hash(sudt_id).unwrap();
         let sudt_script = tree.get_script(&sudt_script_hash).unwrap();
         let transfer_capacity = 2_00000000u128;
-        let fee_capacity = 1_00000000u64;
+        let fee_capacity = 1_00000000u128;
         let args = SUDTArgs::new_builder()
             .set(
                 SUDTTransfer::new_builder()
                     .to_address(Pack::pack(&Bytes::from(receiver_address.to_bytes())))
-                    .amount(Pack::pack(&transfer_capacity))
+                    .amount(Pack::pack(&U256::from(transfer_capacity)))
                     .fee(
                         Fee::new_builder()
                             .amount(Pack::pack(&fee_capacity))

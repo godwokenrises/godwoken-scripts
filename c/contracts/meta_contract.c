@@ -12,10 +12,8 @@
 
 /* MSG_TYPE */
 #define MSG_CREATE_ACCOUNT 0
-/* Constants */
-#define CKB_SUDT_ACCOUNT_ID 1
 
-int handle_fee(gw_context_t *ctx, uint32_t registry_id, uint64_t fee) {
+int handle_fee(gw_context_t *ctx, uint32_t registry_id, uint256_t amount) {
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
   }
@@ -37,9 +35,7 @@ int handle_fee(gw_context_t *ctx, uint32_t registry_id, uint64_t fee) {
   }
 
   /* pay fee */
-  uint32_t sudt_id = CKB_SUDT_ACCOUNT_ID;
-  uint128_t fee_amount = fee;
-  ret = sudt_pay_fee(ctx, sudt_id, payer_addr, fee_amount);
+  ret = sudt_pay_fee(ctx, CKB_SUDT_ACCOUNT_ID, payer_addr, amount);
   if (ret != 0) {
     ckb_debug("failed to pay fee");
     return ret;
@@ -76,9 +72,13 @@ int main() {
     mol_seg_t fee_seg = MolReader_CreateAccount_get_fee(&msg.seg);
     mol_seg_t amount_seg = MolReader_Fee_get_amount(&fee_seg);
     mol_seg_t reg_id_seg = MolReader_Fee_get_registry_id(&fee_seg);
-    uint64_t fee_amount = *(uint64_t *)amount_seg.ptr;
+
+    uint256_t fee_amount = {0};
+    _gw_fast_memcpy((uint8_t *)(&fee_amount), (uint8_t *)amount_seg.ptr,
+                    sizeof(uint128_t));
+
     uint32_t reg_id = *(uint32_t *)reg_id_seg.ptr;
-    int ret = handle_fee(&ctx, reg_id, fee_amount);
+    ret = handle_fee(&ctx, reg_id, fee_amount);
     if (ret != 0) {
       ckb_debug("failed to handle fee");
       return ret;

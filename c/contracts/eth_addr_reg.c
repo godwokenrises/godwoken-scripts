@@ -13,7 +13,6 @@
  */
 
 #include "gw_eth_addr_reg.h"
-#include "gw_syscalls.h"
 #include "sudt_utils.h"
 
 /* MSG_TYPE */
@@ -22,7 +21,7 @@
 #define MSG_SET_MAPPING 2
 #define MSG_BATCH_SET_MAPPING 3
 
-int handle_fee(gw_context_t *ctx, uint32_t registry_id, uint64_t fee) {
+int handle_fee(gw_context_t *ctx, uint32_t registry_id, uint256_t amount) {
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
   }
@@ -41,10 +40,7 @@ int handle_fee(gw_context_t *ctx, uint32_t registry_id, uint64_t fee) {
     return ret;
   }
 
-  /* pay fee */
-  uint32_t sudt_id = CKB_SUDT_ACCOUNT_ID;
-  uint128_t fee_amount = fee;
-  return sudt_pay_fee(ctx, sudt_id, payer_addr, fee_amount);
+  return sudt_pay_fee(ctx, CKB_SUDT_ACCOUNT_ID, payer_addr, amount);
 }
 
 int main() {
@@ -110,8 +106,12 @@ int main() {
     mol_seg_t fee_seg = MolReader_SetMapping_get_fee(&msg.seg);
     mol_seg_t amount_seg = MolReader_Fee_get_amount(&fee_seg);
     mol_seg_t reg_id_seg = MolReader_Fee_get_registry_id(&fee_seg);
-    uint64_t fee_amount = *(uint64_t *)amount_seg.ptr;
     uint32_t reg_id = *(uint32_t *)reg_id_seg.ptr;
+
+    uint256_t fee_amount = {0};
+    _gw_fast_memcpy((uint8_t *)(&fee_amount), (uint8_t *)amount_seg.ptr,
+                    sizeof(uint128_t));
+
     ret = handle_fee(&ctx, reg_id, fee_amount);
     if (ret != 0) {
       return ret;
@@ -139,8 +139,12 @@ int main() {
     mol_seg_t fee_seg = MolReader_BatchSetMapping_get_fee(&msg.seg);
     mol_seg_t amount_seg = MolReader_Fee_get_amount(&fee_seg);
     mol_seg_t reg_id_seg = MolReader_Fee_get_registry_id(&fee_seg);
-    uint64_t fee_amount = *(uint64_t *)amount_seg.ptr;
     uint32_t reg_id = *(uint32_t *)reg_id_seg.ptr;
+
+    uint256_t fee_amount = {0};
+    _gw_fast_memcpy((uint8_t *)(&fee_amount), (uint8_t *)amount_seg.ptr,
+                    sizeof(uint128_t));
+
     ret = handle_fee(&ctx, reg_id, fee_amount);
     if (ret != 0) {
       return ret;

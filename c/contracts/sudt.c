@@ -65,13 +65,13 @@ int main() {
     if (ret != 0) {
       return ret;
     }
-    uint128_t balance = 0;
+    uint256_t balance = {0};
     ret = sudt_get_balance(&ctx, sudt_id, addr, &balance);
     if (ret != 0) {
       return ret;
     }
     ret = ctx.sys_set_program_return_data(&ctx, (uint8_t *)&balance,
-                                          sizeof(uint128_t));
+                                          sizeof(uint256_t));
     if (ret != 0) {
       return ret;
     }
@@ -84,9 +84,12 @@ int main() {
     mol_seg_t fee_seg = MolReader_SUDTTransfer_get_fee(&msg.seg);
     mol_seg_t fee_amount_seg = MolReader_Fee_get_amount(&fee_seg);
     mol_seg_t fee_reg_seg = MolReader_Fee_get_registry_id(&fee_seg);
-    uint32_t reg_id = *(uint32_t *)fee_reg_seg.ptr;
-    uint64_t fee_amount = *(uint64_t *)fee_amount_seg.ptr;
 
+    uint256_t fee_amount = {0};
+    _gw_fast_memcpy((uint8_t *)(&fee_amount), (uint8_t *)fee_amount_seg.ptr,
+                    sizeof(uint128_t));
+
+    uint32_t reg_id = *(uint32_t *)fee_reg_seg.ptr;
     uint32_t from_id = ctx.transaction_context.from_id;
     uint8_t from_script_hash[32] = {0};
     ret =
@@ -108,10 +111,12 @@ int main() {
       return ret;
     }
 
-    uint128_t amount = *(uint128_t *)amount_seg.ptr;
+    uint256_t amount = {0};
+    _gw_fast_memcpy((uint8_t *)(&amount), (uint8_t *)amount_seg.ptr,
+                    sizeof(uint256_t));
+
     /* pay fee */
-    uint32_t ckb_sudt_id = CKB_SUDT_ACCOUNT_ID;
-    ret = sudt_pay_fee(&ctx, ckb_sudt_id, from_addr, fee_amount);
+    ret = sudt_pay_fee(&ctx, CKB_SUDT_ACCOUNT_ID, from_addr, fee_amount);
     if (ret != 0) {
       printf("pay fee failed");
       return ret;
