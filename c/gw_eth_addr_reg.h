@@ -17,11 +17,12 @@
  * 1. Externally-owned – controlled by anyone with the private keys
  * 2. Contract – a smart contract deployed to the network, controlled by code
  * @param script_hash Godwoken account script hash
+ * @param overwrite re-map if the account has been registered
  * @return int: 0 means success
  */
 int gw_update_eth_address_register(
     gw_context_t *ctx, const uint8_t eth_address[GW_ETH_ADDRESS_LEN],
-    const uint8_t script_hash[GW_VALUE_BYTES]) {
+    const uint8_t script_hash[GW_VALUE_BYTES], bool overwrite) {
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
   }
@@ -39,7 +40,7 @@ int gw_update_eth_address_register(
   /* check if the account has been registered */
   uint8_t _buf[32] = {0};
   int ret = ctx->sys_get_script_hash_by_registry_address(ctx, &addr, _buf);
-  if (ret == 0) {
+  if (ret == 0 && !overwrite) {
     return GW_REGISTRY_ERROR_DUPLICATE_MAPPING;
   }
 
@@ -160,7 +161,8 @@ int gw_register_eth_address(gw_context_t *ctx,
         }
         _gw_fast_memcpy(eth_address, raw_bytes_seg.ptr + 32,
                         GW_ETH_ADDRESS_LEN);
-        return gw_update_eth_address_register(ctx, eth_address, script_hash);
+        return gw_update_eth_address_register(ctx, eth_address, script_hash,
+                                              false);
       }
     }
   }
@@ -214,7 +216,8 @@ int gw_register_eth_address(gw_context_t *ctx,
         }
         _gw_fast_memcpy(eth_address, raw_bytes_seg.ptr + 36,
                         GW_ETH_ADDRESS_LEN);
-        return gw_update_eth_address_register(ctx, eth_address, script_hash);
+        return gw_update_eth_address_register(ctx, eth_address, script_hash,
+                                              false);
       }
     }
   }
