@@ -75,20 +75,19 @@ int gw_update_eth_address_register(
 /**
  * @brief Remove mapping from script hash to eth reg addr by setting value to
  * zero-hash.
- * 
- * @param ctx 
+ *
+ * @param ctx
  * @param script_hash which is going to be removed
  * @return 0 if successful
  */
 int gw_rm_script_hash_to_eth_addr_reg(
-    gw_context_t *ctx,
-    const uint8_t script_hash[GW_VALUE_BYTES]) {
+    gw_context_t *ctx, const uint8_t script_hash[GW_VALUE_BYTES]) {
   uint8_t script_hash_to_eth_key[36] = {0};
   _gw_build_script_hash_to_registry_address_key(script_hash_to_eth_key,
                                                 (uint8_t *)script_hash);
   uint8_t addr_buf[32] = {0};
   int ret = ctx->sys_store(ctx, GW_DEFAULT_ETH_REGISTRY_ACCOUNT_ID,
-                       script_hash_to_eth_key, 36, addr_buf);
+                           script_hash_to_eth_key, 36, addr_buf);
   if (ret != 0) {
     return ret;
   }
