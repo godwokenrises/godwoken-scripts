@@ -47,7 +47,7 @@ const uint8_t SUDT_TOTAL_SUPPLY_KEY[] = {
 };
 
 /* format:
- * blake2b(key_flag(4 bytes) | registry_address)
+ * key_flag(4 bytes) | registry_address
  */
 int _sudt_build_key(uint32_t key_flag, gw_reg_addr_t registry_address,
                     uint8_t *key, uint32_t *key_len) {
