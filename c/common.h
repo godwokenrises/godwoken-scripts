@@ -87,8 +87,10 @@ int gw_parse_transaction_context(gw_transaction_context_t *transaction_context,
   if (args_seg.size > GW_MAX_L2TX_ARGS_SIZE) {
     return GW_FATAL_INVALID_DATA;
   }
-  transaction_context->from_id = *(uint32_t *)from_id_seg.ptr;
-  transaction_context->to_id = *(uint32_t *)to_id_seg.ptr;
+  _gw_fast_memcpy((uint8_t *)(&transaction_context->from_id), from_id_seg.ptr,
+                  sizeof(uint32_t));
+  _gw_fast_memcpy((uint8_t *)(&transaction_context->to_id), to_id_seg.ptr,
+                  sizeof(uint32_t));
   _gw_fast_memcpy(transaction_context->args, args_seg.ptr, args_seg.size);
   transaction_context->args_len = args_seg.size;
   return 0;

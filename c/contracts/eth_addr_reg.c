@@ -106,7 +106,9 @@ int main() {
     mol_seg_t fee_seg = MolReader_SetMapping_get_fee(&msg.seg);
     mol_seg_t amount_seg = MolReader_Fee_get_amount(&fee_seg);
     mol_seg_t reg_id_seg = MolReader_Fee_get_registry_id(&fee_seg);
-    uint32_t reg_id = *(uint32_t *)reg_id_seg.ptr;
+
+    uint32_t reg_id = 0;
+    _gw_fast_memcpy((uint8_t *)(&reg_id), reg_id_seg.ptr, sizeof(uint32_t));
 
     uint256_t fee_amount = {0};
     _gw_fast_memcpy((uint8_t *)(&fee_amount), (uint8_t *)amount_seg.ptr,
@@ -139,7 +141,9 @@ int main() {
     mol_seg_t fee_seg = MolReader_BatchSetMapping_get_fee(&msg.seg);
     mol_seg_t amount_seg = MolReader_Fee_get_amount(&fee_seg);
     mol_seg_t reg_id_seg = MolReader_Fee_get_registry_id(&fee_seg);
-    uint32_t reg_id = *(uint32_t *)reg_id_seg.ptr;
+
+    uint32_t reg_id = 0;
+    _gw_fast_memcpy((uint8_t *)(&reg_id), reg_id_seg.ptr, sizeof(uint32_t));
 
     uint256_t fee_amount = {0};
     _gw_fast_memcpy((uint8_t *)(&fee_amount), (uint8_t *)amount_seg.ptr,

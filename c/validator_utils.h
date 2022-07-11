@@ -933,7 +933,7 @@ int _load_verification_context(
   /* get challenged transaction index */
   mol_seg_t tx_index_seg =
       MolReader_ChallengeTarget_get_target_index(&target_seg);
-  *tx_index = *((uint32_t *)tx_index_seg.ptr);
+  _gw_fast_memcpy(tx_index, tx_index_seg.ptr, sizeof(uint32_t));
   return 0;
 }
 
@@ -953,7 +953,9 @@ int _gw_verify_cbmt_tx_proof(mol_seg_t *proof_seg, mol_seg_t *root_seg,
     return GW_FATAL_INVALID_DATA;
   }
 
-  uint32_t leaf_index = *((uint32_t *)tx_leaf_index_res.seg.ptr);
+  uint32_t leaf_index = 0;
+  _gw_fast_memcpy((uint8_t *)(&leaf_index), tx_leaf_index_res.seg.ptr,
+                  sizeof(uint32_t));
   printf("[verify tx proof] leaf index %d", leaf_index);
 
   /* calculate leaf hash */
@@ -1019,7 +1021,9 @@ int _load_tx_checkpoint(mol_seg_t *raw_l2block_seg, uint32_t tx_index,
       MolReader_RawL2Block_get_submit_withdrawals(raw_l2block_seg);
   mol_seg_t withdrawals_count_seg =
       MolReader_SubmitWithdrawals_get_withdrawal_count(&submit_withdrawals_seg);
-  uint32_t withdrawals_count = *((uint32_t *)withdrawals_count_seg.ptr);
+  uint32_t withdrawals_count = 0;
+  _gw_fast_memcpy((uint8_t *)(&withdrawals_count), withdrawals_count_seg.ptr,
+                  sizeof(uint32_t));
 
   mol_seg_t checkpoint_list_seg =
       MolReader_RawL2Block_get_state_checkpoint_list(raw_l2block_seg);
@@ -1143,15 +1147,19 @@ int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
 
   /* load block info */
   mol_seg_t number_seg = MolReader_RawL2Block_get_number(&raw_l2block_seg);
-  uint64_t challenged_block_number = *(uint64_t *)number_seg.ptr;
+  uint64_t challenged_block_number = 0;
+  _gw_fast_memcpy((uint8_t *)(&challenged_block_number), number_seg.ptr,
+                  sizeof(uint64_t));
   mol_seg_t timestamp_seg =
       MolReader_RawL2Block_get_timestamp(&raw_l2block_seg);
   mol_seg_t block_producer_seg =
       MolReader_RawL2Block_get_block_producer(&raw_l2block_seg);
   mol_seg_t raw_block_producer_seg =
       MolReader_Bytes_raw_bytes(&block_producer_seg);
-  ctx->block_info.number = *((uint64_t *)number_seg.ptr);
-  ctx->block_info.timestamp = *((uint64_t *)timestamp_seg.ptr);
+  _gw_fast_memcpy((uint8_t *)(&ctx->block_info.number), number_seg.ptr,
+                  sizeof(uint64_t));
+  _gw_fast_memcpy((uint8_t *)(&ctx->block_info.timestamp), timestamp_seg.ptr,
+                  sizeof(uint64_t));
   /* parse block producer */
   ret = _gw_parse_addr(raw_block_producer_seg.ptr, raw_block_producer_seg.size,
                        &ctx->block_info.block_producer);
@@ -1184,7 +1192,8 @@ int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
     }
     mol_seg_t num_seg =
         MolReader_BlockHashEntry_get_number(&block_hash_entry_res.seg);
-    uint64_t block_number = *(uint64_t *)num_seg.ptr;
+    uint64_t block_number = 0;
+    _gw_fast_memcpy((uint8_t *)(&block_number), num_seg.ptr, sizeof(uint64_t));
     if (block_number < min_block_number || block_number > max_block_number) {
       printf("invalid number in block hashes");
       return GW_FATAL_INVALID_DATA;
@@ -1260,7 +1269,8 @@ int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
 
   mol_seg_t account_count_seg =
       MolReader_CCTransactionWitness_get_account_count(&cc_tx_witness_seg);
-  ctx->account_count = *((uint32_t *)account_count_seg.ptr);
+  _gw_fast_memcpy((uint8_t *)(&ctx->account_count), account_count_seg.ptr,
+                  sizeof(uint32_t));
 
   /* load prev account state */
   mol_seg_t prev_account_seg =
@@ -1270,7 +1280,8 @@ int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
   mol_seg_t prev_count_seg =
       MolReader_AccountMerkleState_get_count(&prev_account_seg);
   _gw_fast_memcpy(ctx->prev_account.merkle_root, prev_merkle_root_seg.ptr, 32);
-  ctx->prev_account.count = *((uint32_t *)prev_count_seg.ptr);
+  _gw_fast_memcpy((uint8_t *)(&ctx->prev_account.count), prev_count_seg.ptr,
+                  sizeof(uint32_t));
   /* load post account state */
   mol_seg_t post_account_seg =
       MolReader_RawL2Block_get_post_account(&raw_l2block_seg);
@@ -1279,7 +1290,8 @@ int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
   mol_seg_t post_count_seg =
       MolReader_AccountMerkleState_get_count(&post_account_seg);
   _gw_fast_memcpy(ctx->post_account.merkle_root, post_merkle_root_seg.ptr, 32);
-  ctx->post_account.count = *((uint32_t *)post_count_seg.ptr);
+  _gw_fast_memcpy((uint8_t *)(&ctx->post_account.count), post_count_seg.ptr,
+                  sizeof(uint32_t));
 
   /* load scripts */
   mol_seg_t scripts_seg =
