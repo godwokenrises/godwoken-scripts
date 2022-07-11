@@ -89,7 +89,9 @@ int main() {
     _gw_fast_memcpy((uint8_t *)(&fee_amount), (uint8_t *)fee_amount_seg.ptr,
                     sizeof(uint128_t));
 
-    uint32_t reg_id = *(uint32_t *)fee_reg_seg.ptr;
+    uint32_t reg_id = 0;
+    _gw_fast_memcpy((uint8_t *)(&reg_id), fee_reg_seg.ptr, sizeof(uint32_t));
+
     uint32_t from_id = ctx.transaction_context.from_id;
     uint8_t from_script_hash[32] = {0};
     ret =
