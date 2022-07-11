@@ -109,7 +109,10 @@ int main() {
     _gw_fast_memcpy((uint8_t *)(&fee_amount), (uint8_t *)amount_seg.ptr,
                     sizeof(uint128_t));
 
-    uint32_t reg_id = *(uint32_t *)reg_id_seg.ptr;
+    uint32_t reg_id = 0;
+    _gw_fast_memcpy((uint8_t *)(&reg_id), (uint8_t *)reg_id_seg.ptr,
+                    sizeof(uint32_t));
+
     ret = handle_fee(&ctx, reg_id, fee_amount);
     if (ret != 0) {
       ckb_debug("failed to handle fee");
