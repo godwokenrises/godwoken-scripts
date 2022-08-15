@@ -7,17 +7,17 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-gw-types = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "afb6521b6048f9a08a602b27fdcd8657402a99c0" }
-gw-common = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "afb6521b6048f9a08a602b27fdcd8657402a99c0" }
-gw-config = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "afb6521b6048f9a08a602b27fdcd8657402a99c0" }
-gw-db = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "afb6521b6048f9a08a602b27fdcd8657402a99c0" }
-gw-store = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "afb6521b6048f9a08a602b27fdcd8657402a99c0" }
-gw-traits = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "afb6521b6048f9a08a602b27fdcd8657402a99c0" }
-gw-generator = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "afb6521b6048f9a08a602b27fdcd8657402a99c0", features = ["detect-asm", "unhandled-execution"] }
-gw-chain = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "afb6521b6048f9a08a602b27fdcd8657402a99c0" }
-gw-mem-pool = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "afb6521b6048f9a08a602b27fdcd8657402a99c0" }
-gw-block-producer = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "afb6521b6048f9a08a602b27fdcd8657402a99c0" }
-gw-utils = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "afb6521b6048f9a08a602b27fdcd8657402a99c0" }
+gw-types = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "3e160758e98b28eced0e0a6be7088483b1ed280d" }
+gw-common = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "3e160758e98b28eced0e0a6be7088483b1ed280d" }
+gw-config = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "3e160758e98b28eced0e0a6be7088483b1ed280d" }
+gw-db = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "3e160758e98b28eced0e0a6be7088483b1ed280d" }
+gw-store = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "3e160758e98b28eced0e0a6be7088483b1ed280d" }
+gw-traits = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "3e160758e98b28eced0e0a6be7088483b1ed280d" }
+gw-generator = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "3e160758e98b28eced0e0a6be7088483b1ed280d", features = ["detect-asm", "unhandled-execution"] }
+gw-chain = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "3e160758e98b28eced0e0a6be7088483b1ed280d" }
+gw-mem-pool = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "3e160758e98b28eced0e0a6be7088483b1ed280d" }
+gw-block-producer = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "3e160758e98b28eced0e0a6be7088483b1ed280d" }
+gw-utils = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "3e160758e98b28eced0e0a6be7088483b1ed280d" }
 async-trait = "0.1"
 anyhow = "1.0"
 blake2b-rs = "0.2"
