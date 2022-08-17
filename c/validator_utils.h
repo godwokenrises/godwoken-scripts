@@ -846,12 +846,12 @@ int _load_verification_context(
   global_state_seg.ptr = global_state_buf;
   global_state_seg.size = buf_len;
 
-  uint8_t rollup_version = 0;
+  uint8_t rollup_version = 1;
   if (MolReader_GlobalState_verify(&global_state_seg, false) == MOL_OK) {
     rollup_version =
         *(uint8_t *)MolReader_GlobalState_get_version(&global_state_seg).ptr;
   } else {
-    if (MolReader_GlobalStateV0_verify(&global_state_seg, false) != MOL_OK) {
+    if (MolReader_GlobalStateV1_verify(&global_state_seg, false) != MOL_OK) {
       printf("rollup cell data is not GlobalState format");
       return GW_FATAL_INVALID_DATA;
     }
@@ -859,9 +859,9 @@ int _load_verification_context(
 
   /* Get block_merkle_root */
   mol_seg_t block_merkle_state_seg;
-  if (0 == rollup_version) {
+  if (1 == rollup_version) {
     block_merkle_state_seg =
-        MolReader_GlobalStateV0_get_block(&global_state_seg);
+        MolReader_GlobalStateV1_get_block(&global_state_seg);
   } else {
     block_merkle_state_seg = MolReader_GlobalState_get_block(&global_state_seg);
   }
@@ -876,9 +876,9 @@ int _load_verification_context(
 
   /* load rollup config cell */
   mol_seg_t rollup_config_hash_seg;
-  if (0 == rollup_version) {
+  if (1 == rollup_version) {
     rollup_config_hash_seg =
-        MolReader_GlobalStateV0_get_rollup_config_hash(&global_state_seg);
+        MolReader_GlobalStateV1_get_rollup_config_hash(&global_state_seg);
   } else {
     rollup_config_hash_seg =
         MolReader_GlobalState_get_rollup_config_hash(&global_state_seg);

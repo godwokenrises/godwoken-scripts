@@ -2,7 +2,7 @@
 
 use super::types::{
     BurnCell, CellValue, ChallengeCell, CustodianCell, DepositRequestCell, StakeCell,
-    WithdrawalCell,
+    UserWithdrawalCell, WithdrawalCell,
 };
 use crate::error::Error;
 use alloc::vec::Vec;
@@ -308,6 +308,28 @@ pub fn collect_burn_cells(config: &RollupConfig, source: Source) -> Result<Vec<B
                 Err(err) => return Some(Err(err)),
             };
             let cell = BurnCell { index, value };
+            Some(Ok(cell))
+        })
+        .collect::<Result<_, Error>>()
+}
+
+pub fn collect_user_withdrawal_cells(
+    rollup_config: &RollupConfig,
+    &user_lock_hash: &H256,
+) -> Result<Vec<UserWithdrawalCell>, Error> {
+    QueryIter::new(load_cell_lock_hash, Source::Output)
+        .enumerate()
+        .filter_map(|(index, lock_hash)| {
+            let is_lock = lock_hash == user_lock_hash.as_slice();
+            if !is_lock {
+                return None;
+            }
+
+            let value = match fetch_capacity_and_sudt_value(rollup_config, index, Source::Output) {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            let cell = UserWithdrawalCell { index, value };
             Some(Ok(cell))
         })
         .collect::<Result<_, Error>>()

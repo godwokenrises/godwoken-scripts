@@ -52,6 +52,10 @@ pub enum Error {
     DuplicatedScriptHash = 42,
     RegistryAddressNotFound = 43,
     DuplicatedRegistryAddress = 44,
+    InvalidGlobalStateVersion = 45,
+    InvalidLastFinalizedWithdrawal = 46,
+    InvalidRollupFinalizeWithdrawalWitness = 47,
+    InvalidUserWithdrawalCell = 48,
 }
 
 impl From<SysError> for Error {
