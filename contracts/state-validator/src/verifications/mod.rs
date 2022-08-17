@@ -15,6 +15,7 @@ use gw_utils::{
 };
 
 pub mod challenge;
+pub mod finalize_withdrawal;
 pub mod revert;
 pub mod submit_block;
 

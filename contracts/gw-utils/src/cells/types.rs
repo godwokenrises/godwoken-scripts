@@ -52,3 +52,8 @@ pub struct BurnCell {
     pub index: usize,
     pub value: CellValue,
 }
+
+pub struct UserWithdrawalCell {
+    pub index: usize,
+    pub value: CellValue,
+}

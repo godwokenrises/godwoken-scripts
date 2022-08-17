@@ -10,7 +10,7 @@ use gw_utils::{
         debug,
         high_level::{load_cell_capacity, load_cell_data, load_script},
     },
-    gw_types::packed::{GlobalStateV0, GlobalStateV0Reader, RollupActionUnionReader},
+    gw_types::packed::{GlobalStateV1, GlobalStateV1Reader, RollupActionUnionReader},
     type_id::{check_type_id, TYPE_ID_SIZE},
 };
 
@@ -36,9 +36,9 @@ pub fn parse_global_state(source: Source) -> Result<GlobalState, Error> {
     let data = load_cell_data(0, source)?;
     match GlobalStateReader::verify(&data, false) {
         Ok(_) => Ok(GlobalState::new_unchecked(data.into())),
-        Err(_) if GlobalStateV0Reader::verify(&data, false).is_ok() => {
-            let global_state_v0 = GlobalStateV0::new_unchecked(data.into());
-            Ok(GlobalState::from(global_state_v0))
+        Err(_) if GlobalStateV1Reader::verify(&data, false).is_ok() => {
+            let global_state_v1 = GlobalStateV1::new_unchecked(data.into());
+            Ok(GlobalState::from(global_state_v1))
         }
         Err(_) => {
             debug!("Fail to parsing global state");
@@ -139,6 +139,15 @@ pub fn main() -> Result<(), Error> {
                 args,
                 &prev_global_state,
                 &post_global_state,
+            )?;
+        }
+        RollupActionUnionReader::RollupFinalizeWithdrawal(args) => {
+            verifications::finalize_withdrawal::verify(
+                &rollup_type_hash,
+                &rollup_config,
+                args,
+                prev_global_state,
+                post_global_state,
             )?;
         }
     }

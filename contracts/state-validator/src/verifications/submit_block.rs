@@ -6,6 +6,7 @@ use core::result::Result;
 use alloc::{collections::BTreeMap, vec::Vec};
 use gw_state::ckb_smt::smt::{Pair, Tree};
 use gw_state::constants::GW_MAX_KV_PAIRS;
+use gw_utils::cells::utils::build_assets_map_from_cells;
 use gw_utils::ckb_std::high_level::load_input_since;
 use gw_utils::ckb_std::since::{LockValue, Since};
 use gw_utils::gw_common::registry_address::RegistryAddress;
@@ -26,7 +27,7 @@ use gw_utils::{
             collect_custodian_locks, collect_deposit_locks, collect_withdrawal_locks,
             find_block_producer_stake_cell, find_challenge_cell,
         },
-        types::{CellValue, DepositRequestCell, WithdrawalCell},
+        types::{DepositRequestCell, WithdrawalCell},
         utils::build_l2_sudt_script,
     },
     error::Error,
@@ -46,23 +47,6 @@ use gw_types::{
     packed::{Byte32, GlobalState, RawL2Block, RollupConfig},
     prelude::*,
 };
-
-fn build_assets_map_from_cells<'a, I: Iterator<Item = &'a CellValue>>(
-    cells: I,
-) -> Result<BTreeMap<H256, u128>, Error> {
-    let mut assets = BTreeMap::new();
-    for cell in cells {
-        let sudt_balance = assets.entry(cell.sudt_script_hash).or_insert(0u128);
-        *sudt_balance = sudt_balance
-            .checked_add(cell.amount)
-            .ok_or(Error::AmountOverflow)?;
-        let ckb_balance = assets.entry(CKB_SUDT_SCRIPT_ARGS.into()).or_insert(0u128);
-        *ckb_balance = ckb_balance
-            .checked_add(cell.capacity.into())
-            .ok_or(Error::AmountOverflow)?;
-    }
-    Ok(assets)
-}
 
 fn check_withdrawal_cells<'a>(
     context: &BlockContext,

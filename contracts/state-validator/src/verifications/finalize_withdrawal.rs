@@ -1,0 +1,107 @@
+use core::result::Result;
+
+use gw_state::ckb_smt::smt::{Pair, Tree};
+use gw_utils::{
+    ckb_std::debug,
+    error::Error,
+    gw_common::H256,
+    gw_types::{
+        bytes::Bytes,
+        packed::{GlobalState, RawL2Block, RollupConfig, RollupFinalizeWithdrawalReader},
+        prelude::{Builder, Entity, Unpack},
+    },
+};
+
+mod last_finalized_withdrawal;
+mod user_withdrawal_cells;
+
+#[must_use]
+pub fn verify(
+    rollup_type_hash: &H256,
+    config: &RollupConfig,
+    args: RollupFinalizeWithdrawalReader,
+    prev_global_state: GlobalState,
+    post_global_state: GlobalState,
+) -> Result<(), Error> {
+    debug!("verify finalized withdrawal");
+
+    // Check global state version is 2
+    if 2 != prev_global_state.version_u8() || 2 != post_global_state.version_u8() {
+        debug!("global state invalid version");
+        return Err(Error::InvalidGlobalStateVersion);
+    }
+
+    // Check global state last_finalized_block_number
+    // NOTE: we'll verify that only `last_finalized_withdrawal` field is updated, so we can
+    // use post_global_state's last_finalized_block_number here.
+    let last_finalized_block_number = {
+        let block_number = post_global_state.block().count().unpack().saturating_sub(1);
+        block_number.saturating_sub(config.finality_blocks().unpack())
+    };
+    if post_global_state.last_finalized_block_number().unpack() != last_finalized_block_number {
+        debug!("global state wrong last finalized block number");
+        return Err(Error::InvalidPostGlobalState);
+    }
+
+    // Check witness block proof
+    check_block_proof(&prev_global_state, &args)?;
+
+    // Check global state `last_finalized_withdrawal` and witness withdrawals proof
+    last_finalized_withdrawal::check(
+        last_finalized_block_number,
+        &args.block_withdrawals(),
+        prev_global_state.last_finalized_withdrawal(),
+        post_global_state.last_finalized_withdrawal(),
+    )?;
+
+    // Check input/output custodian cells and output user withdrawal cells
+    user_withdrawal_cells::check(
+        rollup_type_hash,
+        config,
+        last_finalized_block_number,
+        &args.block_withdrawals(),
+    )?;
+
+    // Check global state, must only update `last_finalized_withdrawal`
+    let expected_post_global_state = prev_global_state
+        .as_builder()
+        .last_finalized_withdrawal(post_global_state.last_finalized_withdrawal())
+        .build();
+    if expected_post_global_state.as_slice() != post_global_state.as_slice() {
+        debug!("global state update extra field(s)");
+        return Err(Error::InvalidPostGlobalState);
+    }
+
+    Ok(())
+}
+
+#[must_use]
+fn check_block_proof(
+    prev_global_state: &GlobalState,
+    args: &RollupFinalizeWithdrawalReader,
+) -> Result<(), Error> {
+    let block_root: [u8; 32] = prev_global_state.block().merkle_root().unpack();
+    let block_proof: Bytes = args.block_proof().unpack();
+    let block_withdrawals_vec = args.block_withdrawals();
+
+    let mut buf = [Pair::default(); 256];
+    let mut block_tree = Tree::new(&mut buf);
+    let to_block_smt_key_leaf = block_withdrawals_vec.iter().map(|block_withdrawals| {
+        let raw_block = block_withdrawals.raw();
+        let block_smt_key = RawL2Block::compute_smt_key(raw_block.number().unpack());
+        (block_smt_key, raw_block.hash())
+    });
+    for (block_smt_key, block_hash) in to_block_smt_key_leaf {
+        if let Err(err) = block_tree.update(&block_smt_key, &block_hash) {
+            debug!("verify block proof, update kv error {}", err);
+            return Err(Error::MerkleProof);
+        }
+    }
+
+    if let Err(err) = block_tree.verify(&block_root, &block_proof) {
+        debug!("witness block merkle proof verify error {}", err);
+        return Err(Error::MerkleProof);
+    }
+
+    Ok(())
+}
