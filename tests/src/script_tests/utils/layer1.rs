@@ -49,6 +49,14 @@ pub fn always_success_script() -> Script {
         .build()
 }
 
+pub fn random_always_success_script() -> Script {
+    let random_bytes: [u8; 32] = rand::random();
+    Script::new_builder()
+        .code_hash(ALWAYS_SUCCESS_CODE_HASH.clone().pack())
+        .args(Bytes::from(random_bytes.to_vec()).pack())
+        .build()
+}
+
 pub fn random_out_point() -> OutPoint {
     let mut tx_hash = [0u8; 32];
     let mut rng = thread_rng();

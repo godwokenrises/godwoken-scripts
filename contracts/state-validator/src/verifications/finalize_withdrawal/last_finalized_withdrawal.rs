@@ -38,12 +38,15 @@ pub fn check(
 
     let prev_finalized_block_number = prev_last_finalized_withdrawal.block_number().unpack();
     let post_finalized_block_number = post_last_finalized_withdrawal.block_number().unpack();
+    debug!("prev finalized block {}", prev_finalized_block_number);
+    debug!("post finalized block {}", post_finalized_block_number);
+
     if post_finalized_block_number < prev_finalized_block_number {
         debug!("post block number < prev block number");
         return Err(Error::InvalidLastFinalizedWithdrawal);
     }
     if post_finalized_block_number > last_finalized_block_number {
-        debug!("post block number > last finalized block number");
+        debug!("post block number  > last finalized block number");
         return Err(Error::InvalidLastFinalizedWithdrawal);
     }
 
@@ -53,6 +56,8 @@ pub fn check(
     let post_last_finalized_index = LastFinalizedWithdrawalIndex::from_last_finalized_withdrawal(
         &post_last_finalized_withdrawal,
     );
+    debug!("prev finalized idx {:?}", prev_last_finalized_index);
+    debug!("post finalized idx {:?}", post_last_finalized_index);
 
     // Same block rule:
     // 1. post index must not be LastFinalizedWithdrawalIndex::NoWithdrawal
@@ -119,13 +124,13 @@ pub fn check(
     }
     // post_finalized_block_number > prev_finalized_block_number
     //
-    // Multiple block rule:
+    // Across block rule:
     // 1. check whether all withdrawals from prev block are finalized
     // 2. post last index must be either LastFinalizedWithdrawalIndex::NoWithdrawal,
     //    LastFinalizedWithdrawalIndex::AllWithdrawals or within post block last withdrawal index range
     // 3. check prev block +1 ..= post block finalize
     else {
-        debug!("finalize multiple blocks");
+        debug!("finalize across blocks");
 
         let mut unchecked_block_withdrawals = block_withdrawals_vec.iter();
 
@@ -137,7 +142,13 @@ pub fn check(
         if may_have_unfinalized {
             debug!("check prev block finalize status");
 
-            let prev_block_withdrawals = unchecked_block_withdrawals.next().expect("prev block");
+            let prev_block_withdrawals = match unchecked_block_withdrawals.next() {
+                Some(prev) => prev,
+                None => {
+                    debug!("witness no prev block");
+                    return Err(Error::InvalidRollupFinalizeWithdrawalWitness);
+                }
+            };
             if prev_block_withdrawals.raw().number().unpack() != prev_finalized_block_number {
                 debug!("witness wrong prev block number");
                 return Err(Error::InvalidRollupFinalizeWithdrawalWitness);

@@ -43,18 +43,20 @@ pub fn check(
         rollup_type_hash,
         last_finalized_block_number,
         rollup_config,
-        Source::Input,
+        Source::Output,
     )?;
 
     if remained_input_finalized_assets != output_finalized_assets {
         debug!("wrong output custodian balance");
+        debug!("remained input asset {:?}", remained_input_finalized_assets);
+        debug!("output custodian asset {:?}", output_finalized_assets);
         return Err(Error::InvalidUserWithdrawalCell);
     }
 
     Ok(())
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 struct FinalizedAssetsMap(BTreeMap<H256, u128>);
 
 impl FinalizedAssetsMap {
@@ -104,7 +106,7 @@ fn collect_finalized_assets(
 ) -> Result<FinalizedAssetsMap, Error> {
     debug!("collect finalized assets from source {:?}", source);
 
-    let custodian_cells = collect_custodian_locks(rollup_type_hash, config, Source::Input)?;
+    let custodian_cells = collect_custodian_locks(rollup_type_hash, config, source)?;
     let has_unfinalized_custodian_cell = custodian_cells.iter().any(|cell| {
         let deposit_block_number = cell.args.deposit_block_number().unpack();
         deposit_block_number > last_finalized_block_number
