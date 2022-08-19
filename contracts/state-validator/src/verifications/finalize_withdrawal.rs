@@ -32,14 +32,18 @@ pub fn verify(
     }
 
     // Check global state last_finalized_block_number
-    // NOTE: we'll verify that only `last_finalized_withdrawal` field is updated, so we can
-    // use post_global_state's last_finalized_block_number here.
-    let last_finalized_block_number = {
-        let block_number = post_global_state.block().count().unpack().saturating_sub(1);
+    let expected_last_finalized_block_number = {
+        let block_number = prev_global_state.block().count().unpack().saturating_sub(1);
         block_number.saturating_sub(config.finality_blocks().unpack())
     };
-    if post_global_state.last_finalized_block_number().unpack() != last_finalized_block_number {
+    debug!(
+        "expected last finalize block number {}",
+        expected_last_finalized_block_number
+    );
+    let last_finalized_block_number = prev_global_state.last_finalized_block_number().unpack();
+    if expected_last_finalized_block_number != last_finalized_block_number {
         debug!("global state wrong last finalized block number");
+        debug!("finalized block number {}", last_finalized_block_number);
         return Err(Error::InvalidPostGlobalState);
     }
 
@@ -86,12 +90,12 @@ fn check_block_proof(
 
     let mut buf = [Pair::default(); 256];
     let mut block_tree = Tree::new(&mut buf);
-    let to_block_smt_key_leaf = block_withdrawals_vec.iter().map(|block_withdrawals| {
+    let block_smt_keys_leaves = block_withdrawals_vec.iter().map(|block_withdrawals| {
         let raw_block = block_withdrawals.raw();
         let block_smt_key = RawL2Block::compute_smt_key(raw_block.number().unpack());
         (block_smt_key, raw_block.hash())
     });
-    for (block_smt_key, block_hash) in to_block_smt_key_leaf {
+    for (block_smt_key, block_hash) in block_smt_keys_leaves {
         if let Err(err) = block_tree.update(&block_smt_key, &block_hash) {
             debug!("verify block proof, update kv error {}", err);
             return Err(Error::MerkleProof);

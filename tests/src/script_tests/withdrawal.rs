@@ -1,3 +1,4 @@
+use super::utils::conversion::{ToCKBType, ToGWType};
 use super::utils::init_env_log;
 use super::utils::layer1::build_simple_tx_with_out_point;
 use super::utils::rollup::{build_rollup_locked_cell, CellContext};
@@ -15,9 +16,8 @@ use gw_common::blake2b::new_blake2b;
 use gw_types::bytes::Bytes;
 use gw_types::core::ScriptHashType;
 use gw_types::packed::{
-    CellDep, CellInput, CellOutput, GlobalState, OutPoint, RollupConfig, Script,
-    UnlockWithdrawalViaFinalize, UnlockWithdrawalWitness, UnlockWithdrawalWitnessUnion,
-    WithdrawalLockArgs, WitnessArgs,
+    CellDep, CellInput, CellOutput, GlobalState, RollupConfig, Script, UnlockWithdrawalViaFinalize,
+    UnlockWithdrawalWitness, UnlockWithdrawalWitnessUnion, WithdrawalLockArgs, WitnessArgs,
 };
 use gw_types::prelude::Pack;
 use secp256k1::rand::rngs::OsRng;
@@ -615,53 +615,3 @@ fn sign_tx(tx: TransactionView, witness_idx: usize, sk: &SecretKey) -> Transacti
         .set_witnesses(signed_witnesses)
         .build()
 }
-
-mod conversion {
-    use ckb_types::packed::{Bytes, CellDep, CellInput, CellOutput, OutPoint, Script, WitnessArgs};
-    use ckb_types::prelude::{Entity, Pack};
-
-    pub trait ToCKBType<T> {
-        fn to_ckb(&self) -> T;
-    }
-
-    macro_rules! impl_to_ckb {
-        ($type_:tt) => {
-            impl ToCKBType<$type_> for super::$type_ {
-                fn to_ckb(&self) -> $type_ {
-                    $type_::new_unchecked(self.as_bytes())
-                }
-            }
-        };
-    }
-    impl_to_ckb!(Script);
-    impl_to_ckb!(CellInput);
-    impl_to_ckb!(CellOutput);
-    impl_to_ckb!(WitnessArgs);
-    impl_to_ckb!(CellDep);
-
-    impl ToCKBType<Bytes> for super::Bytes {
-        fn to_ckb(&self) -> Bytes {
-            self.pack()
-        }
-    }
-
-    pub trait ToGWType<T> {
-        fn to_gw(&self) -> T;
-    }
-
-    macro_rules! impl_to_gw {
-        ($type_:tt) => {
-            impl ToGWType<super::$type_> for $type_ {
-                fn to_gw(&self) -> super::$type_ {
-                    super::$type_::new_unchecked(self.as_bytes())
-                }
-            }
-        };
-    }
-
-    impl_to_gw!(OutPoint);
-    impl_to_gw!(CellOutput);
-    impl_to_gw!(Script);
-}
-
-use conversion::{ToCKBType, ToGWType};

@@ -262,6 +262,13 @@ impl CellContext {
         out_point
     }
 
+    pub fn insert_cells<'a>(
+        &'a mut self,
+        cells: impl Iterator<Item = (ckb_types::packed::CellOutput, Bytes)> + 'a,
+    ) -> impl Iterator<Item = ckb_types::packed::OutPoint> + 'a {
+        cells.map(move |cell| self.insert_cell(cell.0, cell.1))
+    }
+
     pub fn verify_tx(
         &self,
         tx: ckb_types::core::TransactionView,
