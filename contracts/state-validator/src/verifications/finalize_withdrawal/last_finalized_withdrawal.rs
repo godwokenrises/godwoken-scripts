@@ -401,6 +401,12 @@ fn check_inclusive_range_withrawals(
     block_withdrawals: &RawL2BlockWithdrawalsReader,
     range_inclusive: RangeInclusive<u32>,
 ) -> Result<(), Error> {
+    debug!(
+        "check from {} to {}",
+        range_inclusive.start(),
+        range_inclusive.end()
+    );
+
     if range_inclusive.start() > range_inclusive.end() {
         debug!("start index > end index");
         return Err(Error::InvalidRollupFinalizeWithdrawalWitness);
