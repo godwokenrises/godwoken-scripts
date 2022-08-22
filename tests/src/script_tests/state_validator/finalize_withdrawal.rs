@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use ckb_script::ScriptError;
 use ckb_types::core::Cycle;
 use gw_common::h256_ext::H256Ext;
 use gw_common::merkle_utils::{calculate_ckb_merkle_root, ckb_merkle_leaf_hash, CBMT};
@@ -28,44 +29,156 @@ use crate::testing_tool::programs::{
     ALWAYS_SUCCESS_PROGRAM, CUSTODIAN_LOCK_PROGRAM, STATE_VALIDATOR_CODE_HASH,
 };
 
-mod last_finalized_withdrawal;
-mod user_withdrawal_cells;
-
 const FINALITY_BLOCKS: u64 = 10u64;
 const BLOCK_NO_WITHDRAWAL: u32 = u32::MAX;
 const BLOCK_ALL_WITHDRAWALS: u32 = u32::MAX - 1;
 const CKB: u64 = 10u64.pow(8);
 
+const ERROR_MERKLE_PROOF: i8 = 13;
+const ERROR_INVALID_POST_GLOBAL_STATE: i8 = 23;
+const ERROR_INVALID_GLOBAL_STATE_VERSION: i8 = 45;
+
+macro_rules! expect_err {
+    ($test_case:expr, $err_code:expr) => {
+        ckb_error::assert_error_eq!(
+            $test_case.verify().unwrap_err(),
+            TestCase::expected_err($err_code)
+        );
+    };
+}
+
+mod last_finalized_withdrawal;
+mod user_withdrawal_cells;
+
 #[test]
-fn test_rollup_finalize_withdrawal() {
+fn test_sample_case() {
     init_env_log();
 
-    let test_case = TestCaseArgs::builder()
+    TestCase::sample_case().verify().expect("pass");
+}
+
+#[test]
+fn test_invalid_global_state_version() {
+    let mut test_case = TestCase::sample_case();
+
+    // v2
+    assert_eq!(test_case.prev_global_state.version_u8(), 2);
+    assert_eq!(test_case.post_global_state.version_u8(), 2);
+    test_case.verify().expect("pass");
+
+    // v1
+    {
+        let mut test_case = test_case.clone();
+        test_case.prev_global_state = test_case
+            .prev_global_state
+            .as_builder()
+            .version(1u8.into())
+            .build();
+        expect_err!(test_case, ERROR_INVALID_GLOBAL_STATE_VERSION);
+    }
+    {
+        let mut test_case = test_case.clone();
+        test_case.post_global_state = test_case
+            .post_global_state
+            .as_builder()
+            .version(1u8.into())
+            .build();
+        expect_err!(test_case, ERROR_INVALID_POST_GLOBAL_STATE); // downgrade from v2
+    }
+
+    // v3
+    {
+        let mut test_case = test_case.clone();
+        test_case.prev_global_state = test_case
+            .prev_global_state
+            .as_builder()
+            .version(3u8.into())
+            .build();
+        expect_err!(test_case, ERROR_INVALID_POST_GLOBAL_STATE); // downgrade from v3
+    }
+
+    test_case.post_global_state = test_case
+        .post_global_state
+        .as_builder()
+        .version(3u8.into())
+        .build();
+    expect_err!(test_case, ERROR_INVALID_POST_GLOBAL_STATE); // exceeded max rollup version
+}
+
+#[test]
+fn test_last_finalized_block_number_check() {
+    let mut test_case = TestCase::builder()
         .push_withdrawal(1, 1000 * CKB, 100)
-        .push_withdrawal(1 + FINALITY_BLOCKS, 1000 * CKB, 100)
         .prev_last_finalized_withdrawal(0, BLOCK_NO_WITHDRAWAL)
         .post_last_finalized_withdrawal(1, BLOCK_ALL_WITHDRAWALS)
+        .rollup_config_finalize_blocks(100)
         .build();
 
-    test_case.verify().expect("success");
+    test_case.prev_global_state = test_case
+        .prev_global_state
+        .as_builder()
+        .last_finalized_block_number(1u64.pack())
+        .build();
+    assert_eq!(test_case.prev_global_state.block().count().unpack(), 2); // 0 and 1
+
+    expect_err!(test_case, ERROR_INVALID_POST_GLOBAL_STATE);
 }
 
-struct WithdrawalRequestArgs {
-    block_number: u64,
+#[test]
+fn test_invalid_block_merkle_proof() {
+    let mut test_case = TestCase::sample_case();
+    test_case.verify().expect("pass");
+
+    // Non-exists block
+    let non_exists_raw_block = RawL2Block::new_builder().number(100u64.pack()).build();
+    let err_block_withdrawals = RawL2BlockWithdrawals::new_builder()
+        .raw(non_exists_raw_block)
+        .build();
+    let err_block_withdrawals_vec = test_case
+        .finalize_withdrawal
+        .block_withdrawals()
+        .as_builder()
+        .push(err_block_withdrawals)
+        .build();
+
+    test_case.finalize_withdrawal = test_case
+        .finalize_withdrawal
+        .as_builder()
+        .block_withdrawals(err_block_withdrawals_vec)
+        .build();
+
+    expect_err!(test_case, ERROR_MERKLE_PROOF);
+}
+
+#[test]
+fn test_extra_global_state_fields_modification() {
+    let mut test_case = TestCase::sample_case();
+
+    test_case.post_global_state = test_case
+        .post_global_state
+        .as_builder()
+        .tip_block_timestamp(111u64.pack())
+        .build();
+
+    expect_err!(test_case, ERROR_INVALID_POST_GLOBAL_STATE);
+}
+
+#[derive(Clone, Debug)]
+struct UserWithdrawalCell {
     capacity: u64,
     sudt_amount: u128,
-    sudt_type: Option<Script>,
-    owner_lock: Script,
+    type_: Option<Script>,
+    lock: Script,
 }
 
-impl WithdrawalRequestArgs {
+impl UserWithdrawalCell {
     fn to_req(&self) -> WithdrawalRequest {
         let mut raw_builder = RawWithdrawalRequest::new_builder()
             .capacity(self.capacity.pack())
             .amount(self.sudt_amount.pack())
-            .owner_lock_hash(self.owner_lock.hash().pack());
+            .owner_lock_hash(self.lock.hash().pack());
 
-        if let Some(sudt_type) = self.sudt_type.as_ref() {
+        if let Some(sudt_type) = self.type_.as_ref() {
             raw_builder = raw_builder.sudt_script_hash(sudt_type.hash().pack());
         }
 
@@ -73,8 +186,45 @@ impl WithdrawalRequestArgs {
             .raw(raw_builder.build())
             .build()
     }
+
+    fn to_output_data(&self) -> (CellOutput, Bytes) {
+        let data = self.sudt_amount.pack().as_bytes();
+        let output = CellOutput::new_builder()
+            .capacity(self.capacity.pack())
+            .type_(self.type_.clone().pack())
+            .lock(self.lock.clone())
+            .build();
+
+        (output, data)
+    }
+
+    fn generate_custodians(&self) -> (CustodianCell, Option<CustodianCell>) {
+        let input_capacity = self.capacity.saturating_mul(2);
+        let input_sudt_amount = self.sudt_amount.saturating_mul(2);
+        let input_custodian = CustodianCell {
+            capacity: input_capacity,
+            sudt_amount: input_sudt_amount,
+            type_: self.type_.clone(),
+            lock_args: CustodianLockArgs::default(),
+        };
+
+        let output_capacity = input_capacity.checked_sub(self.capacity);
+        let output_sudt_amount = input_sudt_amount.saturating_sub(self.sudt_amount);
+        if output_sudt_amount > 0 {
+            assert!(output_capacity > Some(200 * CKB));
+        }
+        let output_custodian = output_capacity.map(|capacity| CustodianCell {
+            capacity,
+            sudt_amount: output_sudt_amount,
+            type_: self.type_.clone(),
+            lock_args: CustodianLockArgs::default(),
+        });
+
+        (input_custodian, output_custodian)
+    }
 }
 
+#[derive(Clone)]
 struct ContractDep {
     output: CellOutput,
     data: Bytes,
@@ -102,7 +252,8 @@ impl ContractDep {
     }
 }
 
-struct TestCaseArgsBuilder {
+#[derive(Clone)]
+struct TestCaseBuilder {
     custodian_lock: ContractDep,
     sudt_type: ContractDep,
 
@@ -112,17 +263,17 @@ struct TestCaseArgsBuilder {
     prev_last_finalized_withdrawal: LastFinalizedWithdrawal,
     post_last_finalized_withdrawal: LastFinalizedWithdrawal,
 
-    withdrawals: Vec<WithdrawalRequestArgs>,
+    withdrawals: HashMap<u64, Vec<UserWithdrawalCell>>, // block number <=> user withdrawals
 }
 
-impl TestCaseArgsBuilder {
+impl TestCaseBuilder {
     fn new() -> Self {
         let custodian_lock = ContractDep::new(CUSTODIAN_LOCK_PROGRAM.clone());
         let sudt_type = ContractDep::new(ALWAYS_SUCCESS_PROGRAM.clone());
 
         let rollup_type = {
             let input_out_point = random_out_point();
-            let type_id = calculate_state_validator_type_id(input_out_point.clone());
+            let type_id = calculate_state_validator_type_id(input_out_point);
 
             Script::new_builder()
                 .code_hash((*STATE_VALIDATOR_CODE_HASH).pack())
@@ -136,7 +287,7 @@ impl TestCaseArgsBuilder {
             .finality_blocks(FINALITY_BLOCKS.pack())
             .build();
 
-        TestCaseArgsBuilder {
+        TestCaseBuilder {
             custodian_lock,
             sudt_type,
 
@@ -150,12 +301,7 @@ impl TestCaseArgsBuilder {
         }
     }
 
-    fn generate_withdrawal(
-        &self,
-        block_number: u64,
-        capacity: u64,
-        sudt_amount: u128,
-    ) -> WithdrawalRequestArgs {
+    fn generate_withdrawal(&self, capacity: u64, sudt_amount: u128) -> UserWithdrawalCell {
         let sudt_type = if sudt_amount > 0 {
             let sudt_type = Script::new_builder()
                 .code_hash(self.rollup_config.l1_sudt_script_type_hash())
@@ -167,13 +313,22 @@ impl TestCaseArgsBuilder {
             None
         };
 
-        WithdrawalRequestArgs {
-            block_number,
+        UserWithdrawalCell {
             capacity,
             sudt_amount,
-            sudt_type,
-            owner_lock: random_always_success_script().to_gw(),
+            type_: sudt_type,
+            lock: random_always_success_script().to_gw(),
         }
+    }
+
+    fn rollup_config_finalize_blocks(mut self, blocks: u64) -> Self {
+        self.rollup_config = self
+            .rollup_config
+            .as_builder()
+            .finality_blocks(blocks.pack())
+            .build();
+
+        self
     }
 
     fn prev_last_finalized_withdrawal(mut self, block_number: u64, index: u32) -> Self {
@@ -196,18 +351,32 @@ impl TestCaseArgsBuilder {
         self
     }
 
-    fn push_withdrawals(mut self, withdrawals: Vec<WithdrawalRequestArgs>) -> Self {
-        self.withdrawals.extend(withdrawals);
+    fn push_withdrawals(mut self, block_number: u64, withdrawals: Vec<UserWithdrawalCell>) -> Self {
+        let map_mut = self.withdrawals.entry(block_number).or_default();
+        map_mut.extend(withdrawals);
+
         self
     }
 
     fn push_withdrawal(self, block_number: u64, capacity: u64, sudt_amount: u128) -> Self {
-        let withdrawal = self.generate_withdrawal(block_number, capacity, sudt_amount);
-        self.push_withdrawals(vec![withdrawal])
+        let withdrawal = self.generate_withdrawal(capacity, sudt_amount);
+        self.push_withdrawals(block_number, vec![withdrawal])
     }
 
-    fn build(self) -> TestCaseArgs {
-        let block_withdrawals = BlockWithdrawals::from_args(self.withdrawals);
+    fn push_empty_block(mut self, block_number: u64) -> Self {
+        self.withdrawals.insert(block_number, Default::default());
+        self
+    }
+
+    fn last_finalized_block(self, block_number: u64) -> Self {
+        let finality_blocks = self.rollup_config.finality_blocks().unpack();
+        self.push_empty_block(block_number + finality_blocks)
+    }
+
+    fn build(self) -> TestCase {
+        let builder = self.clone();
+
+        let block_withdrawals = BlockWithdrawals::from_withdrawal_cells(self.withdrawals);
 
         let (user_withdrawal_cells, finalize_withdrawal) = block_withdrawals
             .generate_finalize_withdrawals(
@@ -220,15 +389,13 @@ impl TestCaseArgsBuilder {
                 .iter()
                 .map(UserWithdrawalCell::generate_custodians)
                 .unzip();
-        let output_custodian_cells: Vec<CustodianCell> = output_custodian_cells
-            .into_iter()
-            .filter_map(|c| c)
-            .collect();
+        let output_custodian_cells: Vec<CustodianCell> =
+            output_custodian_cells.into_iter().flatten().collect();
 
         let user_withdrawal_cells: HashMap<H256, Vec<UserWithdrawalCell>> = user_withdrawal_cells
             .into_iter()
             .fold(HashMap::new(), |mut map, wc| {
-                let withdrawals_mut = map.entry(wc.lock.hash().into()).or_insert(vec![]);
+                let withdrawals_mut = map.entry(wc.lock.hash().into()).or_default();
                 withdrawals_mut.push(wc);
                 map
             });
@@ -272,7 +439,7 @@ impl TestCaseArgsBuilder {
             dummy_output.as_builder().capacity(capacity.pack()).build()
         };
 
-        TestCaseArgs {
+        TestCase {
             rollup_type_hash,
             rollup_config: self.rollup_config,
             prev_global_state,
@@ -284,11 +451,13 @@ impl TestCaseArgsBuilder {
             user_withdrawal_cells,
             output_custodian_cells,
             finalize_withdrawal,
+            builder,
+            block_withdrawals,
         }
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 struct CustodianCell {
     capacity: u64,
     sudt_amount: u128,
@@ -317,80 +486,28 @@ impl CustodianCell {
     }
 }
 
-#[derive(Clone, Debug)]
-struct UserWithdrawalCell {
-    capacity: u64,
-    sudt_amount: u128,
-    type_: Option<Script>,
-    lock: Script,
-}
-
-impl UserWithdrawalCell {
-    fn to_output_data(&self) -> (CellOutput, Bytes) {
-        let data = self.sudt_amount.pack().as_bytes();
-        let output = CellOutput::new_builder()
-            .capacity(self.capacity.pack())
-            .type_(self.type_.clone().pack())
-            .lock(self.lock.clone())
-            .build();
-
-        (output, data)
-    }
-
-    fn generate_custodians(&self) -> (CustodianCell, Option<CustodianCell>) {
-        let input_capacity = self.capacity.saturating_mul(2);
-        let input_sudt_amount = self.sudt_amount.saturating_mul(2);
-        let input_custodian = CustodianCell {
-            capacity: input_capacity,
-            sudt_amount: input_sudt_amount,
-            type_: self.type_.clone(),
-            lock_args: CustodianLockArgs::default(),
-        };
-
-        let output_capacity = input_capacity.checked_sub(self.capacity);
-        let output_sudt_amount = input_sudt_amount.saturating_sub(self.sudt_amount);
-        if output_sudt_amount > 0 {
-            assert!(output_capacity > Some(200 * 10u64.pow(8)));
-        }
-        let output_custodian = output_capacity.map(|capacity| CustodianCell {
-            capacity,
-            sudt_amount: output_sudt_amount,
-            type_: self.type_.clone(),
-            lock_args: CustodianLockArgs::default(),
-        });
-
-        (input_custodian, output_custodian)
-    }
-}
-
+#[derive(Clone)]
 struct BlockWithdrawals {
     blocks: Vec<L2Block>,
     block_withdrawals: HashMap<u64, Vec<UserWithdrawalCell>>,
 }
 
 impl BlockWithdrawals {
-    fn from_args(mut withdrawals: Vec<WithdrawalRequestArgs>) -> Self {
-        withdrawals.sort_unstable_by(|a, b| a.block_number.cmp(&b.block_number));
+    fn from_withdrawal_cells(withdrawal_cells: HashMap<u64, Vec<UserWithdrawalCell>>) -> Self {
+        let mut blocks = withdrawal_cells
+            .iter()
+            .map(|(bn, cells)| {
+                let withdrawals = cells.iter().map(|c| c.to_req()).collect::<Vec<_>>();
 
-        let block_args = withdrawals
-            .into_iter()
-            .map(|args| (args.block_number, vec![args]))
-            .collect::<HashMap<_, Vec<_>>>();
-
-        let (mut blocks, block_withdrawals): (Vec<_>, HashMap<_, _>) = block_args
-            .into_iter()
-            .map(|(bn, args)| {
-                let withdrawals = args.iter().map(|a| a.to_req());
-
-                let witness_root = calculate_ckb_merkle_root(
-                    { withdrawals.clone().enumerate() }
+                let withdrawal_witness_root = calculate_ckb_merkle_root(
+                    { withdrawals.iter().enumerate() }
                         .map(|(i, r)| ckb_merkle_leaf_hash(i as u32, &r.witness_hash().into()))
                         .collect(),
                 );
 
                 let submit_withdrawals = SubmitWithdrawals::new_builder()
-                    .withdrawal_witness_root(witness_root.unwrap().pack())
-                    .withdrawal_count((withdrawals.clone().count() as u32).pack())
+                    .withdrawal_witness_root(withdrawal_witness_root.unwrap().pack())
+                    .withdrawal_count((withdrawals.len() as u32).pack())
                     .build();
 
                 let raw_block = RawL2Block::new_builder()
@@ -398,27 +515,18 @@ impl BlockWithdrawals {
                     .submit_withdrawals(submit_withdrawals)
                     .build();
 
-                let block = L2Block::new_builder()
+                L2Block::new_builder()
                     .raw(raw_block)
-                    .withdrawals(withdrawals.collect::<Vec<_>>().pack())
-                    .build();
-
-                let user_withdrawal_cells = args.into_iter().map(|w| UserWithdrawalCell {
-                    capacity: w.capacity,
-                    sudt_amount: w.sudt_amount,
-                    type_: w.sudt_type,
-                    lock: w.owner_lock,
-                });
-
-                (block, (bn, user_withdrawal_cells.collect::<Vec<_>>()))
+                    .withdrawals(withdrawals.pack())
+                    .build()
             })
-            .unzip();
+            .collect::<Vec<_>>();
 
-        blocks.sort_unstable_by(|a, b| a.raw().number().unpack().cmp(&b.raw().number().unpack()));
+        blocks.sort_unstable_by_key(|a| a.raw().number().unpack());
 
         BlockWithdrawals {
             blocks,
-            block_withdrawals,
+            block_withdrawals: withdrawal_cells,
         }
     }
 
@@ -444,25 +552,30 @@ impl BlockWithdrawals {
             post_last_finalized_withdrawal.block_number().unpack(),
             post_last_finalized_withdrawal.withdrawal_index().unpack(),
         );
-
         assert!(prev_block_number <= post_block_number);
-        assert!(prev_block_number <= self.blocks.first().unwrap().raw().number().unpack());
-        assert!(post_block_number <= self.blocks.last().unwrap().raw().number().unpack());
+
+        let min_block_number = self.blocks.first().unwrap().raw().number().unpack();
+        let max_block_number = self.blocks.last().unwrap().raw().number().unpack();
+        let valid_prev_block_number = prev_block_number >= min_block_number
+            || (prev_block_number >= min_block_number.saturating_sub(1)
+                && (BLOCK_NO_WITHDRAWAL == prev_wth_idx || BLOCK_ALL_WITHDRAWALS == prev_wth_idx));
+        assert!(valid_prev_block_number);
+        assert!(post_block_number <= max_block_number);
 
         let prev_block_wths = {
             let prev = self.block_withdrawals.get(&prev_block_number);
-            prev.cloned().unwrap_or_default()
+            prev.cloned().unwrap_or_default() // default means BLOCK_NO_WITHDRAWAL or BLOCK_ALL_WITHDRAWALS
         };
         let post_block_wths = self.block_withdrawals.get(&post_block_number).unwrap();
 
-        let assert_idx = |idx, block_wths: &[UserWithdrawalCell]| {
+        let assert_idx = |idx, block_wths: &[UserWithdrawalCell], msg| {
             let valid = BLOCK_ALL_WITHDRAWALS == idx
-                || (0 != block_wths.len() && idx as usize <= block_wths.len().saturating_sub(1))
-                || (0 == block_wths.len() && BLOCK_NO_WITHDRAWAL == idx);
-            assert!(valid);
+                || (!block_wths.is_empty() && idx as usize <= block_wths.len().saturating_sub(1))
+                || (block_wths.is_empty() && BLOCK_NO_WITHDRAWAL == idx);
+            assert!(valid, "{} {} {}", msg, idx, block_wths.len());
         };
-        assert_idx(prev_wth_idx, &prev_block_wths);
-        assert_idx(post_wth_idx, post_block_wths);
+        assert_idx(prev_wth_idx, &prev_block_wths, "prev");
+        assert_idx(post_wth_idx, post_block_wths, "post");
 
         let block_smt = self.block_smt();
         let block_range =
@@ -486,18 +599,29 @@ impl BlockWithdrawals {
             range: Option<(u32, u32)>,
         ) -> (Vec<UserWithdrawalCell>, RawL2BlockWithdrawals) {
             let (withdrawals, withdrawals_proof, withdrawal_cells) = match range {
-                Some((start, end)) => {
-                    let wths = l2block.withdrawals().into_iter().enumerate();
-                    let target_wths =
-                        wths.filter(|(idx, _w)| idx >= &(start as usize) && idx <= &(end as usize));
-
-                    let (target_wths, (indices, leaves)): (Vec<_>, (Vec<_>, Vec<_>)) = target_wths
+                Some((start, end)) if !withdrawal_cells.is_empty() => {
+                    let withdrawals = l2block.withdrawals().into_iter().enumerate();
+                    let (withdrawals, leaves): (Vec<_>, Vec<_>) = withdrawals
                         .map(|(i, w)| {
                             let hash: H256 = w.witness_hash().into();
-                            (w, (i as u32, ckb_merkle_leaf_hash(i as u32, &hash)))
+                            let leaf = ckb_merkle_leaf_hash(i as u32, &hash);
+                            (w, leaf)
                         })
                         .unzip();
 
+                    let (indices, proof_withdrawals): (Vec<_>, Vec<_>) = withdrawals
+                        .into_iter()
+                        .enumerate()
+                        .filter_map(|(idx, w)| {
+                            if idx as u32 >= start && idx as u32 <= end {
+                                Some((idx as u32, w))
+                            } else {
+                                None
+                            }
+                        })
+                        .unzip();
+
+                    println!("indices {:?} leaves {}", indices, leaves.len());
                     let proof = CBMT::build_merkle_proof(&leaves, &indices).unwrap();
                     let cbmt_proof = CKBMerkleProof::new_builder()
                         .lemmas(proof.lemmas().pack())
@@ -512,9 +636,9 @@ impl BlockWithdrawals {
                         }
                     });
 
-                    (target_wths.pack(), cbmt_proof, cells.collect())
+                    (proof_withdrawals.pack(), cbmt_proof, cells.collect())
                 }
-                None => (
+                Some(_) | None => (
                     WithdrawalRequestVec::default(),
                     CKBMerkleProof::default(),
                     vec![],
@@ -542,38 +666,54 @@ impl BlockWithdrawals {
             .filter_map(|b| {
                 let bn = b.raw().number().unpack();
                 let withdrawal_cells = self.block_withdrawals.get(&bn).unwrap();
+                println!("bn {} withdrawal_cells {}", bn, withdrawal_cells.len());
 
                 match bn {
                     block_number if prev_block_number == block_number => {
-                        if prev_wth_idx < BLOCK_ALL_WITHDRAWALS {
-                            if post_block_number == prev_block_number {
-                                // Same block
-                                Some(build_block_withdrawals(
-                                    &b,
-                                    withdrawal_cells,
-                                    Some((prev_wth_idx + 1, post_wth_idx)),
+                        if prev_wth_idx == BLOCK_ALL_WITHDRAWALS
+                            || prev_wth_idx == BLOCK_NO_WITHDRAWAL
+                        {
+                            return None;
+                        }
+
+                        if post_block_number == prev_block_number {
+                            assert!(BLOCK_NO_WITHDRAWAL != post_wth_idx);
+
+                            let last_wth_idx = b.withdrawals().len().saturating_sub(1) as u32;
+                            let end = if BLOCK_ALL_WITHDRAWALS == post_wth_idx {
+                                last_wth_idx
+                            } else {
+                                assert!(post_wth_idx <= last_wth_idx);
+                                post_wth_idx
+                            };
+
+                            // Same block
+                            Some(build_block_withdrawals(
+                                b,
+                                withdrawal_cells,
+                                Some((prev_wth_idx + 1, end)),
+                            ))
+                        } else {
+                            let last_wth_idx = b.withdrawals().len().saturating_sub(1) as u32;
+                            if prev_wth_idx == last_wth_idx {
+                                Some((
+                                    vec![],
+                                    RawL2BlockWithdrawals::new_builder().raw(b.raw()).build(),
                                 ))
                             } else {
-                                let end = b.withdrawals().len().saturating_sub(1) as u32;
                                 Some(build_block_withdrawals(
-                                    &b,
+                                    b,
                                     withdrawal_cells,
-                                    Some((prev_wth_idx + 1, end)),
+                                    Some((prev_wth_idx + 1, last_wth_idx)),
                                 ))
                             }
-                        } else {
-                            None
                         }
                     }
                     block_number
                         if block_number > prev_block_number && block_number < post_block_number =>
                     {
                         let end = b.withdrawals().len().saturating_sub(1) as u32;
-                        Some(build_block_withdrawals(
-                            &b,
-                            withdrawal_cells,
-                            Some((0, end)),
-                        ))
+                        Some(build_block_withdrawals(b, withdrawal_cells, Some((0, end))))
                     }
                     block_number if post_block_number == block_number => {
                         if BLOCK_NO_WITHDRAWAL == post_wth_idx {
@@ -583,7 +723,7 @@ impl BlockWithdrawals {
                             ))
                         } else {
                             Some(build_block_withdrawals(
-                                &b,
+                                b,
                                 withdrawal_cells,
                                 Some((0, post_wth_idx)),
                             ))
@@ -620,7 +760,8 @@ impl BlockWithdrawals {
     }
 }
 
-struct TestCaseArgs {
+#[derive(Clone)]
+struct TestCase {
     rollup_type_hash: H256,
     rollup_config: RollupConfig,
 
@@ -638,11 +779,39 @@ struct TestCaseArgs {
     output_custodian_cells: Vec<CustodianCell>,
 
     finalize_withdrawal: RollupFinalizeWithdrawal,
+
+    builder: TestCaseBuilder,
+    block_withdrawals: BlockWithdrawals,
 }
 
-impl TestCaseArgs {
-    fn builder() -> TestCaseArgsBuilder {
-        TestCaseArgsBuilder::new()
+impl TestCase {
+    fn builder() -> TestCaseBuilder {
+        TestCaseBuilder::new()
+    }
+
+    fn sample_case() -> Self {
+        TestCaseBuilder::new()
+            .push_withdrawal(1, 1000 * CKB, 100)
+            .push_withdrawal(2, 1000 * CKB, 100)
+            .last_finalized_block(2)
+            .prev_last_finalized_withdrawal(1, BLOCK_ALL_WITHDRAWALS)
+            .post_last_finalized_withdrawal(2, BLOCK_ALL_WITHDRAWALS)
+            .build()
+    }
+
+    fn into_builder(self) -> TestCaseBuilder {
+        self.builder
+    }
+
+    fn expected_err(error_code: i8) -> ckb_script::TransactionScriptError {
+        ScriptError::ValidationFailure(
+            format!(
+                "by-data-hash/{}",
+                ckb_types::H256(*STATE_VALIDATOR_CODE_HASH)
+            ),
+            error_code,
+        )
+        .input_type_script(0)
     }
 
     fn verify(&self) -> Result<Cycle, ckb_error::Error> {
