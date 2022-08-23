@@ -224,6 +224,14 @@ pub fn check(
 
         // Check reset of blocks
         let next_finalized_block_number = prev_finalized_block_number.saturating_add(1);
+        let remained_blocks_len = post_finalized_block_number
+            .saturating_sub(next_finalized_block_number)
+            .saturating_add(1);
+        if unchecked_block_withdrawals.len() != remained_blocks_len as usize {
+            debug!("witness submitted blocks dosn't match block range");
+            return Err(Error::InvalidRollupFinalizeWithdrawalWitness);
+        }
+
         for (next_block_number, next_block_withdrawals) in (next_finalized_block_number
             ..=post_finalized_block_number)
             .zip(unchecked_block_withdrawals)
@@ -234,20 +242,20 @@ pub fn check(
                     WithdrawalIndexRange::All,
                     &next_block_withdrawals,
                 )?;
-            }
-
-            if finalize_all_withdrawals_from_post_block {
-                check_block_withdrawals(
-                    next_block_number,
-                    WithdrawalIndexRange::All,
-                    &next_block_withdrawals,
-                )?;
             } else {
-                let range = WithdrawalIndexRange::new_range_inclusive(
-                    &WithdrawalIndex::Index(0),
-                    &post_finalized_index,
-                )?;
-                check_block_withdrawals(next_block_number, range, &next_block_withdrawals)?;
+                if finalize_all_withdrawals_from_post_block {
+                    check_block_withdrawals(
+                        next_block_number,
+                        WithdrawalIndexRange::All,
+                        &next_block_withdrawals,
+                    )?;
+                } else {
+                    let range = WithdrawalIndexRange::new_range_inclusive(
+                        &WithdrawalIndex::Index(0),
+                        &post_finalized_index,
+                    )?;
+                    check_block_withdrawals(next_block_number, range, &next_block_withdrawals)?;
+                }
             }
         }
     }
