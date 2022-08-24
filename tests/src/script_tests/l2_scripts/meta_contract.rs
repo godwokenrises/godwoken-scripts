@@ -128,7 +128,7 @@ fn test_duplicated_script_hash() {
     let args = MetaContractArgs::new_builder()
         .set(
             CreateAccount::new_builder()
-                .script(contract_script.clone())
+                .script(contract_script)
                 .fee(
                     Fee::new_builder()
                         .amount(1000u128.pack())
@@ -174,7 +174,7 @@ fn test_insufficient_balance_to_pay_fee() {
     let args = MetaContractArgs::new_builder()
         .set(
             CreateAccount::new_builder()
-                .script(contract_script.clone())
+                .script(contract_script)
                 .fee(
                     Fee::new_builder()
                         .amount(1000u128.pack())

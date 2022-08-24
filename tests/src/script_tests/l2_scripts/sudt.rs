@@ -95,11 +95,11 @@ fn test_sudt() {
         .state
         .get_script_hash(block_producer_id)
         .expect("get script hash");
-    let block_producer = ctx.create_eth_address(block_producer_script_hash.into(), [42u8; 20]);
+    let block_producer = ctx.create_eth_address(block_producer_script_hash, [42u8; 20]);
     let block_info = new_block_info(&block_producer, 1, 0);
 
-    let a_address = ctx.create_eth_address(a_script_hash.into(), [1u8; 20]);
-    let b_address = ctx.create_eth_address(b_script_hash.into(), [2u8; 20]);
+    let a_address = ctx.create_eth_address(a_script_hash, [1u8; 20]);
+    let b_address = ctx.create_eth_address(b_script_hash, [2u8; 20]);
 
     // init balance for a
     ctx.state
@@ -303,8 +303,8 @@ fn test_insufficient_balance() {
 
     let block_info = new_block_info(&Default::default(), 10, 0);
 
-    let a_address = ctx.create_eth_address(a_script_hash.into(), [1u8; 20]);
-    let b_address = ctx.create_eth_address(b_script_hash.into(), [2u8; 20]);
+    let a_address = ctx.create_eth_address(a_script_hash, [1u8; 20]);
+    let b_address = ctx.create_eth_address(b_script_hash, [2u8; 20]);
     // init balance for a
     ctx.state
         .mint_sudt(sudt_id, &a_address, init_a_balance)
@@ -380,7 +380,7 @@ fn test_transfer_to_non_exist_account() {
         .expect("create account");
     let a_script_hash = ctx.state.get_script_hash(a_id).expect("get script hash");
     // non-exist account id
-    let a_address = ctx.create_eth_address(a_script_hash.into(), [1u8; 20]);
+    let a_address = ctx.create_eth_address(a_script_hash, [1u8; 20]);
     let b_address = RegistryAddress::new(a_address.registry_id, [0x33u8; 20].to_vec());
 
     let block_info = new_block_info(&Default::default(), 10, 0);
@@ -460,7 +460,7 @@ fn test_transfer_to_self() {
         .expect("create account");
     let a_script_hash = ctx.state.get_script_hash(a_id).expect("get script hash");
     // non-exist account id
-    let a_address = ctx.create_eth_address(a_script_hash.into(), [1u8; 20]);
+    let a_address = ctx.create_eth_address(a_script_hash, [1u8; 20]);
 
     let block_producer_id = ctx
         .state
@@ -476,7 +476,7 @@ fn test_transfer_to_self() {
         .state
         .get_script_hash(block_producer_id)
         .expect("get script hash");
-    let block_producer = ctx.create_eth_address(block_producer_script_hash.into(), [42u8; 20]);
+    let block_producer = ctx.create_eth_address(block_producer_script_hash, [42u8; 20]);
     let block_producer_balance = U256::zero();
     let block_info = new_block_info(&block_producer, 10, 0);
 
@@ -724,7 +724,7 @@ fn test_transfer_to_self_overflow() {
         .expect("create account");
     let a_script_hash = ctx.state.get_script_hash(a_id).expect("get script hash");
     // non-exist account id
-    let a_address = ctx.create_eth_address(a_script_hash.into(), [1u8; 20]);
+    let a_address = ctx.create_eth_address(a_script_hash, [1u8; 20]);
 
     let block_producer_id = ctx
         .state
@@ -740,7 +740,7 @@ fn test_transfer_to_self_overflow() {
         .state
         .get_script_hash(block_producer_id)
         .expect("get script hash");
-    let block_producer = ctx.create_eth_address(block_producer_script_hash.into(), [42u8; 20]);
+    let block_producer = ctx.create_eth_address(block_producer_script_hash, [42u8; 20]);
     let block_producer_balance = U256::zero();
     let block_info = new_block_info(&block_producer, 10, 0);
 
@@ -1084,7 +1084,7 @@ fn test_transfer_overflow() {
         )
         .expect("create account");
     let a_script_hash = ctx.state.get_script_hash(a_id).expect("get script hash");
-    let a_address = ctx.create_eth_address(a_script_hash.into(), [1u8; 20]);
+    let a_address = ctx.create_eth_address(a_script_hash, [1u8; 20]);
     let b_id = ctx
         .state
         .create_account_from_script(
@@ -1096,7 +1096,7 @@ fn test_transfer_overflow() {
         )
         .expect("create account");
     let b_script_hash = ctx.state.get_script_hash(b_id).expect("get script hash");
-    let b_address = ctx.create_eth_address(b_script_hash.into(), [2u8; 20]);
+    let b_address = ctx.create_eth_address(b_script_hash, [2u8; 20]);
 
     let block_info = new_block_info(&Default::default(), 10, 0);
 

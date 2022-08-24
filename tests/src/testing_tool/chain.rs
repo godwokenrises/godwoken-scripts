@@ -1,3 +1,5 @@
+#![allow(clippy::mutable_key_type)]
+
 use crate::testing_tool::programs::ALWAYS_SUCCESS_CODE_HASH;
 use anyhow::Result;
 use gw_block_producer::produce_block::{
@@ -288,7 +290,7 @@ pub async fn construct_block_from_timestamp(
     let stake_cell_owner_lock_hash = H256::zero();
     let db = chain.store().begin_transaction();
     let generator = chain.generator();
-    let rollup_config_hash = chain.rollup_config_hash().clone().into();
+    let rollup_config_hash = (*chain.rollup_config_hash()).into();
 
     let rollup_context = generator.rollup_context();
     let deposit_cells: Vec<_> = deposit_requests

@@ -18,11 +18,11 @@ pub struct U256(uint256_t);
 impl U256 {
     pub fn from_le_bytes(bytes: [u8; 32]) -> Self {
         let mut array = [0u32; 8];
-        for i in 0..8 {
+        for (i, val) in array.iter_mut().enumerate() {
             let start = i * 4;
             let end = i * 4 + 4;
             let u32_val = u32::from_le_bytes(bytes[start..end].try_into().unwrap());
-            array[i] = u32_val;
+            *val = u32_val;
         }
         U256(uint256_t { array })
     }
