@@ -1,4 +1,4 @@
-use crate::testing_tool::programs::ALWAYS_SUCCESS_CODE_HASH;
+use crate::testing_tool::programs::{ALWAYS_SUCCESS_CODE_HASH, STATE_VALIDATOR_CODE_HASH};
 use ckb_traits::{CellDataProvider, HeaderProvider};
 use ckb_types::{
     bytes::Bytes,
@@ -159,4 +159,15 @@ pub fn build_resolved_tx(
         resolved_inputs,
         resolved_dep_groups: vec![],
     }
+}
+
+pub fn state_validator_script_error(error_code: i8) -> ckb_script::TransactionScriptError {
+    ckb_script::ScriptError::ValidationFailure(
+        format!(
+            "by-data-hash/{}",
+            ckb_types::H256(*STATE_VALIDATOR_CODE_HASH)
+        ),
+        error_code,
+    )
+    .input_type_script(0)
 }
