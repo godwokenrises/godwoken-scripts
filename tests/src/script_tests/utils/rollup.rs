@@ -228,7 +228,7 @@ impl CellContext {
                 (
                     CellOutput::new_builder()
                         .capacity(CKBPack::pack(&(ALWAYS_SUCCESS_PROGRAM.len() as u64)))
-                        .type_(CKBPack::pack(&Some(param.withdrawal_lock_type.clone())))
+                        .type_(CKBPack::pack(&Some(param.withdrawal_lock_type)))
                         .build(),
                     ALWAYS_SUCCESS_PROGRAM.clone(),
                 ),

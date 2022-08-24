@@ -224,7 +224,7 @@ fn test_sign_tron_message() {
     let tx = tx
         .as_advanced_builder()
         .set_witnesses(vec![WitnessArgs::new_builder()
-            .lock(Some(signature.clone()).pack())
+            .lock(Some(signature).pack())
             .build()
             .as_bytes()
             .pack()])
@@ -268,7 +268,7 @@ fn test_submit_signing_tron_message() {
     let tx = tx
         .as_advanced_builder()
         .set_witnesses(vec![WitnessArgs::new_builder()
-            .lock(Some(signature.clone()).pack())
+            .lock(Some(signature).pack())
             .build()
             .as_bytes()
             .pack()])
@@ -309,7 +309,7 @@ fn test_wrong_signature() {
     let tx = tx
         .as_advanced_builder()
         .set_witnesses(vec![WitnessArgs::new_builder()
-            .lock(Some(signature.clone()).pack())
+            .lock(Some(signature).pack())
             .build()
             .as_bytes()
             .pack()])

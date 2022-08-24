@@ -125,11 +125,11 @@ pub fn build_resolved_tx(
         .cell_deps()
         .into_iter()
         .map(|dep| {
-            let deps_out_point = dep.clone();
+            let deps_out_point = dep;
             let (dep_output, dep_data) =
                 data_loader.cells.get(&deps_out_point.out_point()).unwrap();
             CellMetaBuilder::from_cell_output(dep_output.to_owned(), dep_data.to_owned())
-                .out_point(deps_out_point.out_point().clone())
+                .out_point(deps_out_point.out_point())
                 .build()
         })
         .collect();

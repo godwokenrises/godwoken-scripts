@@ -79,7 +79,7 @@ fn test_consume_challenge_resolve_cell() {
 
     let tx = build_simple_tx_with_out_point(
         &mut ctx,
-        (challenge_resolve_cell.clone(), data),
+        (challenge_resolve_cell, data),
         challenge_resolved_out_point,
         (CellOutput::default(), Bytes::default()),
     )

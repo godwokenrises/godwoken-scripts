@@ -225,7 +225,7 @@ pub fn check_transfer_logs(
     assert_eq!(sudt_transfer_log.sudt_id, sudt_id);
     assert_eq!(&sudt_transfer_log.from_addr, from_addr);
     assert_eq!(&sudt_transfer_log.to_addr, to_addr);
-    assert_eq!(sudt_transfer_log.amount, amount.into());
+    assert_eq!(sudt_transfer_log.amount, amount);
     assert_eq!(sudt_transfer_log.log_type, SudtLogType::Transfer);
 }
 
