@@ -17,9 +17,9 @@ use gw_utils::{
     },
 };
 
-const BLOCK_WITHDRAWAL_INDEX_NO_WITHDRAWAL: u32 = u32::MAX;
+pub const BLOCK_WITHDRAWAL_INDEX_NO_WITHDRAWAL: u32 = u32::MAX;
 // Use this value, we don't need to submit prev block witness if all withdrawals are finalized
-const BLOCK_WITHDRAWAL_INDEX_ALL_WITHDRAWALS: u32 = u32::MAX - 1;
+pub const BLOCK_WITHDRAWAL_INDEX_ALL_WITHDRAWALS: u32 = u32::MAX - 1;
 
 #[must_use]
 pub fn check(

@@ -12,7 +12,7 @@ use gw_utils::{
     },
 };
 
-mod last_finalized_withdrawal;
+pub mod last_finalized_withdrawal;
 mod user_withdrawal_cells;
 
 #[must_use]
