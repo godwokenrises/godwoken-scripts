@@ -38,6 +38,8 @@ use gw_types::{
 const INVALID_BLOCK_ERROR: i8 = 20;
 const INVALID_POST_GLOBAL_STATE: i8 = 23;
 
+mod global_state_v2;
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_submit_block() {
     // calculate type id

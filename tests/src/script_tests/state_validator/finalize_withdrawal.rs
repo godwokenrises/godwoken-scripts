@@ -30,8 +30,8 @@ use crate::testing_tool::programs::{
 };
 
 const FINALITY_BLOCKS: u64 = 10u64;
-const BLOCK_NO_WITHDRAWAL: u32 = u32::MAX;
-const BLOCK_ALL_WITHDRAWALS: u32 = u32::MAX - 1;
+pub const BLOCK_NO_WITHDRAWAL: u32 = u32::MAX;
+pub const BLOCK_ALL_WITHDRAWALS: u32 = u32::MAX - 1;
 const CKB: u64 = 10u64.pow(8);
 
 const ERROR_MERKLE_PROOF: i8 = 13;
