@@ -10,7 +10,7 @@ use gw_utils::cells::utils::build_assets_map_from_cells;
 use gw_utils::ckb_std::high_level::load_input_since;
 use gw_utils::ckb_std::since::{LockValue, Since};
 use gw_utils::gw_common::registry_address::RegistryAddress;
-use gw_utils::gw_types::packed::{L2BlockReader, WithdrawalRequestReader};
+use gw_utils::gw_types::packed::{L2BlockReader, LastFinalizedWithdrawal, WithdrawalRequestReader};
 
 // Import CKB syscalls and structures
 // https://nervosnetwork.github.io/ckb-std/riscv64imac-unknown-none-elf/doc/ckb_std/index.html
@@ -18,6 +18,8 @@ use crate::ckb_std::{ckb_constants::Source, debug};
 use gw_state::kv_state::KVState;
 use gw_utils::gw_common::{self, ckb_decimal::CKBCapacity};
 use gw_utils::gw_types::{self, U256};
+
+use self::global_state_v2::GlobalStateV2Verifications;
 
 use super::check_status;
 use crate::types::BlockContext;
@@ -47,6 +49,13 @@ use gw_types::{
     packed::{Byte32, GlobalState, RawL2Block, RollupConfig},
     prelude::*,
 };
+
+mod global_state_v2;
+
+struct VerificationContext {
+    block: BlockContext,
+    v2: GlobalStateV2Verifications,
+}
 
 fn check_withdrawal_cells<'a>(
     context: &BlockContext,
@@ -100,20 +109,29 @@ fn check_withdrawal_cells<'a>(
 
 fn check_input_custodian_cells(
     config: &RollupConfig,
-    context: &BlockContext,
+    context: &VerificationContext,
     output_withdrawal_cells: Vec<WithdrawalCell>,
 ) -> Result<BTreeMap<H256, u128>, Error> {
+    debug!("check input custodian cells");
+
+    if context.v2.check_no_output_withdrawal_cells {
+        if !output_withdrawal_cells.is_empty() {
+            debug!("output withdrawal cells found");
+            return Err(Error::InvalidWithdrawalCell);
+        }
+    }
+
     // collect input custodian cells
     let (finalized_custodian_cells, unfinalized_custodian_cells): (Vec<_>, Vec<_>) =
-        collect_custodian_locks(&context.rollup_type_hash, config, Source::Input)?
+        collect_custodian_locks(&context.block.rollup_type_hash, config, Source::Input)?
             .into_iter()
             .partition(|cell| {
                 let number: u64 = cell.args.deposit_block_number().unpack();
-                number <= context.finalized_number
+                number <= context.block.finalized_number
             });
     // check unfinalized custodian cells == reverted deposit requests
     let mut reverted_deposit_cells =
-        collect_deposit_locks(&context.rollup_type_hash, config, Source::Output)?;
+        collect_deposit_locks(&context.block.rollup_type_hash, config, Source::Output)?;
     for custodian_cell in unfinalized_custodian_cells {
         let index = reverted_deposit_cells
             .iter()
@@ -144,17 +162,17 @@ fn check_input_custodian_cells(
 
 fn check_output_custodian_cells(
     config: &RollupConfig,
-    context: &BlockContext,
+    context: &VerificationContext,
     mut deposit_cells: Vec<DepositRequestCell>,
     input_finalized_assets: BTreeMap<H256, u128>,
 ) -> Result<(), Error> {
     // collect output custodian cells
     let (finalized_custodian_cells, unfinalized_custodian_cells): (Vec<_>, Vec<_>) =
-        collect_custodian_locks(&context.rollup_type_hash, config, Source::Output)?
+        collect_custodian_locks(&context.block.rollup_type_hash, config, Source::Output)?
             .into_iter()
             .partition(|cell| {
                 let number: u64 = cell.args.deposit_block_number().unpack();
-                number <= context.finalized_number
+                number <= context.block.finalized_number
             });
     // check deposits request cells == unfinalized custodian cells
     for custodian_cell in unfinalized_custodian_cells {
@@ -173,7 +191,15 @@ fn check_output_custodian_cells(
     // check reverted withdrawals <= finalized custodian cells
     {
         let reverted_withdrawals =
-            collect_withdrawal_locks(&context.rollup_type_hash, config, Source::Input)?;
+            collect_withdrawal_locks(&context.block.rollup_type_hash, config, Source::Input)?;
+        if context.v2.check_no_input_reverted_withdrawal_cells {
+            debug!("check no input reverted withdrawal cells");
+            if !reverted_withdrawals.is_empty() {
+                debug!("input reverted withdrawal found");
+                return Err(Error::InvalidWithdrawalCell);
+            }
+        }
+
         let reverted_withdrawal_assets =
             build_assets_map_from_cells(reverted_withdrawals.iter().map(|c| &c.value))?;
         let mut output_finalized_assets =
@@ -731,7 +757,7 @@ pub fn verify(
     let mut tree_buffer = [Pair::default(); GW_MAX_KV_PAIRS];
     let kv_state_proof: Bytes = block.kv_state_proof().unpack();
 
-    let (context, mut kv_state) = load_block_context_and_state(
+    let (block_context, mut kv_state) = load_block_context_and_state(
         rollup_type_hash,
         config,
         &mut tree_buffer,
@@ -740,17 +766,47 @@ pub fn verify(
         prev_global_state,
         post_global_state,
     )?;
+
+    let v2_verifications = GlobalStateV2Verifications::from_prev_global_state(prev_global_state)?;
+    if v2_verifications.check_last_finalized_withdrawal_field_is_default {
+        debug!("check last finalized withdrawal field is default");
+        if prev_global_state.last_finalized_withdrawal().as_slice()
+            != LastFinalizedWithdrawal::default().as_slice()
+        {
+            return Err(Error::InvalidLastFinalizedWithdrawal);
+        }
+    }
+
+    let context = VerificationContext {
+        block: block_context,
+        v2: v2_verifications,
+    };
+
     // Verify block producer
-    verify_block_producer(config, &context, block)?;
+    verify_block_producer(config, &context.block, block)?;
+
     // collect withdrawal cells
     let withdrawal_cells: Vec<_> =
-        collect_withdrawal_locks(&context.rollup_type_hash, config, Source::Output)?;
+        collect_withdrawal_locks(&context.block.rollup_type_hash, config, Source::Output)?;
+    if context.v2.check_no_output_withdrawal_cells {
+        debug!("v2 check no output withdrawal cells");
+        if !withdrawal_cells.is_empty() {
+            debug!("output withdrawal cell found");
+            return Err(Error::InvalidWithdrawalCell);
+        }
+    }
+
     // collect deposit cells
-    let deposit_cells = collect_deposit_locks(&context.rollup_type_hash, config, Source::Input)?;
+    let deposit_cells =
+        collect_deposit_locks(&context.block.rollup_type_hash, config, Source::Input)?;
+
     // Check new cells and reverted cells: deposit / withdrawal / custodian
     let withdrawal_requests_vec = block.withdrawals();
     let withdrawal_requests = withdrawal_requests_vec.iter().collect();
-    check_withdrawal_cells(&context, withdrawal_requests, &withdrawal_cells)?;
+    if !context.v2.check_no_output_withdrawal_cells {
+        check_withdrawal_cells(&context.block, withdrawal_requests, &withdrawal_cells)?;
+    }
+
     let input_finalized_assets = check_input_custodian_cells(config, &context, withdrawal_cells)?;
     check_output_custodian_cells(
         config,
@@ -773,7 +829,7 @@ pub fn verify(
     check_block_transactions(block, &kv_state)?;
 
     // Verify Post state
-    let actual_post_global_state = {
+    let mut actual_post_global_state = {
         // because of the optimistic challenge mechanism,
         // we just believe the post account in the block,
         // if the post account state is invalid then someone will send a challenge
@@ -781,12 +837,12 @@ pub fn verify(
         // we have verified the post block merkle state
         let block_merkle_state = post_global_state.block();
         // last finalized block number
-        let last_finalized_block_number = context.finalized_number;
+        let last_finalized_block_number = context.block.finalized_number;
         let version = post_global_state.version();
         let tip_block_timestamp = if version == 0.into() {
             0
         } else {
-            context.timestamp
+            context.block.timestamp
         };
 
         prev_global_state
@@ -794,12 +850,16 @@ pub fn verify(
             .as_builder()
             .account(account_merkle_state.to_entity())
             .block(block_merkle_state)
-            .tip_block_hash(context.block_hash.pack())
+            .tip_block_hash(context.block.block_hash.pack())
             .tip_block_timestamp(tip_block_timestamp.pack())
             .last_finalized_block_number(last_finalized_block_number.pack())
             .version(version)
             .build()
     };
+    if 1 == prev_global_state.version_u8() && 2 == post_global_state.version_u8() {
+        actual_post_global_state =
+            { context.v2 }.upgrade_to_v2(actual_post_global_state, &block.raw());
+    }
 
     if &actual_post_global_state != post_global_state {
         return Err(Error::InvalidPostGlobalState);
