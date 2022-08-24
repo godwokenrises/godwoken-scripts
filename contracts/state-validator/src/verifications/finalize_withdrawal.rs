@@ -91,7 +91,7 @@ fn check_block_proof(
     let mut buf = [Pair::default(); 256];
     let mut block_tree = Tree::new(&mut buf);
     let block_smt_keys_leaves = block_withdrawals_vec.iter().map(|block_withdrawals| {
-        let raw_block = block_withdrawals.raw();
+        let raw_block = block_withdrawals.raw_l2block();
         let block_smt_key = RawL2Block::compute_smt_key(raw_block.number().unpack());
         (block_smt_key, raw_block.hash())
     });

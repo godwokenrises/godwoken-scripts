@@ -12,6 +12,16 @@ struct AccountMerkleState {
     count: Uint32,
 }
 
+// NOTE:
+//
+// special flags:
+// 
+// 1. u32::MAX (aka 4294967295) means a block without withdrawal is finalized
+// 2. u32::MAX - 1 (aka 4294967294) means all withdrawals in a block are finalized
+//
+// If a block's `withdrawal_index` is set to one of above value in the `GlobalState`,
+// we don't need to submit that raw block to verify `last_finalized_withdrawal`
+// transition.
 struct LastFinalizedWithdrawal {
     block_number: Uint64,
     withdrawal_index: Uint32,
@@ -381,7 +391,7 @@ table RollupRevert {
 }
 
 table RawL2BlockWithdrawals {
-    raw: RawL2Block,
+    raw_l2block: RawL2Block,
     withdrawals: WithdrawalRequestVec,
     withdrawal_proof: CKBMerkleProof,
 }

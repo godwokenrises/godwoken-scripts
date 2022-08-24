@@ -132,7 +132,7 @@ fn test_invalid_block_merkle_proof() {
     // Non-exists block
     let non_exists_raw_block = RawL2Block::new_builder().number(100u64.pack()).build();
     let err_block_withdrawals = RawL2BlockWithdrawals::new_builder()
-        .raw(non_exists_raw_block)
+        .raw_l2block(non_exists_raw_block)
         .build();
     let err_block_withdrawals_vec = test_case
         .finalize_withdrawal
@@ -646,7 +646,7 @@ impl BlockWithdrawals {
             };
 
             let block_withdrawals = RawL2BlockWithdrawals::new_builder()
-                .raw(l2block.raw())
+                .raw_l2block(l2block.raw())
                 .withdrawals(withdrawals)
                 .withdrawal_proof(withdrawals_proof)
                 .build();
@@ -698,7 +698,9 @@ impl BlockWithdrawals {
                             if prev_wth_idx == last_wth_idx {
                                 Some((
                                     vec![],
-                                    RawL2BlockWithdrawals::new_builder().raw(b.raw()).build(),
+                                    RawL2BlockWithdrawals::new_builder()
+                                        .raw_l2block(b.raw())
+                                        .build(),
                                 ))
                             } else {
                                 Some(build_block_withdrawals(
@@ -719,7 +721,9 @@ impl BlockWithdrawals {
                         if BLOCK_NO_WITHDRAWAL == post_wth_idx {
                             Some((
                                 vec![],
-                                RawL2BlockWithdrawals::new_builder().raw(b.raw()).build(),
+                                RawL2BlockWithdrawals::new_builder()
+                                    .raw_l2block(b.raw())
+                                    .build(),
                             ))
                         } else {
                             Some(build_block_withdrawals(

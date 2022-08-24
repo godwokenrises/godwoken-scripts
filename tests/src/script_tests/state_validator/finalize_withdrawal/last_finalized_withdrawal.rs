@@ -490,7 +490,7 @@ mod across_blocks {
                 .unwrap();
 
             let block_withdrawals = RawL2BlockWithdrawals::new_builder()
-                .raw(test_case.block_withdrawals.blocks.get(3).unwrap().raw())
+                .raw_l2block(test_case.block_withdrawals.blocks.get(3).unwrap().raw())
                 .build();
 
             let mut block_withdrawals_vec = vec![block_withdrawals];
@@ -752,7 +752,7 @@ mod check_inclusive_range_withdrawals {
                 .unwrap();
 
             let block_withdrawals = RawL2BlockWithdrawals::new_builder()
-                .raw(test_case.block_withdrawals.blocks.get(1).unwrap().raw())
+                .raw_l2block(test_case.block_withdrawals.blocks.get(1).unwrap().raw())
                 .build();
 
             RollupFinalizeWithdrawal::new_builder()

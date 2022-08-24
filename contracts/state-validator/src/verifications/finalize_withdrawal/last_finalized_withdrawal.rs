@@ -17,7 +17,6 @@ use gw_utils::{
     },
 };
 
-// FIXME: state this in godwoken.mol
 const BLOCK_WITHDRAWAL_INDEX_NO_WITHDRAWAL: u32 = u32::MAX;
 // Use this value, we don't need to submit prev block witness if all withdrawals are finalized
 const BLOCK_WITHDRAWAL_INDEX_ALL_WITHDRAWALS: u32 = u32::MAX - 1;
@@ -84,11 +83,11 @@ pub fn check(
         let block_withdrawals = block_withdrawals_vec.get_unchecked(0);
         let prev_finalized_index = WithdrawalIndex::from_last_finalized_withdrawal_index(
             &prev_last_finalized_index,
-            &block_withdrawals.raw(),
+            &block_withdrawals.raw_l2block(),
         );
         let post_finalized_index = WithdrawalIndex::from_last_finalized_withdrawal_index(
             &post_last_finalized_index,
-            &block_withdrawals.raw(),
+            &block_withdrawals.raw_l2block(),
         );
         match post_finalized_index.partial_cmp(&prev_finalized_index) {
             None => {
@@ -102,8 +101,7 @@ pub fn check(
             _ => (),
         }
 
-        // FIXME: chagne raw() to raw_l2block()
-        let block_number = block_withdrawals.raw().number().unpack();
+        let block_number = block_withdrawals.raw_l2block().number().unpack();
         if block_number != post_finalized_block_number {
             debug!("witness wrong block number");
             return Err(Error::InvalidRollupFinalizeWithdrawalWitness);
@@ -149,17 +147,20 @@ pub fn check(
                     return Err(Error::InvalidRollupFinalizeWithdrawalWitness);
                 }
             };
-            if prev_block_withdrawals.raw().number().unpack() != prev_finalized_block_number {
+            if prev_block_withdrawals.raw_l2block().number().unpack() != prev_finalized_block_number
+            {
                 debug!("witness wrong prev block number");
                 return Err(Error::InvalidRollupFinalizeWithdrawalWitness);
             }
 
             let prev_finalized_index = WithdrawalIndex::from_last_finalized_withdrawal_index(
                 &prev_last_finalized_index,
-                &prev_block_withdrawals.raw(),
+                &prev_block_withdrawals.raw_l2block(),
             );
             let prev_block_last_withdrawal_index =
-                WithdrawalIndex::from_block_last_withdrawal_index(&prev_block_withdrawals.raw());
+                WithdrawalIndex::from_block_last_withdrawal_index(
+                    &prev_block_withdrawals.raw_l2block(),
+                );
 
             let has_unfinalized = match prev_finalized_index
                 .partial_cmp(&prev_block_last_withdrawal_index)
@@ -203,10 +204,11 @@ pub fn check(
         };
         let post_finalized_index = WithdrawalIndex::from_last_finalized_withdrawal_index(
             &post_last_finalized_index,
-            &post_block_withdrawals.raw(),
+            &post_block_withdrawals.raw_l2block(),
         );
-        let post_block_last_withdrawal_index =
-            WithdrawalIndex::from_block_last_withdrawal_index(&post_block_withdrawals.raw());
+        let post_block_last_withdrawal_index = WithdrawalIndex::from_block_last_withdrawal_index(
+            &post_block_withdrawals.raw_l2block(),
+        );
 
         let finalize_all_withdrawals_from_post_block =
             match post_finalized_index.partial_cmp(&post_block_last_withdrawal_index) {
@@ -367,7 +369,7 @@ fn check_block_withdrawals(
 ) -> Result<(), Error> {
     debug!("check block {} withdrawals", block_number);
 
-    if block_withdrawals.raw().number().unpack() != block_number {
+    if block_withdrawals.raw_l2block().number().unpack() != block_number {
         debug!("witness wrong block");
         return Err(Error::InvalidRollupFinalizeWithdrawalWitness);
     }
@@ -377,7 +379,7 @@ fn check_block_withdrawals(
             check_inclusive_range_withrawals(block_withdrawals, range)?
         }
         WithdrawalIndexRange::All => {
-            let submit_withdrawals = block_withdrawals.raw().submit_withdrawals();
+            let submit_withdrawals = block_withdrawals.raw_l2block().submit_withdrawals();
             let withdrawals_count: u32 = submit_withdrawals.withdrawal_count().unpack();
             let witness_has_withdrawals = !block_withdrawals.withdrawals().is_empty();
             if 0 == withdrawals_count && witness_has_withdrawals {
@@ -412,7 +414,7 @@ fn check_inclusive_range_withrawals(
         return Err(Error::InvalidRollupFinalizeWithdrawalWitness);
     }
 
-    let submit_withdrawals = block_withdrawals.raw().submit_withdrawals();
+    let submit_withdrawals = block_withdrawals.raw_l2block().submit_withdrawals();
     let withdrawal_count: u32 = submit_withdrawals.withdrawal_count().unpack();
     if 0 == withdrawal_count {
         debug!("witness withdrawal count is zero");
