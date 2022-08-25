@@ -50,7 +50,7 @@ use gw_types::{
 
 mod tx_execution;
 mod tx_signature;
-mod withdrawal;
+pub(crate) mod withdrawal;
 
 pub(crate) fn build_merkle_proof(leaves: &[H256], indices: &[u32]) -> CKBMerkleProof {
     let proof = CBMT::build_merkle_proof(leaves, indices).unwrap();

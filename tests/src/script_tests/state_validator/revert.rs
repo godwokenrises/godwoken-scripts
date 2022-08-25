@@ -11,6 +11,7 @@ use crate::script_tests::utils::rollup::{
 };
 use crate::testing_tool::chain::{apply_block_result, construct_block, setup_chain};
 use crate::testing_tool::programs::{ALWAYS_SUCCESS_CODE_HASH, STATE_VALIDATOR_CODE_HASH};
+use ckb_types::core::TransactionView;
 use ckb_types::{
     packed::{CellInput, CellOutput},
     prelude::{Pack as CKBPack, Unpack as CKBUnpack},
@@ -36,9 +37,7 @@ use gw_types::{
 };
 use gw_types::{packed::StakeLockArgs, prelude::*};
 
-#[tokio::test(flavor = "multi_thread")]
-async fn test_revert() {
-    init_env_log();
+pub(crate) async fn sample_test_case() -> (CellContext, TransactionView, Script, RollupConfig) {
     let input_out_point = random_out_point();
     let type_id = calculate_state_validator_type_id(input_out_point.clone());
     let rollup_type_script = {
@@ -342,5 +341,13 @@ async fn test_revert() {
     .witness(CKBPack::pack(&witness.as_bytes()))
     .witness(CKBPack::pack(&Bytes::new()))
     .build();
+
+    (ctx, tx, rollup_type_script, rollup_config)
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_revert() {
+    init_env_log();
+    let (ctx, tx, ..) = sample_test_case().await;
     ctx.verify_tx(tx).expect("return success");
 }
