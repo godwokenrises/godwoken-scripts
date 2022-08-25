@@ -9,7 +9,7 @@ use gw_utils::{
         },
         utils::search_lock_hash,
     },
-    ckb_std::high_level::load_cell_lock,
+    ckb_std::{debug, high_level::load_cell_lock},
     gw_types::packed::{DepositLockArgs, DepositLockArgsReader, RollupActionUnionReader},
 };
 
@@ -50,6 +50,29 @@ fn parse_lock_args() -> Result<([u8; 32], CustodianLockArgs), Error> {
     }
 }
 
+#[must_use]
+fn ensure_rollup_action(rollup_type_hash: &[u8; 32]) -> Result<(), Error> {
+    debug!("ensure rollup action");
+
+    let rollup_idx = match search_rollup_cell(rollup_type_hash, Source::Output) {
+        Some(idx) => idx,
+        None => return Err(Error::RollupCellNotFound),
+    };
+
+    // TODO: optimize parse? because every input custodian cells run this
+    let mut rollup_witness_buf = [0u8; MAX_ROLLUP_WITNESS_SIZE];
+    let action = parse_rollup_action(&mut rollup_witness_buf, rollup_idx, Source::Output)?;
+
+    match action.to_enum() {
+        RollupActionUnionReader::RollupSubmitBlock(_)
+        | RollupActionUnionReader::RollupFinalizeWithdrawal(_) => Ok(()),
+        _ => {
+            debug!("unexpected rollup action");
+            Err(Error::InvalidCustodianCell)
+        }
+    }
+}
+
 pub fn main() -> Result<(), Error> {
     let (rollup_type_hash, lock_args) = parse_lock_args()?;
 
@@ -64,6 +87,7 @@ pub fn main() -> Result<(), Error> {
 
     if deposit_block_number <= last_finalized_block_number {
         // this custodian lock is already finalized, rollup will handle the logic
+        ensure_rollup_action(&rollup_type_hash)?;
         return Ok(());
     }
 
