@@ -16,6 +16,7 @@ use crate::testing_tool::chain::{
     apply_block_result, construct_block, setup_chain_with_account_lock_manage,
 };
 use crate::testing_tool::programs::STATE_VALIDATOR_CODE_HASH;
+use ckb_types::core::TransactionView;
 use ckb_types::{
     packed::{CellInput, CellOutput},
     prelude::{Pack as CKBPack, Unpack as CKBUnpack},
@@ -47,9 +48,8 @@ use gw_types::{
     },
 };
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-async fn test_cancel_withdrawal() {
-    init_env_log();
+// Reuse test case for custodian lock rollup action test
+pub(crate) async fn sample_test_case() -> (CellContext, TransactionView, Script, RollupConfig) {
     let input_out_point = random_out_point();
     let type_id = calculate_state_validator_type_id(input_out_point.clone());
     let rollup_type_script = {
@@ -348,5 +348,13 @@ async fn test_cancel_withdrawal() {
     .cell_dep(ctx.rollup_config_dep.clone())
     .cell_dep(ctx.eoa_lock_dep.clone())
     .build();
+
+    (ctx, tx, rollup_type_script, rollup_config)
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn test_cancel_withdrawal() {
+    init_env_log();
+    let (ctx, tx, ..) = sample_test_case().await;
     ctx.verify_tx(tx).expect("return success");
 }

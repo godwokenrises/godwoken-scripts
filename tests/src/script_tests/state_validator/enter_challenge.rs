@@ -13,6 +13,7 @@ use crate::testing_tool::chain::{apply_block_result, construct_block, setup_chai
 use crate::testing_tool::programs::{ALWAYS_SUCCESS_CODE_HASH, STATE_VALIDATOR_CODE_HASH};
 use ckb_error::assert_error_eq;
 use ckb_script::ScriptError;
+use ckb_types::core::TransactionView;
 use ckb_types::prelude::{Pack as CKBPack, Unpack};
 use gw_chain::chain::Chain;
 use gw_common::registry_address::RegistryAddress;
@@ -36,9 +37,8 @@ use gw_types::{
 
 const INVALID_CHALLENGE_TARGET_ERROR: i8 = 32;
 
-#[tokio::test(flavor = "multi_thread")]
-async fn test_enter_challenge() {
-    init_env_log();
+// Reuse test case for custodian lock rollup action test
+pub(crate) async fn sample_test_case() -> (CellContext, TransactionView, Script, RollupConfig) {
     let input_out_point = random_out_point();
     let type_id = calculate_state_validator_type_id(input_out_point.clone());
     let rollup_type_script = {
@@ -253,6 +253,14 @@ async fn test_enter_challenge() {
     .cell_dep(ctx.rollup_config_dep.clone())
     .witness(CKBPack::pack(&witness.as_bytes()))
     .build();
+
+    (ctx, tx, rollup_type_script, rollup_config)
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_enter_challenge() {
+    init_env_log();
+    let (ctx, tx, ..) = sample_test_case().await;
     ctx.verify_tx(tx).expect("return success");
 }
 
