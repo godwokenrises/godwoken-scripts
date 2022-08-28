@@ -62,7 +62,7 @@ The behaviors of Rollup are defined as enumerated type `RollupAction`:
 - `RollupSubmitBlock`, submit a layer-2 block
   - The layer-2 transactions, deposits, and withdrawals are included in a layer-2 block structure. We won't verify txs' and withdrawals' signatures on-chain since we are using the optimistic mechanism.
   - Deposits cells are collected as inputs, and the action converts these deposit cells to custodian cells to complete the deposit.
-- `RollupEnterChallenge`, A challenger submit a challenging target(transaction, deposit, withdrawal) to halt the rollup.
+- `RollupEnterChallenge`, A challenger submit a challenging target(transaction, withdrawal) to halt the rollup.
 - `RollupCancelChallenge`, Anyone can send this action to cancel a challenge, in this action the challenge target(a tx or a withdrawal request) will actually run on the layer1 chain to prove that the challenge in the previous step is wrong. After this action, the Rollup status becomes running again.
 - `RollupRevert`, if a challenge is a maturity(which means it hasn't been canceled within the challenge time). The action reverts the layer-2 block state to the parent block of the challenged block, and the stake of the block producer is penalized. We only revert the layer-2 state in this action, the reverting of layer-1 locked cells(deposit/custodian/withdrawal) are handled in the `RollupSubmitBlock` action.
 
@@ -84,7 +84,7 @@ Stake lock can be unlocked in two paths:
 
 A layer1 user can join the Rollup by creating a deposit cell. The Godwoken collects deposit cells from the layer1 blockchain and put them into the inputs of the tx that submit layer-2 block.
 
-The sender can unlock a deposit cell if the deposit is not processed by Godwoken.
+The sender can unlock a deposit cell after `cancel_timeout` if the deposit is not processed by Godwoken.
 
 ### Custodian lock
 
@@ -113,7 +113,7 @@ A challenge cell must set a challenging target in its lock args `ChallengeLockAr
 
 If the challenging cell hasn't been canceled during a maturity time, the challenger can execute the `RollupRevert` action on the Rollup cell and take stake cells which send by reverted block submitters as rewards.
 
-If the challenge target is valid. Other nodes can cancel this challenge by executing the `RollupCancelChallenge` action, the challenging cell must be included in the tx.inputs.
+If the challenge target is invalid. Other nodes can cancel this challenge by executing the `RollupCancelChallenge` action, the challenging cell must be included in the tx.inputs.
 * For a withdrawal target, challenge lock verifies that an account script is in the tx.inputs to verify the signature.
 * For a layer-2 transaction target, challenge lock reads the backend script code_hash from the state tree, then verifies that the backend validator script is in the tx.inputs.
 
