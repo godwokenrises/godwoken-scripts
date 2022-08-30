@@ -275,7 +275,8 @@ fn check_layer2_deposit(
         }
         // find or create Simple UDT account
         let l2_sudt_script =
-            build_l2_sudt_script(rollup_type_hash, config, &request.value.sudt_script_hash);
+            build_l2_sudt_script(rollup_type_hash, config, &request.value.sudt_script_hash)
+                .ok_or(Error::InvalidDepositCell)?;
         let l2_sudt_script_hash: [u8; 32] = l2_sudt_script.hash();
         let sudt_id = match kv_state.get_account_id_by_script_hash(&l2_sudt_script_hash.into())? {
             Some(id) => id,
@@ -323,8 +324,6 @@ fn check_layer2_withdrawal(
 
     for request in withdrawals.iter() {
         let raw = request.raw();
-        let l2_sudt_script_hash: [u8; 32] =
-            build_l2_sudt_script(rollup_type_hash, config, &raw.sudt_script_hash().unpack()).hash();
         // find EOA
         let account_script_hash: H256 = raw.account_script_hash().unpack();
         let id = kv_state
@@ -344,17 +343,29 @@ fn check_layer2_withdrawal(
             &address,
             CKBCapacity::from_layer1(raw.capacity().unpack()).to_layer2(),
         )?;
-        // find Simple UDT account
-        let sudt_id = kv_state
-            .get_account_id_by_script_hash(&l2_sudt_script_hash.into())?
-            .ok_or(StateError::MissingKey)?;
-        // burn sudt
-        kv_state.burn_sudt(sudt_id, &address, raw.amount().unpack().into())?;
-        // update nonce
         let nonce = kv_state.get_nonce(id)?;
-        let withdrawal_nonce: u32 = raw.nonce().unpack();
-        if nonce != withdrawal_nonce {
-            return Err(Error::InvalidWithdrawalRequest);
+        // withdraw Simple UDT account
+        match build_l2_sudt_script(rollup_type_hash, config, &raw.sudt_script_hash().unpack()) {
+            Some(script) => {
+                let l2_sudt_script_hash = script.hash();
+                let sudt_id = kv_state
+                    .get_account_id_by_script_hash(&l2_sudt_script_hash.into())?
+                    .ok_or(StateError::MissingKey)?;
+                // burn sudt
+                kv_state.burn_sudt(sudt_id, &address, raw.amount().unpack().into())?;
+                // update nonce
+                let withdrawal_nonce: u32 = raw.nonce().unpack();
+                if nonce != withdrawal_nonce {
+                    return Err(Error::InvalidWithdrawalRequest);
+                }
+            }
+            None if raw.amount().unpack() != 0 => {
+                // Invalid Simple UDT withdraw
+                return Err(Error::InvalidWithdrawalRequest);
+            }
+            None => {
+                // Only withdraw CKB
+            }
         }
         kv_state.set_nonce(id, nonce.saturating_add(1))?;
     }
