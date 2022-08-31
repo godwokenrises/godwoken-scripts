@@ -1,4 +1,5 @@
 use ckb_types::prelude::Entity;
+use gw_common::H256;
 use gw_types::{
     bytes::Bytes,
     packed::CustodianLockArgs,
@@ -32,6 +33,96 @@ fn sample_case() -> TestCase {
 #[test]
 fn test_sample_case() {
     sample_case().verify().expect("pass");
+}
+
+#[test]
+fn test_user_withdrawal_merge_and_split() {
+    let test_case = TestCase::builder()
+        .push_empty_block(0)
+        .push_withdrawal(1, 1000 * CKB, 87)
+        .push_withdrawal(2, 2999 * CKB, 100)
+        .last_finalized_block(2)
+        .prev_last_finalized_withdrawal(0, BLOCK_NO_WITHDRAWAL)
+        .post_last_finalized_withdrawal(2, BLOCK_ALL_WITHDRAWALS)
+        .build();
+
+    test_case.verify().expect("pass");
+
+    // Merge user withdrawal cells from same lock
+    {
+        let mut case_builder = test_case.clone().into_builder();
+
+        // Use same lock for test withdrawals
+        let block_one_withdrawals_mut = case_builder.withdrawals.get_mut(&1).unwrap();
+        let user_lock = block_one_withdrawals_mut.first().unwrap().lock.clone();
+        let sudt_type = block_one_withdrawals_mut.first().unwrap().type_.clone();
+
+        let block_two_withdrawals_mut = case_builder.withdrawals.get_mut(&2).unwrap();
+        block_two_withdrawals_mut.first_mut().unwrap().lock = user_lock.clone();
+        block_two_withdrawals_mut.first_mut().unwrap().type_ = sudt_type;
+
+        let mut test_case = case_builder.build();
+        assert_eq!(test_case.user_withdrawal_cells.len(), 1);
+
+        let user_lock_hash: H256 = user_lock.hash().into();
+        let withdrawal_cells_mut = test_case
+            .user_withdrawal_cells
+            .get_mut(&user_lock_hash)
+            .unwrap();
+        assert_eq!(withdrawal_cells_mut.len(), 2);
+
+        // Merge output user withdrawal cells
+        let mut merged_withdrawal_cell = withdrawal_cells_mut.get(0).unwrap().clone();
+        let (total_capacity, total_sudt_amount) =
+            withdrawal_cells_mut
+                .iter()
+                .fold((0u64, 0u128), |mut acc, cell| {
+                    acc.0 = acc.0.saturating_add(cell.capacity);
+                    acc.1 = acc.1.saturating_add(cell.sudt_amount);
+                    acc
+                });
+
+        merged_withdrawal_cell.capacity = total_capacity;
+        merged_withdrawal_cell.sudt_amount = total_sudt_amount;
+
+        *withdrawal_cells_mut = vec![merged_withdrawal_cell];
+        test_case.verify().expect("pass");
+    }
+
+    // Split user withdrawal cell into pure ckb and sudt
+    {
+        let mut test_case = test_case;
+        let lock_hash: H256 = {
+            let block_one_withdrawals = test_case.builder.withdrawals.get(&1).unwrap();
+            block_one_withdrawals.first().unwrap().lock.hash().into()
+        };
+
+        // Split first cell into pure ckb and sudt
+        let withdrawal_cells_mut = test_case.user_withdrawal_cells.get_mut(&lock_hash).unwrap();
+        assert_eq!(withdrawal_cells_mut.len(), 1);
+
+        let first_cell = withdrawal_cells_mut.first().unwrap();
+        let pure_ckb_cell = {
+            assert!(first_cell.capacity > 800);
+            let mut cell = first_cell.clone();
+            cell.capacity = first_cell.capacity.saturating_sub(300);
+            cell.sudt_amount = 0;
+            cell.type_ = None;
+            cell
+        };
+        let sudt_cell = {
+            let mut cell = first_cell.clone();
+            cell.capacity = first_cell.capacity.saturating_sub(pure_ckb_cell.capacity);
+            cell
+        };
+
+        *withdrawal_cells_mut = vec![pure_ckb_cell, sudt_cell];
+
+        let withdrawal_cells = test_case.user_withdrawal_cells.get(&lock_hash).unwrap();
+        assert_eq!(withdrawal_cells.len(), 2);
+
+        test_case.verify().expect("pass");
+    }
 }
 
 #[test]
