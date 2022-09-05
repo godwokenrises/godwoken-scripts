@@ -612,29 +612,6 @@ fn check_block_transactions(block: &L2BlockReader, kv_state: &KVState) -> Result
         return Err(Error::InvalidStateCheckpoint);
     }
 
-    // check post account tree state
-    let last_checkpoint_root = if block.transactions().is_empty() {
-        prev_state_checkpoint
-    } else {
-        raw_block
-            .state_checkpoint_list()
-            .iter()
-            .last()
-            .map(|checkpoint| checkpoint.unpack())
-            .ok_or(Error::InvalidStateCheckpoint)?
-    };
-    let block_post_state_root = {
-        let account = raw_block.post_account();
-        calculate_state_checkpoint(&account.merkle_root().unpack(), account.count().unpack())
-    };
-    if last_checkpoint_root != block_post_state_root {
-        debug!(
-            "Invalid post state, last_checkpoint_root: {:?}, block_post_state_root: {:?}",
-            last_checkpoint_root, block_post_state_root
-        );
-        return Err(Error::InvalidStateCheckpoint);
-    }
-
     Ok(())
 }
 
