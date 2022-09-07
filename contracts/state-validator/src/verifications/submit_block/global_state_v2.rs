@@ -7,25 +7,26 @@ use gw_utils::{
     },
 };
 
-use crate::verifications::finalize_withdrawal::last_finalized_withdrawal::{
-    BLOCK_WITHDRAWAL_INDEX_ALL_WITHDRAWALS, BLOCK_WITHDRAWAL_INDEX_NO_WITHDRAWAL,
-};
+use crate::verifications::finalize_withdrawal::last_finalized_withdrawal::LAST_FINALIZED_WITHDRAWAL_INDEX_ALL_WITHDRAWALS;
 
 pub struct GlobalStateV2Verifications {
     pub check_no_output_withdrawal_cells: bool,
-    pub check_last_finalized_withdrawal_field_is_default: bool,
+    pub check_prev_last_finalized_withdrawal_field_is_default: bool,
 }
 
+// NOTE: The only place that modify `last_finalized_withdrawal` in submit block is upgrade to
+// v2 process, so we don't need to check prev last finalized withdrawal field is default when
+// post global state is v2.
 impl GlobalStateV2Verifications {
-    pub fn from_prev_global_state(prev_global_state: &GlobalState) -> Result<Self, Error> {
-        let verifications = match prev_global_state.version_u8() {
+    pub fn from_post_global_state(post_global_state: &GlobalState) -> Result<Self, Error> {
+        let verifications = match post_global_state.version_u8() {
             0 | 1 => GlobalStateV2Verifications {
                 check_no_output_withdrawal_cells: false,
-                check_last_finalized_withdrawal_field_is_default: true,
+                check_prev_last_finalized_withdrawal_field_is_default: true,
             },
             2 => GlobalStateV2Verifications {
                 check_no_output_withdrawal_cells: true,
-                check_last_finalized_withdrawal_field_is_default: false,
+                check_prev_last_finalized_withdrawal_field_is_default: false,
             },
             ver => {
                 debug!("invalid global state version {}", ver);
@@ -36,23 +37,19 @@ impl GlobalStateV2Verifications {
         Ok(verifications)
     }
 
-    pub fn upgrade_to_v2(
-        &self,
-        global_state: GlobalState,
-        raw_l2block: &RawL2BlockReader,
-    ) -> GlobalState {
-        let block_number = raw_l2block.number().unpack();
+    pub fn can_upgrade_to_v2(
+        prev_global_state: &GlobalState,
+        post_global_state: &GlobalState,
+    ) -> bool {
+        prev_global_state.version_u8() < 2 && post_global_state.version_u8() >= 2
+    }
 
-        let withdrawals_count: u32 = raw_l2block.submit_withdrawals().withdrawal_count().unpack();
-        let withdrawal_index = if 0 == withdrawals_count {
-            BLOCK_WITHDRAWAL_INDEX_NO_WITHDRAWAL
-        } else {
-            BLOCK_WITHDRAWAL_INDEX_ALL_WITHDRAWALS
-        };
+    pub fn upgrade_to_v2(global_state: GlobalState, raw_l2block: &RawL2BlockReader) -> GlobalState {
+        let parent_block_number = raw_l2block.number().unpack().saturating_sub(1);
 
         let last_finalized_withdrawal = LastFinalizedWithdrawal::new_builder()
-            .block_number(block_number.pack())
-            .withdrawal_index(withdrawal_index.pack())
+            .block_number(parent_block_number.pack())
+            .withdrawal_index(LAST_FINALIZED_WITHDRAWAL_INDEX_ALL_WITHDRAWALS.pack())
             .build();
 
         global_state
