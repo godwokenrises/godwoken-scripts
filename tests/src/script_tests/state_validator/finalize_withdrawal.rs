@@ -570,8 +570,7 @@ impl BlockWithdrawals {
 
         let assert_idx = |idx, block_wths: &[UserWithdrawalCell], msg| {
             let valid = BLOCK_ALL_WITHDRAWALS == idx
-                || (!block_wths.is_empty() && idx as usize <= block_wths.len().saturating_sub(1))
-                || (block_wths.is_empty() && BLOCK_NO_WITHDRAWAL == idx);
+                || (!block_wths.is_empty() && idx as usize <= block_wths.len().saturating_sub(1));
             assert!(valid, "{} {} {}", msg, idx, block_wths.len());
         };
         assert_idx(prev_wth_idx, &prev_block_wths, "prev");

@@ -759,8 +759,8 @@ pub fn verify(
         post_global_state,
     )?;
 
-    let v2_verifications = GlobalStateV2Verifications::from_prev_global_state(prev_global_state)?;
-    if v2_verifications.check_last_finalized_withdrawal_field_is_default {
+    let v2_verifications = GlobalStateV2Verifications::from_post_global_state(post_global_state)?;
+    if v2_verifications.check_prev_last_finalized_withdrawal_field_is_default {
         debug!("check last finalized withdrawal field is default");
         if prev_global_state.last_finalized_withdrawal().as_slice()
             != LastFinalizedWithdrawal::default().as_slice()
@@ -848,9 +848,16 @@ pub fn verify(
             .version(version)
             .build()
     };
-    if 1 == prev_global_state.version_u8() && 2 == post_global_state.version_u8() {
+    if GlobalStateV2Verifications::can_upgrade_to_v2(&prev_global_state, &post_global_state) {
+        if prev_global_state.last_finalized_withdrawal().as_slice()
+            != LastFinalizedWithdrawal::default().as_slice()
+        {
+            debug!("unreachable prev last finalized withdrawal field isn't default");
+            return Err(Error::InvalidLastFinalizedWithdrawal);
+        }
+
         actual_post_global_state =
-            { context.v2 }.upgrade_to_v2(actual_post_global_state, &block.raw());
+            GlobalStateV2Verifications::upgrade_to_v2(actual_post_global_state, &block.raw());
     }
 
     if &actual_post_global_state != post_global_state {
