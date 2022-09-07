@@ -192,14 +192,6 @@ fn check_output_custodian_cells(
     {
         let reverted_withdrawals =
             collect_withdrawal_locks(&context.block.rollup_type_hash, config, Source::Input)?;
-        if context.v2.check_no_input_reverted_withdrawal_cells {
-            debug!("check no input reverted withdrawal cells");
-            if !reverted_withdrawals.is_empty() {
-                debug!("input reverted withdrawal found");
-                return Err(Error::InvalidWithdrawalCell);
-            }
-        }
-
         let reverted_withdrawal_assets =
             build_assets_map_from_cells(reverted_withdrawals.iter().map(|c| &c.value))?;
         let mut output_finalized_assets =

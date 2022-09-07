@@ -1084,7 +1084,7 @@ async fn test_output_withdrawal_cell_found() {
 }
 
 #[tokio::test]
-async fn test_input_reverted_withdrawal_cell_found() {
+async fn test_allow_input_reverted_withdrawal_cell() {
     init_env_log();
 
     let TestEnv {
@@ -1261,9 +1261,7 @@ async fn test_input_reverted_withdrawal_cell_found() {
     .witness(witness.as_bytes().to_ckb())
     .build();
 
-    let expected_err = state_validator_script_error(ERROR_INVALID_WITHDRAWAL_CELL);
-    let err = ctx.verify_tx(tx).unwrap_err();
-    assert_error_eq!(err, expected_err);
+    ctx.verify_tx(tx).expect("pass");
 }
 
 struct TestEnv {

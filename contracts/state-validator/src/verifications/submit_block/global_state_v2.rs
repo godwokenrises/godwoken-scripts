@@ -12,7 +12,6 @@ use crate::verifications::finalize_withdrawal::last_finalized_withdrawal::{
 };
 
 pub struct GlobalStateV2Verifications {
-    pub check_no_input_reverted_withdrawal_cells: bool,
     pub check_no_output_withdrawal_cells: bool,
     pub check_last_finalized_withdrawal_field_is_default: bool,
 }
@@ -21,12 +20,10 @@ impl GlobalStateV2Verifications {
     pub fn from_prev_global_state(prev_global_state: &GlobalState) -> Result<Self, Error> {
         let verifications = match prev_global_state.version_u8() {
             0 | 1 => GlobalStateV2Verifications {
-                check_no_input_reverted_withdrawal_cells: false,
                 check_no_output_withdrawal_cells: false,
                 check_last_finalized_withdrawal_field_is_default: true,
             },
             2 => GlobalStateV2Verifications {
-                check_no_input_reverted_withdrawal_cells: true,
                 check_no_output_withdrawal_cells: true,
                 check_last_finalized_withdrawal_field_is_default: false,
             },
