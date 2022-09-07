@@ -30,8 +30,7 @@ use crate::testing_tool::programs::{
 };
 
 const FINALITY_BLOCKS: u64 = 10u64;
-pub const BLOCK_NO_WITHDRAWAL: u32 = u32::MAX;
-pub const BLOCK_ALL_WITHDRAWALS: u32 = u32::MAX - 1;
+pub const BLOCK_ALL_WITHDRAWALS: u32 = u32::MAX;
 const CKB: u64 = 10u64.pow(8);
 
 const ERROR_MERKLE_PROOF: i8 = 13;
@@ -109,7 +108,7 @@ fn test_invalid_global_state_version() {
 fn test_last_finalized_block_number_check() {
     let mut test_case = TestCase::builder()
         .push_withdrawal(1, 1000 * CKB, 100)
-        .prev_last_finalized_withdrawal(0, BLOCK_NO_WITHDRAWAL)
+        .prev_last_finalized_withdrawal(0, BLOCK_ALL_WITHDRAWALS)
         .post_last_finalized_withdrawal(1, BLOCK_ALL_WITHDRAWALS)
         .rollup_config_finalize_blocks(100)
         .build();
@@ -558,13 +557,13 @@ impl BlockWithdrawals {
         let max_block_number = self.blocks.last().unwrap().raw().number().unpack();
         let valid_prev_block_number = prev_block_number >= min_block_number
             || (prev_block_number >= min_block_number.saturating_sub(1)
-                && (BLOCK_NO_WITHDRAWAL == prev_wth_idx || BLOCK_ALL_WITHDRAWALS == prev_wth_idx));
+                && BLOCK_ALL_WITHDRAWALS == prev_wth_idx);
         assert!(valid_prev_block_number);
         assert!(post_block_number <= max_block_number);
 
         let prev_block_wths = {
             let prev = self.block_withdrawals.get(&prev_block_number);
-            prev.cloned().unwrap_or_default() // default means BLOCK_NO_WITHDRAWAL or BLOCK_ALL_WITHDRAWALS
+            prev.cloned().unwrap_or_default() // default means BLOCK_ALL_WITHDRAWALS
         };
         let post_block_wths = self.block_withdrawals.get(&post_block_number).unwrap();
 
@@ -577,12 +576,11 @@ impl BlockWithdrawals {
         assert_idx(post_wth_idx, post_block_wths, "post");
 
         let block_smt = self.block_smt();
-        let block_range =
-            if BLOCK_NO_WITHDRAWAL == prev_wth_idx || BLOCK_ALL_WITHDRAWALS == prev_wth_idx {
-                (prev_block_number + 1)..=post_block_number
-            } else {
-                prev_block_number..=post_block_number
-            };
+        let block_range = if BLOCK_ALL_WITHDRAWALS == prev_wth_idx {
+            (prev_block_number + 1)..=post_block_number
+        } else {
+            prev_block_number..=post_block_number
+        };
         let key_leaf_vec = block_range
             .map(|bn| (H256::from_u64(bn), H256::zero()))
             .collect::<Vec<_>>();
@@ -669,15 +667,11 @@ impl BlockWithdrawals {
 
                 match bn {
                     block_number if prev_block_number == block_number => {
-                        if prev_wth_idx == BLOCK_ALL_WITHDRAWALS
-                            || prev_wth_idx == BLOCK_NO_WITHDRAWAL
-                        {
+                        if prev_wth_idx == BLOCK_ALL_WITHDRAWALS {
                             return None;
                         }
 
                         if post_block_number == prev_block_number {
-                            assert!(BLOCK_NO_WITHDRAWAL != post_wth_idx);
-
                             let last_wth_idx = b.withdrawals().len().saturating_sub(1) as u32;
                             let end = if BLOCK_ALL_WITHDRAWALS == post_wth_idx {
                                 last_wth_idx
@@ -717,7 +711,7 @@ impl BlockWithdrawals {
                         Some(build_block_withdrawals(b, withdrawal_cells, Some((0, end))))
                     }
                     block_number if post_block_number == block_number => {
-                        if BLOCK_NO_WITHDRAWAL == post_wth_idx {
+                        if BLOCK_ALL_WITHDRAWALS == post_wth_idx && b.withdrawals().is_empty() {
                             Some((
                                 vec![],
                                 RawL2BlockWithdrawals::new_builder()

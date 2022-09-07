@@ -6,7 +6,7 @@ use gw_types::{
     prelude::{Builder, Pack, Unpack},
 };
 
-use super::{TestCase, BLOCK_ALL_WITHDRAWALS, BLOCK_NO_WITHDRAWAL, CKB};
+use super::{TestCase, BLOCK_ALL_WITHDRAWALS, CKB};
 
 const ERROR_AMOUNT_OVERFLOW: i8 = 14;
 const ERROR_INVALID_USER_WITHDRAWAL_CELL: i8 = 48;
@@ -25,7 +25,7 @@ fn sample_case() -> TestCase {
         .push_withdrawal(6, 666 * CKB, 22)
         .push_withdrawal(6, 777 * CKB, 33)
         .last_finalized_block(6)
-        .prev_last_finalized_withdrawal(0, BLOCK_NO_WITHDRAWAL)
+        .prev_last_finalized_withdrawal(0, BLOCK_ALL_WITHDRAWALS)
         .post_last_finalized_withdrawal(6, BLOCK_ALL_WITHDRAWALS)
         .build()
 }
@@ -42,7 +42,7 @@ fn test_user_withdrawal_merge_and_split() {
         .push_withdrawal(1, 1000 * CKB, 87)
         .push_withdrawal(2, 2999 * CKB, 100)
         .last_finalized_block(2)
-        .prev_last_finalized_withdrawal(0, BLOCK_NO_WITHDRAWAL)
+        .prev_last_finalized_withdrawal(0, BLOCK_ALL_WITHDRAWALS)
         .post_last_finalized_withdrawal(2, BLOCK_ALL_WITHDRAWALS)
         .build();
 
