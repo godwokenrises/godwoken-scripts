@@ -3,7 +3,7 @@ use gw_common::{h256_ext::H256Ext, H256};
 use gw_types::packed::LastFinalizedWithdrawal;
 use gw_types::prelude::{Builder, Pack, Unpack};
 
-use super::{TestCase, BLOCK_ALL_WITHDRAWALS, BLOCK_NO_WITHDRAWAL, CKB, FINALITY_BLOCKS};
+use super::{TestCase, BLOCK_ALL_WITHDRAWALS, CKB, FINALITY_BLOCKS};
 
 use super::ERROR_MERKLE_PROOF;
 const ERROR_INVALID_LAST_FINALIZED_WITHDRAWAL: i8 = 46;
@@ -137,14 +137,56 @@ mod same_block {
     fn test_invalid_index() {
         let test_case = sample_case();
 
-        // post index == BLOCK_NO_WITHDRAWAL
+        // prev index == BLOCK_ALL_WITHDRAWAL (post index <= prev index)
         {
             let mut test_case = test_case.clone();
+            let err_prev_last_finalized_withdrawal = test_case
+                .prev_global_state
+                .last_finalized_withdrawal()
+                .as_builder()
+                .withdrawal_index(BLOCK_ALL_WITHDRAWALS.pack())
+                .build();
+
+            test_case.prev_global_state = test_case
+                .prev_global_state
+                .as_builder()
+                .last_finalized_withdrawal(err_prev_last_finalized_withdrawal)
+                .build();
+
+            expect_err!(test_case, ERROR_INVALID_LAST_FINALIZED_WITHDRAWAL);
+        }
+
+        // prev index == WithdrawalIndex::NoWithdrawal
+        {
+            let mut test_case = test_case
+                .clone()
+                .into_builder()
+                .push_empty_block(2)
+                .last_finalized_block(2)
+                .prev_last_finalized_withdrawal(1, BLOCK_ALL_WITHDRAWALS)
+                .post_last_finalized_withdrawal(2, BLOCK_ALL_WITHDRAWALS)
+                .build();
+            test_case.verify().expect("pass");
+
+            let err_prev_last_finalized_withdrawal = test_case
+                .prev_global_state
+                .last_finalized_withdrawal()
+                .as_builder()
+                .block_number(2.pack())
+                .build();
+
+            test_case.prev_global_state = test_case
+                .prev_global_state
+                .as_builder()
+                .last_finalized_withdrawal(err_prev_last_finalized_withdrawal)
+                .build();
+
+            // set withdrawal index, so post index won't set to WithdrawalIndex::NoWithdrawal
             let err_post_last_finalized_withdrawal = test_case
                 .post_global_state
                 .last_finalized_withdrawal()
                 .as_builder()
-                .withdrawal_index(BLOCK_NO_WITHDRAWAL.pack())
+                .withdrawal_index(0u32.pack())
                 .build();
 
             test_case.post_global_state = test_case
@@ -156,14 +198,25 @@ mod same_block {
             expect_err!(test_case, ERROR_INVALID_LAST_FINALIZED_WITHDRAWAL);
         }
 
-        // prev index == BLOCK_NO_WITHDRAWAL
+        // post index == WithdrawalIndex::NoWithdrawal
         {
-            let mut test_case = test_case.clone();
+            let mut test_case = test_case
+                .clone()
+                .into_builder()
+                .push_empty_block(2)
+                .last_finalized_block(2)
+                .prev_last_finalized_withdrawal(1, BLOCK_ALL_WITHDRAWALS)
+                .post_last_finalized_withdrawal(2, BLOCK_ALL_WITHDRAWALS)
+                .build();
+            test_case.verify().expect("pass");
+
+            // set withdrawal index, so prev index won't set to WithdrawalIndex::NoWithdrawal
             let err_prev_last_finalized_withdrawal = test_case
                 .prev_global_state
                 .last_finalized_withdrawal()
                 .as_builder()
-                .withdrawal_index(BLOCK_NO_WITHDRAWAL.pack())
+                .block_number(2.pack())
+                .withdrawal_index(0u32.pack())
                 .build();
 
             test_case.prev_global_state = test_case
@@ -361,12 +414,12 @@ mod across_blocks {
         let test_case = sample_case();
         test_case.verify().expect("pass");
 
-        // prev BLOCK_NO_WITHDRAWAL
+        // prev BLOCK_ALL_WITHDRAWALS (no withdrawal)
         {
             let test_case = test_case
                 .clone()
                 .into_builder()
-                .prev_last_finalized_withdrawal(0, BLOCK_NO_WITHDRAWAL)
+                .prev_last_finalized_withdrawal(0, BLOCK_ALL_WITHDRAWALS)
                 .build();
             test_case.verify().expect("pass");
         }
@@ -396,12 +449,12 @@ mod across_blocks {
             test_case.verify().expect("pass");
         }
 
-        // post BLOCK_NO_WITHDRAWAL
+        // post BLOCK_ALL_WITHDRAWAL (no withdrawal)
         {
             let test_case = test_case
                 .clone()
                 .into_builder()
-                .post_last_finalized_withdrawal(3, BLOCK_NO_WITHDRAWAL)
+                .post_last_finalized_withdrawal(3, BLOCK_ALL_WITHDRAWALS)
                 .build();
             test_case.verify().expect("pass");
         }
@@ -470,12 +523,12 @@ mod across_blocks {
     fn test_may_have_unfinalized_prev_invalid_index() {
         let test_case = sample_case();
 
-        // umcomparable prev index against BLOCK_NO_WITHDRAWAL
+        // umcomparable prev index against WithdrawalIndex::NoWithdrawal
         {
             let mut test_case = test_case
                 .clone()
                 .into_builder()
-                .prev_last_finalized_withdrawal(3, BLOCK_NO_WITHDRAWAL)
+                .prev_last_finalized_withdrawal(3, BLOCK_ALL_WITHDRAWALS)
                 .build();
 
             // add block #3
@@ -551,12 +604,12 @@ mod across_blocks {
     fn test_post_invalid_index() {
         let test_case = sample_case();
 
-        // uncomparable post index against BLOCK_NO_WITHDRAWAL
+        // uncomparable post index against WithdrawalIndex::NoWithdrawal
         {
             let mut test_case = test_case
                 .clone()
                 .into_builder()
-                .post_last_finalized_withdrawal(3, BLOCK_NO_WITHDRAWAL)
+                .post_last_finalized_withdrawal(3, BLOCK_ALL_WITHDRAWALS)
                 .build();
 
             let err_post_index = LastFinalizedWithdrawal::new_builder()
@@ -604,7 +657,7 @@ mod across_blocks {
     fn test_witness_blocks_len_dont_match_index_range() {
         let mut test_case = sample_case()
             .into_builder()
-            .prev_last_finalized_withdrawal(0, BLOCK_NO_WITHDRAWAL)
+            .prev_last_finalized_withdrawal(0, BLOCK_ALL_WITHDRAWALS)
             .post_last_finalized_withdrawal(2, BLOCK_ALL_WITHDRAWALS)
             .build();
 

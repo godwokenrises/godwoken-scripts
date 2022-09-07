@@ -1,6 +1,4 @@
-use crate::script_tests::state_validator::finalize_withdrawal::{
-    BLOCK_ALL_WITHDRAWALS, BLOCK_NO_WITHDRAWAL,
-};
+use crate::script_tests::state_validator::finalize_withdrawal::BLOCK_ALL_WITHDRAWALS;
 use crate::script_tests::utils::conversion::{CKBTypeIntoExt, ToCKBType, ToGWType};
 use crate::script_tests::utils::init_env_log;
 use crate::script_tests::utils::layer1::{
@@ -292,7 +290,7 @@ async fn test_modify_last_finalized_withdrawal() {
 }
 
 #[tokio::test]
-async fn test_upgrade_to_v2_post_global_state_block_no_withdrawals() {
+async fn test_upgrade_to_v2_post_global_state() {
     init_env_log();
 
     let TestEnv {
@@ -351,9 +349,10 @@ async fn test_upgrade_to_v2_post_global_state_block_no_withdrawals() {
 
     // verify submit block
     let tip_block_timestamp = block_result.block.raw().timestamp();
+    let parent_block_number = { block_result.block.raw().number().unpack().saturating_sub(1) };
     let last_finalized_withdrawal = LastFinalizedWithdrawal::new_builder()
-        .block_number(block_result.block.raw().number())
-        .withdrawal_index(BLOCK_NO_WITHDRAWAL.pack())
+        .block_number(parent_block_number.pack())
+        .withdrawal_index(BLOCK_ALL_WITHDRAWALS.pack())
         .build();
     let rollup_cell_data = block_result
         .global_state
@@ -401,7 +400,7 @@ async fn test_upgrade_to_v2_post_global_state_block_no_withdrawals() {
 }
 
 #[tokio::test]
-async fn test_upgrade_to_v2_post_global_state_block_all_withdrawals() {
+async fn test_upgrade_to_v2_post_global_state_withdrawal_cell_outputs_found() {
     init_env_log();
 
     let TestEnv {
@@ -510,8 +509,9 @@ async fn test_upgrade_to_v2_post_global_state_block_all_withdrawals() {
 
     // verify submit block
     let tip_block_timestamp = block_result.block.raw().timestamp();
+    let parent_block_number = { block_result.block.raw().number().unpack().saturating_sub(1) };
     let last_finalized_withdrawal = LastFinalizedWithdrawal::new_builder()
-        .block_number(block_result.block.raw().number())
+        .block_number(parent_block_number.pack())
         .withdrawal_index(BLOCK_ALL_WITHDRAWALS.pack())
         .build();
     let rollup_cell_data = block_result
@@ -559,7 +559,9 @@ async fn test_upgrade_to_v2_post_global_state_block_all_withdrawals() {
     .witness(witness.as_bytes().to_ckb())
     .build();
 
-    ctx.verify_tx(tx).expect("pass");
+    let expected_err = state_validator_script_error(ERROR_INVALID_WITHDRAWAL_CELL);
+    let err = ctx.verify_tx(tx).unwrap_err();
+    assert_error_eq!(err, expected_err);
 }
 
 #[tokio::test]
@@ -723,9 +725,10 @@ async fn test_upgrade_to_v2_post_global_state_wrong_last_finalized_withdrawal() 
 
     // verify submit block (invalid withdrawal index)
     let tip_block_timestamp = block_result.block.raw().timestamp();
+    let parent_block_number = { block_result.block.raw().number().unpack().saturating_sub(1) };
     let last_finalized_withdrawal = LastFinalizedWithdrawal::new_builder()
-        .block_number(block_result.block.raw().number())
-        .withdrawal_index(BLOCK_ALL_WITHDRAWALS.pack())
+        .block_number(parent_block_number.pack())
+        .withdrawal_index(0u32.pack())
         .build();
     let rollup_cell_data = block_result
         .global_state
