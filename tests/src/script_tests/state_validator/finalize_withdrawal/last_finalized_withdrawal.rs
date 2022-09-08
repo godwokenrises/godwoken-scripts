@@ -134,10 +134,16 @@ mod same_block {
     }
 
     #[test]
+    #[ignore = "already checked before enter this logic"]
+    fn test_invalid_prev_index_withdrawal_index_no_withdrawal() {
+        unreachable!()
+    }
+
+    #[test]
     fn test_invalid_index() {
         let test_case = sample_case();
 
-        // prev index == BLOCK_ALL_WITHDRAWAL (post index <= prev index)
+        // prev index == BLOCK_ALL_WITHDRAWAL
         {
             let mut test_case = test_case.clone();
             let err_prev_last_finalized_withdrawal = test_case
@@ -151,48 +157,6 @@ mod same_block {
                 .prev_global_state
                 .as_builder()
                 .last_finalized_withdrawal(err_prev_last_finalized_withdrawal)
-                .build();
-
-            expect_err!(test_case, ERROR_INVALID_LAST_FINALIZED_WITHDRAWAL);
-        }
-
-        // prev index == WithdrawalIndex::NoWithdrawal
-        {
-            let mut test_case = test_case
-                .clone()
-                .into_builder()
-                .push_empty_block(2)
-                .last_finalized_block(2)
-                .prev_last_finalized_withdrawal(1, BLOCK_ALL_WITHDRAWALS)
-                .post_last_finalized_withdrawal(2, BLOCK_ALL_WITHDRAWALS)
-                .build();
-            test_case.verify().expect("pass");
-
-            let err_prev_last_finalized_withdrawal = test_case
-                .prev_global_state
-                .last_finalized_withdrawal()
-                .as_builder()
-                .block_number(2.pack())
-                .build();
-
-            test_case.prev_global_state = test_case
-                .prev_global_state
-                .as_builder()
-                .last_finalized_withdrawal(err_prev_last_finalized_withdrawal)
-                .build();
-
-            // set withdrawal index, so post index won't set to WithdrawalIndex::NoWithdrawal
-            let err_post_last_finalized_withdrawal = test_case
-                .post_global_state
-                .last_finalized_withdrawal()
-                .as_builder()
-                .withdrawal_index(0u32.pack())
-                .build();
-
-            test_case.post_global_state = test_case
-                .post_global_state
-                .as_builder()
-                .last_finalized_withdrawal(err_post_last_finalized_withdrawal)
                 .build();
 
             expect_err!(test_case, ERROR_INVALID_LAST_FINALIZED_WITHDRAWAL);

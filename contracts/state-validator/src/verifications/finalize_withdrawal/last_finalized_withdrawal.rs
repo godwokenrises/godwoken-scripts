@@ -58,13 +58,22 @@ pub fn check(
     debug!("post finalized idx {:?}", post_last_finalized_index);
 
     // Same block rule:
-    // 1. witness block match block number
-    // 2. block should have withdrawals
-    // 3. post index must be greater than prev index
-    // 4. witness withdrawals match index range len
-    // 5. witness withdrawals have valid cbmt merkle proof
+    // 1. prev last finalized withdrawal index isn't INDEX_ALL_WITHDRAWALS
+    // 2. witness block match block number
+    // 3. block should have withdrawals
+    // 4. post index must be greater than prev index
+    // 5. witness withdrawals match index range len
+    // 6. witness withdrawals have valid cbmt merkle proof
     if post_finalized_block_number == prev_finalized_block_number {
         debug!("finalize withdrawal from same block");
+
+        if matches!(
+            prev_last_finalized_index,
+            LastFinalizedWithdrawalIndex::AllWithdrawals
+        ) {
+            debug!("prev index is AllWithdrawals");
+            return Err(Error::InvalidLastFinalizedWithdrawal);
+        }
 
         if 1 != block_withdrawals_vec.len() {
             debug!("witness submit extra block withdrawals");
