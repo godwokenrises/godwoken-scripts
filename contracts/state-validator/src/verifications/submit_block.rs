@@ -794,7 +794,10 @@ pub fn verify(
 
     // Check new cells and reverted cells: deposit / withdrawal / custodian
     let withdrawal_requests_vec = block.withdrawals();
-    let withdrawal_requests = withdrawal_requests_vec.iter().collect();
+    let withdrawal_requests: Vec<_> = withdrawal_requests_vec.iter().collect();
+    if { &context.v2 }.check_withdrawal_owner_lock_in_last_witness_type_out {
+        GlobalStateV2Verifications::check_withdrawal_owner_lock(&withdrawal_requests)?;
+    }
     if !context.v2.check_no_output_withdrawal_cells {
         check_withdrawal_cells(&context.block, withdrawal_requests, &withdrawal_cells)?;
     }
