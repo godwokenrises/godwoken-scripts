@@ -88,10 +88,6 @@ typedef struct gw_context_t {
   /* sender's original nonce */
   uint32_t original_sender_nonce;
 
-  /* tx check point */
-  uint8_t prev_tx_checkpoint[32];
-  uint8_t post_tx_checkpoint[32];
-
   /* kv state */
   smt_state_t kv_state;
   smt_pair_t kv_pairs[GW_MAX_KV_PAIRS];
@@ -1011,59 +1007,6 @@ int _gw_verify_cbmt_tx_proof(mol_seg_t *proof_seg, mol_seg_t *root_seg,
   return memcmp(root_seg->ptr, leaf_hash, 32);
 }
 
-/*
- * Load transaction checkpoints
- */
-int _load_tx_checkpoint(mol_seg_t *raw_l2block_seg, uint32_t tx_index,
-                        uint8_t prev_tx_checkpoint[32],
-                        uint8_t post_tx_checkpoint[32]) {
-  mol_seg_t submit_withdrawals_seg =
-      MolReader_RawL2Block_get_submit_withdrawals(raw_l2block_seg);
-  mol_seg_t withdrawals_count_seg =
-      MolReader_SubmitWithdrawals_get_withdrawal_count(&submit_withdrawals_seg);
-  uint32_t withdrawals_count = 0;
-  _gw_fast_memcpy((uint8_t *)(&withdrawals_count), withdrawals_count_seg.ptr,
-                  sizeof(uint32_t));
-
-  mol_seg_t checkpoint_list_seg =
-      MolReader_RawL2Block_get_state_checkpoint_list(raw_l2block_seg);
-
-  // load prev tx checkpoint
-  if (0 == tx_index) {
-    mol_seg_t submit_txs_seg =
-        MolReader_RawL2Block_get_submit_transactions(raw_l2block_seg);
-    mol_seg_t prev_state_checkpoint_seg =
-        MolReader_SubmitTransactions_get_prev_state_checkpoint(&submit_txs_seg);
-    if (32 != prev_state_checkpoint_seg.size) {
-      printf("invalid prev state checkpoint");
-      return GW_FATAL_INVALID_DATA;
-    }
-    _gw_fast_memcpy(prev_tx_checkpoint, prev_state_checkpoint_seg.ptr, 32);
-  } else {
-    uint32_t prev_tx_checkpoint_index = withdrawals_count + tx_index - 1;
-
-    mol_seg_res_t checkpoint_res =
-        MolReader_Byte32Vec_get(&checkpoint_list_seg, prev_tx_checkpoint_index);
-    if (MOL_OK != checkpoint_res.errno || 32 != checkpoint_res.seg.size) {
-      printf("invalid prev tx checkpoint");
-      return GW_FATAL_INVALID_DATA;
-    }
-    _gw_fast_memcpy(prev_tx_checkpoint, checkpoint_res.seg.ptr, 32);
-  }
-
-  // load post tx checkpoint
-  uint32_t post_tx_checkpoint_index = withdrawals_count + tx_index;
-
-  mol_seg_res_t checkpoint_res =
-      MolReader_Byte32Vec_get(&checkpoint_list_seg, post_tx_checkpoint_index);
-  if (MOL_OK != checkpoint_res.errno || 32 != checkpoint_res.seg.size) {
-    printf("invalid post tx checkpoint");
-    return GW_FATAL_INVALID_DATA;
-  }
-  _gw_fast_memcpy(post_tx_checkpoint, checkpoint_res.seg.ptr, 32);
-  return 0;
-}
-
 /* Load verify transaction witness
  */
 int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
@@ -1259,13 +1202,6 @@ int _load_verify_transaction_witness(uint8_t rollup_script_hash[32],
   _gw_fast_memcpy(ctx->kv_state_proof, kv_state_proof_bytes_seg.ptr,
                   kv_state_proof_bytes_seg.size);
   ctx->kv_state_proof_size = kv_state_proof_bytes_seg.size;
-
-  /* load tx checkpoint */
-  ret = _load_tx_checkpoint(&raw_l2block_seg, tx_index, ctx->prev_tx_checkpoint,
-                            ctx->post_tx_checkpoint);
-  if (ret != 0) {
-    return ret;
-  }
 
   mol_seg_t account_count_seg =
       MolReader_CCTransactionWitness_get_account_count(&cc_tx_witness_seg);
@@ -1537,43 +1473,6 @@ int _check_owner_lock_hash() {
   return GW_ERROR_NOT_FOUND;
 }
 
-int _gw_calculate_state_checkpoint(uint8_t buffer[32], const smt_state_t *state,
-                                   const uint8_t *proof, uint32_t proof_length,
-                                   uint32_t account_count) {
-  uint8_t root[32];
-  int ret = smt_calculate_root(root, state, proof, proof_length);
-  if (0 != ret) {
-    printf(
-        "_gw_calculate_state_check_point: failed to calculate kv state "
-        "root ret: %d",
-        ret);
-    return GW_FATAL_SMT_CALCULATE_ROOT;
-  }
-
-  blake2b_state blake2b_ctx;
-  blake2b_init(&blake2b_ctx, 32);
-  blake2b_update(&blake2b_ctx, root, 32);
-  blake2b_update(&blake2b_ctx, &account_count, sizeof(uint32_t));
-  blake2b_final(&blake2b_ctx, buffer, 32);
-
-  return 0;
-}
-
-int _gw_verify_checkpoint(const uint8_t checkpoint[32],
-                          const smt_state_t *state, const uint8_t *proof,
-                          uint32_t proof_length, uint32_t account_count) {
-  uint8_t proof_checkpoint[32];
-  int ret = _gw_calculate_state_checkpoint(proof_checkpoint, state, proof,
-                                           proof_length, account_count);
-  if (0 != ret) {
-    return ret;
-  }
-  if (0 != memcmp(proof_checkpoint, checkpoint, 32)) {
-    return GW_FATAL_INVALID_CHECK_POINT;
-  }
-  return 0;
-}
-
 int gw_context_init(gw_context_t *ctx) {
   /* check owner lock */
   int ret = _check_owner_lock_hash();
@@ -1650,13 +1549,6 @@ int gw_context_init(gw_context_t *ctx) {
 
   /* verify kv_state merkle proof */
   smt_state_normalize(&ctx->kv_state);
-  ret = _gw_verify_checkpoint(ctx->prev_tx_checkpoint, &ctx->kv_state,
-                              ctx->kv_state_proof, ctx->kv_state_proof_size,
-                              ctx->account_count);
-  if (ret != 0) {
-    printf("failed to merkle verify prev tx checkpoint");
-    return ret;
-  }
 
   /* init original sender nonce */
   ret = _load_sender_nonce(ctx, &ctx->original_sender_nonce);
@@ -1688,13 +1580,6 @@ int gw_finalize(gw_context_t *ctx) {
   }
 
   smt_state_normalize(&ctx->kv_state);
-  ret = _gw_verify_checkpoint(ctx->post_tx_checkpoint, &ctx->kv_state,
-                              ctx->kv_state_proof, ctx->kv_state_proof_size,
-                              ctx->account_count);
-  if (ret != 0) {
-    printf("failed to merkle verify post tx checkpoint");
-    return ret;
-  }
   return 0;
 }
 

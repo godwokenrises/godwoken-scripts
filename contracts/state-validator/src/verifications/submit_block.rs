@@ -36,14 +36,14 @@ use gw_common::{
     builtins::CKB_SUDT_ACCOUNT_ID,
     error::Error as StateError,
     h256_ext::H256Ext,
-    merkle_utils::{calculate_ckb_merkle_root, calculate_state_checkpoint, ckb_merkle_leaf_hash},
+    merkle_utils::{calculate_ckb_merkle_root, ckb_merkle_leaf_hash},
     state::State,
     CKB_SUDT_SCRIPT_ARGS, H256,
 };
 use gw_types::{
     bytes::Bytes,
     core::{ScriptHashType, Status},
-    packed::{Byte32, GlobalState, RawL2Block, RollupConfig},
+    packed::{GlobalState, RawL2Block, RollupConfig},
     prelude::*,
 };
 
@@ -530,53 +530,7 @@ fn verify_block_producer(
     Ok(())
 }
 
-fn check_state_checkpoints(block: &L2BlockReader) -> Result<(), Error> {
-    let raw_block = block.raw();
-    let checkpoint_list = raw_block.state_checkpoint_list();
-
-    let transactions = block.transactions();
-    let withdrawals = block.withdrawals();
-
-    if checkpoint_list.len() != withdrawals.len() + transactions.len() {
-        debug!(
-            "Wrong checkpoint length, checkpoints_list: {}, withdrawals: {} transactions: {}",
-            checkpoint_list.len(),
-            withdrawals.len(),
-            transactions.len()
-        );
-        return Err(Error::InvalidStateCheckpoint);
-    }
-
-    // check post state
-    let last_state_checkpoint = if transactions.is_empty() {
-        raw_block.submit_transactions().prev_state_checkpoint()
-    } else {
-        // return last transaction state checkpoint
-        checkpoint_list
-            .iter()
-            .last()
-            .ok_or(Error::InvalidStateCheckpoint)?
-    };
-    let block_state_checkpoint: Byte32 = {
-        let post_account_state = raw_block.post_account();
-        calculate_state_checkpoint(
-            &post_account_state.merkle_root().unpack(),
-            post_account_state.count().unpack(),
-        )
-        .pack()
-    };
-    if last_state_checkpoint.as_slice() != block_state_checkpoint.as_slice() {
-        debug!(
-            "Mismatch last_state_checkpoint: {:?}, block_state_checkpoint: {:?}",
-            last_state_checkpoint, block_state_checkpoint
-        );
-        return Err(Error::InvalidStateCheckpoint);
-    }
-
-    Ok(())
-}
-
-fn check_block_transactions(block: &L2BlockReader, kv_state: &KVState) -> Result<(), Error> {
+fn check_block_transactions(block: &L2BlockReader) -> Result<(), Error> {
     // check tx_witness_root
     let raw_block = block.raw();
 
@@ -603,36 +557,6 @@ fn check_block_transactions(block: &L2BlockReader, kv_state: &KVState) -> Result
     if tx_witness_root != merkle_root {
         debug!("failed to check block tx_witness_root");
         return Err(Error::MerkleProof);
-    }
-
-    // check current account tree state
-    let prev_state_checkpoint: H256 = submit_transactions.prev_state_checkpoint().unpack();
-    if kv_state.calculate_state_checkpoint()? != prev_state_checkpoint {
-        debug!("submit_transactions.prev_state_checkpoint isn't equals to the state checkpoint calculated from context");
-        return Err(Error::InvalidStateCheckpoint);
-    }
-
-    // check post account tree state
-    let last_checkpoint_root = if block.transactions().is_empty() {
-        prev_state_checkpoint
-    } else {
-        raw_block
-            .state_checkpoint_list()
-            .iter()
-            .last()
-            .map(|checkpoint| checkpoint.unpack())
-            .ok_or(Error::InvalidStateCheckpoint)?
-    };
-    let block_post_state_root = {
-        let account = raw_block.post_account();
-        calculate_state_checkpoint(&account.merkle_root().unpack(), account.count().unpack())
-    };
-    if last_checkpoint_root != block_post_state_root {
-        debug!(
-            "Invalid post state, last_checkpoint_root: {:?}, block_post_state_root: {:?}",
-            last_checkpoint_root, block_post_state_root
-        );
-        return Err(Error::InvalidStateCheckpoint);
     }
 
     Ok(())
@@ -738,9 +662,6 @@ pub fn verify(
 ) -> Result<(), Error> {
     check_status(prev_global_state, Status::Running)?;
 
-    // check checkpoints
-    check_state_checkpoints(block)?;
-
     // Check withdrawals root
     check_block_withdrawals(block)?;
 
@@ -786,7 +707,7 @@ pub fn verify(
     // Mint token: deposit requests -> layer2 SUDT
     check_layer2_deposit(&rollup_type_hash, config, &mut kv_state, &deposit_cells)?;
     // Check transactions
-    check_block_transactions(block, &kv_state)?;
+    check_block_transactions(block)?;
 
     // Verify Post state
     let actual_post_global_state = {
