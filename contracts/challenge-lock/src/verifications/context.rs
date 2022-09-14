@@ -1,7 +1,6 @@
 use core::result::Result;
 use gw_common::{
-    builtins::ETH_REGISTRY_ACCOUNT_ID, merkle_utils::calculate_state_checkpoint,
-    registry_address::RegistryAddress, state::State, H256,
+    builtins::ETH_REGISTRY_ACCOUNT_ID, registry_address::RegistryAddress, state::State, H256,
 };
 use gw_state::kv_state::KVState;
 use gw_types::{
@@ -134,36 +133,6 @@ pub fn verify_tx_context(input: TxContextInput) -> Result<TxContext, Error> {
     let valid = proof.verify(&tx_witness_root, &[hash]);
     if !valid {
         debug!("[verify tx exist] merkle verify error");
-        return Err(Error::MerkleProof);
-    }
-
-    // verify kv-state merkle proof (prev state root)
-    let prev_state_checkpoint: H256 = match tx_index.checked_sub(1) {
-        Some(tx_prev_state_checkpoint_index) => {
-            // skip withdrawal state checkpoints
-            let offset: u32 = raw_block.submit_withdrawals().withdrawal_count().unpack();
-            raw_block
-                .state_checkpoint_list()
-                .get((offset + tx_prev_state_checkpoint_index) as usize)
-                .ok_or(Error::InvalidStateCheckpoint)?
-                .unpack()
-        }
-        None => raw_block
-            .submit_transactions()
-            .prev_state_checkpoint()
-            .unpack(),
-    };
-    let state_root = kv_state.calculate_root().map_err(|_err| {
-        debug!("verify_tx_context, calculate merkle root error: {:?}", _err);
-        Error::MerkleProof
-    })?;
-    let account_count = kv_state.get_account_count()?;
-    let calculated_state_checkpoint: H256 = calculate_state_checkpoint(&state_root, account_count);
-    if prev_state_checkpoint != calculated_state_checkpoint {
-        debug!(
-            "TxContext mismatch prev_state_checkpoint: {:?}, calculated_state_checkpoint: {:?}",
-            prev_state_checkpoint, calculated_state_checkpoint
-        );
         return Err(Error::MerkleProof);
     }
 

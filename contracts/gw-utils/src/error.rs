@@ -25,7 +25,7 @@ pub enum Error {
     InsufficientInputFinalizedAssets,
     InsufficientOutputFinalizedAssets,
     SMTKeyMissing,
-    InvalidStateCheckpoint,
+    _InvalidStateCheckpoint, // deprecated
     InvalidBlock,
     InvalidStatus,
     InvalidStakeCellUnlock,
