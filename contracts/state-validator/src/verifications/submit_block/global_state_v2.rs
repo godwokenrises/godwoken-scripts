@@ -73,7 +73,7 @@ impl GlobalStateV2Verifications {
         prev_global_state: &GlobalState,
         post_global_state: &GlobalState,
     ) -> bool {
-        prev_global_state.version_u8() < 2 && post_global_state.version_u8() >= 2
+        prev_global_state.version_u8() < 2 && post_global_state.version_u8() == 2
     }
 
     pub fn upgrade_to_v2(global_state: GlobalState, raw_l2block: &RawL2BlockReader) -> GlobalState {
