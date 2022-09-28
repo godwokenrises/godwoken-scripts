@@ -10,7 +10,7 @@ use gw_utils::{
         debug,
         high_level::{load_cell_capacity, load_cell_data, load_script},
     },
-    gw_types::packed::{GlobalStateV1, GlobalStateV1Reader, RollupActionUnionReader},
+    gw_types::packed::{GlobalStateV1, RollupActionUnionReader},
     type_id::{check_type_id, TYPE_ID_SIZE},
 };
 
@@ -21,11 +21,7 @@ use crate::{
     verifications,
 };
 
-use gw_types::{
-    bytes::Bytes,
-    packed::{GlobalState, GlobalStateReader},
-    prelude::*,
-};
+use gw_types::{bytes::Bytes, packed::GlobalState, prelude::*};
 use gw_utils::gw_types;
 
 use gw_utils::error::Error;
@@ -34,16 +30,14 @@ const MAX_ROLLUP_VERSION: u8 = 2;
 
 pub fn parse_global_state(source: Source) -> Result<GlobalState, Error> {
     let data = load_cell_data(0, source)?;
-    match GlobalStateReader::verify(&data, false) {
-        Ok(_) => Ok(GlobalState::new_unchecked(data.into())),
-        Err(_) if GlobalStateV1Reader::verify(&data, false).is_ok() => {
-            let global_state_v1 = GlobalStateV1::new_unchecked(data.into());
-            Ok(GlobalState::from(global_state_v1))
-        }
-        Err(_) => {
-            debug!("Fail to parsing global state");
-            Err(Error::Encoding)
-        }
+    match GlobalState::from_slice(&data) {
+        Ok(state) => Ok(state),
+        Err(_) => GlobalStateV1::from_slice(&data)
+            .map_err(|_| {
+                debug!("Fail to parsing global state");
+                Error::Encoding
+            })
+            .map(Into::into),
     }
 }
 
