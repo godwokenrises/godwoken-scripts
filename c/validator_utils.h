@@ -856,6 +856,9 @@ int _load_verification_context(
       return GW_FATAL_INVALID_DATA;
     }
   }
+  if (1 != rollup_version && 2 != rollup_version) {
+    return GW_FATAL_INVALID_DATA;
+  }
 
   /* Get block_merkle_root */
   mol_seg_t block_merkle_state_seg;
