@@ -17,7 +17,11 @@ use gw_utils::{
     },
 };
 
-// Use this value, we don't need to submit prev block witness if all withdrawals are finalized
+// Special value for two cases
+//   - block without withdrawal
+//   - block's all withdrawals
+//
+// NOTE: prev finalized raw block isn't required in witness to verify transition
 pub const LAST_FINALIZED_WITHDRAWAL_INDEX_ALL_WITHDRAWALS: u32 = u32::MAX;
 
 #[must_use]
@@ -57,216 +61,177 @@ pub fn check(
     debug!("prev finalized idx {:?}", prev_last_finalized_index);
     debug!("post finalized idx {:?}", post_last_finalized_index);
 
-    // Same block rule:
-    // 1. prev last finalized withdrawal index isn't INDEX_ALL_WITHDRAWALS
-    // 2. witness block match block number
-    // 3. block should have withdrawals
-    // 4. post index must be greater than prev index
-    // 5. witness withdrawals match index range len
-    // 6. witness withdrawals have valid cbmt merkle proof
-    if post_finalized_block_number == prev_finalized_block_number {
-        debug!("finalize withdrawal from same block");
-
-        if matches!(
-            prev_last_finalized_index,
-            LastFinalizedWithdrawalIndex::AllWithdrawals
-        ) {
-            debug!("prev index is AllWithdrawals");
-            return Err(Error::InvalidLastFinalizedWithdrawal);
+    let unchecked_block_withdrawals = block_withdrawals_vec.iter();
+    let next_finalized_block_number = match prev_last_finalized_index {
+        LastFinalizedWithdrawalIndex::AllWithdrawals => {
+            prev_finalized_block_number.saturating_add(1)
         }
+        LastFinalizedWithdrawalIndex::Index(_) => prev_finalized_block_number,
+    };
+    debug!("next block number {}", next_finalized_block_number);
 
-        if 1 != block_withdrawals_vec.len() {
-            debug!("witness submit extra block withdrawals");
-            return Err(Error::InvalidRollupFinalizeWithdrawalWitness);
-        }
-
-        let block_withdrawals = block_withdrawals_vec.get_unchecked(0);
-        let block_number = block_withdrawals.raw_l2block().number().unpack();
-        if block_number != post_finalized_block_number {
-            debug!("witness wrong block number");
-            return Err(Error::InvalidRollupFinalizeWithdrawalWitness);
-        }
-
-        let prev_finalized_index = WithdrawalIndex::from_last_finalized_withdrawal_index(
-            &prev_last_finalized_index,
-            &block_withdrawals.raw_l2block(),
-        );
-        let post_finalized_index = WithdrawalIndex::from_last_finalized_withdrawal_index(
-            &post_last_finalized_index,
-            &block_withdrawals.raw_l2block(),
-        );
-
-        let withdrawals_index_range = match (prev_finalized_index, post_finalized_index) {
-            (WithdrawalIndex::NoWithdrawal, _) | (_, WithdrawalIndex::NoWithdrawal) => {
-                debug!("index == WithdrawalIndex::NoWithdrawal");
-                return Err(Error::InvalidLastFinalizedWithdrawal);
-            }
-            (WithdrawalIndex::Index(prev_idx), WithdrawalIndex::Index(post_idx)) => {
-                if post_idx <= prev_idx {
-                    debug!("post index <= prev index");
-                    return Err(Error::InvalidLastFinalizedWithdrawal);
-                }
-
-                WithdrawalIndexRange::new_range_inclusive(prev_idx.saturating_add(1), post_idx)?
-            }
-        };
-
-        check_block_withdrawals(block_number, withdrawals_index_range, &block_withdrawals)?;
+    let expected_block_withdrawals_len = post_finalized_block_number
+        .saturating_sub(next_finalized_block_number)
+        .saturating_add(1);
+    if unchecked_block_withdrawals.len() != expected_block_withdrawals_len as usize {
+        debug!("witness submitted blocks dosn't match block range");
+        return Err(Error::InvalidRollupFinalizeWithdrawalWitness);
     }
-    // post_finalized_block_number > prev_finalized_block_number
-    //
-    // Across block rule:
-    // 1. check whether all withdrawals from prev block are finalized
-    // 2. post last index must be either LastFinalizedWithdrawalIndex::AllWithdrawals
-    //    or within post block withdrawals index range
-    // 3. check prev block +1 ..= post block finalize
-    else {
-        debug!("finalize across blocks");
 
-        let mut unchecked_block_withdrawals = block_withdrawals_vec.iter();
+    for (next_block_number, next_block_withdrawals) in
+        (next_finalized_block_number..=post_finalized_block_number).zip(unchecked_block_withdrawals)
+    {
+        let raw_block = next_block_withdrawals.raw_l2block();
+        let opt_range = if next_block_number == prev_finalized_block_number {
+            debug!("check prev finalized block {}", next_block_number);
 
-        // Check whether all withdrawals in prev block are finalized
-        let may_have_unfinalized = matches!(
-            prev_last_finalized_index,
-            LastFinalizedWithdrawalIndex::Index(_)
-        );
-        if may_have_unfinalized {
-            debug!("check prev block finalize status");
-
-            let prev_block_withdrawals = match unchecked_block_withdrawals.next() {
-                Some(prev) => prev,
-                None => {
-                    debug!("witness no prev block");
-                    return Err(Error::InvalidRollupFinalizeWithdrawalWitness);
-                }
-            };
-            if prev_block_withdrawals.raw_l2block().number().unpack() != prev_finalized_block_number
-            {
-                debug!("witness wrong prev block number");
-                return Err(Error::InvalidRollupFinalizeWithdrawalWitness);
-            }
-
-            let prev_finalized_index = WithdrawalIndex::from_last_finalized_withdrawal_index(
+            generate_withdrawal_range_from_prev_finalized_index(
+                prev_finalized_block_number,
                 &prev_last_finalized_index,
-                &prev_block_withdrawals.raw_l2block(),
-            );
-            let prev_block_last_withdrawal_index =
-                WithdrawalIndex::from_block_last_withdrawal_index(
-                    &prev_block_withdrawals.raw_l2block(),
-                );
+                post_finalized_block_number,
+                &post_last_finalized_index,
+                &raw_block,
+            )?
+        } else if next_block_number == post_finalized_block_number {
+            debug!("check post finalized block {}", next_block_number);
 
-            let has_unfinalized = match (prev_finalized_index, prev_block_last_withdrawal_index) {
-                (WithdrawalIndex::NoWithdrawal, _) => {
-                    debug!("unreachable prev index WithdrawalIndex::NoWithdrawal");
-                    return Err(Error::InvalidLastFinalizedWithdrawal);
-                }
-                (_, WithdrawalIndex::NoWithdrawal) => {
-                    debug!("prev block index WithdrawalIndex::NoWithdrawal");
-                    return Err(Error::InvalidRollupFinalizeWithdrawalWitness);
-                }
-                (
-                    WithdrawalIndex::Index(prev_finalized_index),
-                    WithdrawalIndex::Index(block_last_index),
-                ) => {
-                    if prev_finalized_index > block_last_index {
-                        debug!("prev index > witness prev block last withdrawal index");
-                        return Err(Error::InvalidRollupFinalizeWithdrawalWitness);
-                    }
+            generate_withdrawal_range_from_post_finalized_index(
+                &post_last_finalized_index,
+                &raw_block,
+            )?
+        } else {
+            debug!("check middle finalized block {}", next_block_number);
 
-                    if prev_finalized_index < block_last_index {
-                        let range = WithdrawalIndexRange::new_range_inclusive(
-                            prev_finalized_index.saturating_add(1),
-                            block_last_index,
-                        )?;
-                        Some(range)
-                    } else {
-                        None // prev_finalized_index == block_last_index
-                    }
-                }
-            };
-
-            if let Some(withdrawals_range) = has_unfinalized {
-                check_block_withdrawals(
-                    prev_finalized_block_number,
-                    withdrawals_range,
-                    &prev_block_withdrawals,
-                )?;
-            }
-        }
-
-        // Check post withdrawal index
-        let post_block_withdrawals = {
-            let post_index = block_withdrawals_vec.len().saturating_sub(1);
-            block_withdrawals_vec.get_unchecked(post_index)
+            Some(WithdrawalIndexRange::All)
         };
-        let post_finalized_index = WithdrawalIndex::from_last_finalized_withdrawal_index(
-            &post_last_finalized_index,
-            &post_block_withdrawals.raw_l2block(),
-        );
-        let post_block_last_withdrawal_index = WithdrawalIndex::from_block_last_withdrawal_index(
-            &post_block_withdrawals.raw_l2block(),
-        );
 
-        let post_block_finalized_range =
-            match (post_finalized_index, post_block_last_withdrawal_index) {
-                (WithdrawalIndex::NoWithdrawal, WithdrawalIndex::Index(_))
-                | (WithdrawalIndex::Index(_), WithdrawalIndex::NoWithdrawal) => {
-                    debug!("uncomparable post index and post block last withdrawal index");
-                    return Err(Error::InvalidLastFinalizedWithdrawal);
-                }
-                (WithdrawalIndex::NoWithdrawal, WithdrawalIndex::NoWithdrawal) => {
-                    WithdrawalIndexRange::All
-                }
-                (
-                    WithdrawalIndex::Index(post_finalized_index),
-                    WithdrawalIndex::Index(post_block_last_index),
-                ) => {
-                    if post_finalized_index > post_block_last_index {
-                        debug!("post index > post block last withdrawal index");
-                        return Err(Error::InvalidLastFinalizedWithdrawal);
-                    }
-
-                    if post_finalized_index < post_block_last_index {
-                        debug!("post index < post block last withdrawal index");
-
-                        WithdrawalIndexRange::new_range_inclusive(0, post_finalized_index)?
-                    } else {
-                        WithdrawalIndexRange::All
-                    }
-                }
-            };
-
-        // Check reset of blocks
-        let next_finalized_block_number = prev_finalized_block_number.saturating_add(1);
-        let remained_blocks_len = post_finalized_block_number
-            .saturating_sub(next_finalized_block_number)
-            .saturating_add(1);
-        if unchecked_block_withdrawals.len() != remained_blocks_len as usize {
-            debug!("witness submitted blocks dosn't match block range");
-            return Err(Error::InvalidRollupFinalizeWithdrawalWitness);
-        }
-
-        for (next_block_number, next_block_withdrawals) in (next_finalized_block_number
-            ..=post_finalized_block_number)
-            .zip(unchecked_block_withdrawals)
-        {
-            if next_block_number != post_finalized_block_number {
-                check_block_withdrawals(
-                    next_block_number,
-                    WithdrawalIndexRange::All,
-                    &next_block_withdrawals,
-                )?;
-            } else {
-                check_block_withdrawals(
-                    next_block_number,
-                    post_block_finalized_range.clone(),
-                    &next_block_withdrawals,
-                )?;
-            }
+        if let Some(range) = opt_range {
+            check_block_withdrawals(next_block_number, range, &next_block_withdrawals)?;
         }
     }
 
     Ok(())
+}
+
+fn generate_withdrawal_range_from_prev_finalized_index(
+    prev_finalized_block_number: u64,
+    prev_last_finalized_index: &LastFinalizedWithdrawalIndex,
+    post_finalized_block_number: u64,
+    post_last_finalized_index: &LastFinalizedWithdrawalIndex,
+    raw_block: &RawL2BlockReader,
+) -> Result<Option<WithdrawalIndexRange>, Error> {
+    let prev_finalized_index =
+        WithdrawalIndex::from_last_finalized_withdrawal_index(prev_last_finalized_index, raw_block);
+    let block_last_withdrawal_index = WithdrawalIndex::from_block_last_withdrawal_index(&raw_block);
+
+    let (prev_finalized_index, block_last_withdrawal_index) =
+        match (prev_finalized_index, block_last_withdrawal_index) {
+            (WithdrawalIndex::NoWithdrawal, WithdrawalIndex::NoWithdrawal) => {
+                // Actually, we don't need to submit this block
+                debug!("no withdrawal, nothing to verify");
+                return Ok(None);
+            }
+            (WithdrawalIndex::Index(_), WithdrawalIndex::NoWithdrawal) => {
+                debug!("block WithdrawalIndex::NoWithdrawal");
+                return Err(Error::InvalidRollupFinalizeWithdrawalWitness);
+            }
+            (WithdrawalIndex::NoWithdrawal, WithdrawalIndex::Index(_)) => {
+                debug!("prev finalized index WithdrawalIndex::NoWithdrawal");
+                return Err(Error::InvalidRollupFinalizeWithdrawalWitness);
+            }
+            (
+                WithdrawalIndex::Index(finalized_index),
+                WithdrawalIndex::Index(block_last_withdrawal_index),
+            ) => (finalized_index, block_last_withdrawal_index),
+        };
+
+    if prev_finalized_index > block_last_withdrawal_index {
+        debug!("prev finalized index > block last withdrawal index");
+        return Err(Error::InvalidRollupFinalizeWithdrawalWitness);
+    }
+
+    if prev_finalized_index == block_last_withdrawal_index {
+        debug!("prev finalized index == block last withdrawal index, nothing to verify");
+        return Ok(None);
+    }
+
+    if prev_finalized_block_number != post_finalized_block_number {
+        // Verify all remaind withdrawals
+        let all_remaind_withdrawals = WithdrawalIndexRange::new_range_inclusive(
+            prev_finalized_index.saturating_add(1),
+            block_last_withdrawal_index,
+        )?;
+
+        return Ok(Some(all_remaind_withdrawals));
+    }
+
+    debug!("prev_finalized_block_number == post_finalized_block_number");
+
+    // Check post finalized index
+    let post_finalized_index = match WithdrawalIndex::from_last_finalized_withdrawal_index(
+        post_last_finalized_index,
+        raw_block,
+    ) {
+        WithdrawalIndex::NoWithdrawal => {
+            // When we reach here, means prev finalized block must have withdrawals
+            debug!("post finalized WithdrawalIndex::NoWithdrawal");
+            return Err(Error::InvalidLastFinalizedWithdrawal);
+        }
+        WithdrawalIndex::Index(post_finalized_index)
+            if post_finalized_index > block_last_withdrawal_index =>
+        {
+            debug!("post finalized index > block last withdrawal index");
+            return Err(Error::InvalidLastFinalizedWithdrawal);
+        }
+        WithdrawalIndex::Index(post_finalized_index) => post_finalized_index,
+    };
+
+    let range = WithdrawalIndexRange::new_range_inclusive(
+        prev_finalized_index.saturating_add(1),
+        post_finalized_index,
+    )?;
+
+    Ok(Some(range))
+}
+
+fn generate_withdrawal_range_from_post_finalized_index(
+    post_last_finalized_index: &LastFinalizedWithdrawalIndex,
+    raw_block: &RawL2BlockReader,
+) -> Result<Option<WithdrawalIndexRange>, Error> {
+    let post_finalized_index =
+        WithdrawalIndex::from_last_finalized_withdrawal_index(post_last_finalized_index, raw_block);
+    let block_last_withdrawal_index = WithdrawalIndex::from_block_last_withdrawal_index(&raw_block);
+
+    let (post_finalized_index, block_last_withdrawal_index) =
+        match (post_finalized_index, block_last_withdrawal_index) {
+            (WithdrawalIndex::NoWithdrawal, WithdrawalIndex::Index(_))
+            | (WithdrawalIndex::Index(_), WithdrawalIndex::NoWithdrawal) => {
+                debug!("uncomparable post index and post block last withdrawal index");
+                return Err(Error::InvalidLastFinalizedWithdrawal);
+            }
+            (WithdrawalIndex::NoWithdrawal, WithdrawalIndex::NoWithdrawal) => {
+                debug!("no withdrawal, nothing to verify");
+                return Ok(None);
+            }
+            (
+                WithdrawalIndex::Index(finalized_index),
+                WithdrawalIndex::Index(block_last_withdrawal_index),
+            ) => (finalized_index, block_last_withdrawal_index),
+        };
+
+    if post_finalized_index > block_last_withdrawal_index {
+        debug!("post finalized index > block last withdrawal index");
+        return Err(Error::InvalidLastFinalizedWithdrawal);
+    }
+
+    let range = if post_finalized_index < block_last_withdrawal_index {
+        debug!("post finalized index < block last withdrawal index");
+        WithdrawalIndexRange::new_range_inclusive(0, post_finalized_index)?
+    } else {
+        WithdrawalIndexRange::All
+    };
+
+    Ok(Some(range))
 }
 
 #[derive(Debug)]
