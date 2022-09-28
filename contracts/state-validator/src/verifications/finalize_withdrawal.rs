@@ -31,26 +31,11 @@ pub fn verify(
         return Err(Error::InvalidGlobalStateVersion);
     }
 
-    // Check global state last_finalized_block_number
-    let expected_last_finalized_block_number = {
-        let block_number = prev_global_state.block().count().unpack().saturating_sub(1);
-        block_number.saturating_sub(config.finality_blocks().unpack())
-    };
-    debug!(
-        "expected last finalize block number {}",
-        expected_last_finalized_block_number
-    );
-    let last_finalized_block_number = prev_global_state.last_finalized_block_number().unpack();
-    if expected_last_finalized_block_number != last_finalized_block_number {
-        debug!("global state wrong last finalized block number");
-        debug!("finalized block number {}", last_finalized_block_number);
-        return Err(Error::InvalidPostGlobalState);
-    }
-
     // Check witness block proof
     check_block_proof(&prev_global_state, &args)?;
 
     // Check global state `last_finalized_withdrawal` and witness withdrawals proof
+    let last_finalized_block_number = prev_global_state.last_finalized_block_number().unpack();
     last_finalized_withdrawal::check(
         last_finalized_block_number,
         &args.block_withdrawals(),
