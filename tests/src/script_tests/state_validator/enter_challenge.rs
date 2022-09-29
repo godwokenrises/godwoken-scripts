@@ -13,7 +13,6 @@ use crate::testing_tool::chain::{apply_block_result, construct_block, setup_chai
 use crate::testing_tool::programs::{ALWAYS_SUCCESS_CODE_HASH, STATE_VALIDATOR_CODE_HASH};
 use ckb_error::assert_error_eq;
 use ckb_script::ScriptError;
-use ckb_types::packed::CellOutput;
 use ckb_types::prelude::{Pack as CKBPack, Unpack};
 use gw_chain::chain::Chain;
 use gw_common::registry_address::RegistryAddress;
@@ -37,7 +36,7 @@ use gw_types::{
 
 const INVALID_CHALLENGE_TARGET_ERROR: i8 = 32;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_enter_challenge() {
     init_env_log();
     let input_out_point = random_out_point();
@@ -52,7 +51,7 @@ async fn test_enter_challenge() {
     // rollup lock & config
     let stake_lock_type = build_type_id_script(b"stake_lock_type_id");
     let challenge_lock_type = build_type_id_script(b"challenge_lock_type_id");
-    let challenge_script_type_hash: [u8; 32] = challenge_lock_type.calc_script_hash().unpack();
+    let challenge_script_type_hash: [u8; 32] = challenge_lock_type.calc_script_hash().unpack().0;
     let finality_blocks = 10;
     let rollup_config = RollupConfig::new_builder()
         .challenge_script_type_hash(Pack::pack(&challenge_script_type_hash))
@@ -115,11 +114,9 @@ async fn test_enter_challenge() {
                 .await
                 .unwrap()
         };
-        let rollup_cell = gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes());
         let asset_scripts = HashSet::new();
         apply_block_result(
             &mut chain,
-            rollup_cell.clone(),
             produce_block_result,
             deposit_requests,
             asset_scripts,
@@ -169,20 +166,13 @@ async fn test_enter_challenge() {
                 .build();
             let mem_pool = chain.mem_pool().as_ref().unwrap();
             let mut mem_pool = mem_pool.lock().await;
-            mem_pool.push_transaction(tx).await.unwrap();
+            mem_pool.push_transaction(tx).unwrap();
             construct_block(&chain, &mut mem_pool, Vec::default())
                 .await
                 .unwrap()
         };
         let asset_scripts = HashSet::new();
-        apply_block_result(
-            &mut chain,
-            rollup_cell,
-            produce_block_result,
-            vec![],
-            asset_scripts,
-        )
-        .await;
+        apply_block_result(&mut chain, produce_block_result, vec![], asset_scripts).await;
     }
     // deploy scripts
     let param = CellContextParam {
@@ -266,7 +256,7 @@ async fn test_enter_challenge() {
     ctx.verify_tx(tx).expect("return success");
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_enter_challenge_finalized_block() {
     init_env_log();
     let input_out_point = random_out_point();
@@ -281,7 +271,7 @@ async fn test_enter_challenge_finalized_block() {
     // rollup lock & config
     let stake_lock_type = build_type_id_script(b"stake_lock_type_id");
     let challenge_lock_type = build_type_id_script(b"challenge_lock_type_id");
-    let challenge_script_type_hash: [u8; 32] = challenge_lock_type.calc_script_hash().unpack();
+    let challenge_script_type_hash: [u8; 32] = challenge_lock_type.calc_script_hash().unpack().0;
     let finality_blocks = 1;
     let rollup_config = RollupConfig::new_builder()
         .challenge_script_type_hash(Pack::pack(&challenge_script_type_hash))
@@ -347,11 +337,9 @@ async fn test_enter_challenge_finalized_block() {
                 .await
                 .unwrap()
         };
-        let rollup_cell = gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes());
         let asset_scripts = HashSet::new();
         apply_block_result(
             &mut chain,
-            rollup_cell,
             produce_block_result,
             deposit_requests,
             asset_scripts,
@@ -368,25 +356,11 @@ async fn test_enter_challenge_finalized_block() {
 
     // produce two blocks and challenge first one
     let mut nonce = 0u32;
-    produce_block(
-        &mut chain,
-        &rollup_cell,
-        sender_id,
-        &receiver_address,
-        nonce,
-    )
-    .await;
+    produce_block(&mut chain, sender_id, &receiver_address, nonce).await;
     nonce += 1;
 
     let challenged_block = chain.local_state().tip().clone();
-    produce_block(
-        &mut chain,
-        &rollup_cell,
-        sender_id,
-        &receiver_address,
-        nonce,
-    )
-    .await;
+    produce_block(&mut chain, sender_id, &receiver_address, nonce).await;
 
     // deploy scripts
     let param = CellContextParam {
@@ -482,12 +456,10 @@ async fn test_enter_challenge_finalized_block() {
 
 async fn produce_block(
     chain: &mut Chain,
-    rollup_cell: &CellOutput,
     sender_id: u32,
     receiver_address: &RegistryAddress,
     nonce: u32,
 ) {
-    let rollup_cell = gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes());
     let produce_block_result = {
         let args = SUDTArgs::new_builder()
             .set(SUDTArgsUnion::SUDTTransfer(
@@ -515,18 +487,11 @@ async fn produce_block(
             .build();
         let mem_pool = chain.mem_pool().as_ref().unwrap();
         let mut mem_pool = mem_pool.lock().await;
-        mem_pool.push_transaction(tx).await.unwrap();
+        mem_pool.push_transaction(tx).unwrap();
         construct_block(chain, &mut mem_pool, Vec::default())
             .await
             .unwrap()
     };
     let asset_scripts = HashSet::new();
-    apply_block_result(
-        chain,
-        rollup_cell,
-        produce_block_result,
-        vec![],
-        asset_scripts,
-    )
-    .await;
+    apply_block_result(chain, produce_block_result, vec![], asset_scripts).await;
 }

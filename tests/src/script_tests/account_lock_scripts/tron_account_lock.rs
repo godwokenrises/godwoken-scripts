@@ -3,25 +3,20 @@ use crate::testing_tool::programs::{
     ALWAYS_SUCCESS_CODE_HASH, ALWAYS_SUCCESS_PROGRAM, SECP256K1_DATA, TRON_ACCOUNT_LOCK_CODE_HASH,
     TRON_ACCOUNT_LOCK_PROGRAM,
 };
-use ckb_chain_spec::consensus::ConsensusBuilder;
 use ckb_crypto::secp::{Generator, Privkey, Pubkey};
 use ckb_error::assert_error_eq;
-use ckb_script::{ScriptError, TransactionScriptsVerifier, TxVerifyEnv};
-use ckb_types::core::hardfork::HardForkSwitch;
-use ckb_types::core::HeaderView;
+use ckb_script::{ScriptError, TransactionScriptsVerifier};
 use ckb_types::{
     bytes::Bytes,
     core::{Capacity, DepType, ScriptHashType, TransactionBuilder, TransactionView},
     packed::{CellDep, CellInput, CellOutput, OutPoint, Script, WitnessArgs},
     prelude::*,
 };
-use gw_ckb_hardfork::{GLOBAL_CURRENT_EPOCH_NUMBER, GLOBAL_HARDFORK_SWITCH};
 use gw_types::core::SigningType;
 use rand::{thread_rng, Rng};
 use sha3::{Digest, Keccak256};
 
 use std::convert::TryInto;
-use std::sync::atomic::Ordering;
 
 const ERROR_WRONG_SIGNATURE: i8 = 41;
 
@@ -84,7 +79,7 @@ fn gen_tx(
                 .build(),
         )
         .build();
-    let owner_lock_hash: [u8; 32] = owner_lock_cell.lock().calc_script_hash().unpack();
+    let owner_lock_hash: [u8; 32] = owner_lock_cell.lock().calc_script_hash().unpack().0;
     let owner_lock_cell_out_point = {
         let tx_hash = {
             let mut buf = [0u8; 32];
@@ -234,32 +229,8 @@ fn test_sign_tron_message() {
             .as_bytes()
             .pack()])
         .build();
-    let hardfork_switch = {
-        let switch = GLOBAL_HARDFORK_SWITCH.load();
-        HardForkSwitch::new_without_any_enabled()
-            .as_builder()
-            .rfc_0028(switch.rfc_0028())
-            .rfc_0029(switch.rfc_0029())
-            .rfc_0030(switch.rfc_0030())
-            .rfc_0031(switch.rfc_0031())
-            .rfc_0032(switch.rfc_0032())
-            .rfc_0036(switch.rfc_0036())
-            .rfc_0038(switch.rfc_0038())
-            .build()
-            .unwrap()
-    };
-    let consensus = ConsensusBuilder::default()
-        .hardfork_switch(hardfork_switch)
-        .build();
-    let current_epoch_number = GLOBAL_CURRENT_EPOCH_NUMBER.load(Ordering::SeqCst);
-    let tx_verify_env = TxVerifyEnv::new_submit(
-        &HeaderView::new_advanced_builder()
-            .epoch(current_epoch_number.pack())
-            .build(),
-    );
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_verify_env);
+    let mut verifier = TransactionScriptsVerifier::new(&resolved_tx, &data_loader);
     verifier.set_debug_printer(|_script, msg| println!("[script debug] {}", msg));
     let verify_result = verifier.verify(MAX_CYCLES);
     verify_result.expect("pass verification");
@@ -302,32 +273,8 @@ fn test_submit_signing_tron_message() {
             .as_bytes()
             .pack()])
         .build();
-    let hardfork_switch = {
-        let switch = GLOBAL_HARDFORK_SWITCH.load();
-        HardForkSwitch::new_without_any_enabled()
-            .as_builder()
-            .rfc_0028(switch.rfc_0028())
-            .rfc_0029(switch.rfc_0029())
-            .rfc_0030(switch.rfc_0030())
-            .rfc_0031(switch.rfc_0031())
-            .rfc_0032(switch.rfc_0032())
-            .rfc_0036(switch.rfc_0036())
-            .rfc_0038(switch.rfc_0038())
-            .build()
-            .unwrap()
-    };
-    let consensus = ConsensusBuilder::default()
-        .hardfork_switch(hardfork_switch)
-        .build();
-    let current_epoch_number = GLOBAL_CURRENT_EPOCH_NUMBER.load(Ordering::SeqCst);
-    let tx_verify_env = TxVerifyEnv::new_submit(
-        &HeaderView::new_advanced_builder()
-            .epoch(current_epoch_number.pack())
-            .build(),
-    );
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_verify_env);
+    let mut verifier = TransactionScriptsVerifier::new(&resolved_tx, &data_loader);
     verifier.set_debug_printer(|_script, msg| println!("[script debug] {}", msg));
     let verify_result = verifier.verify(MAX_CYCLES);
     verify_result.expect("pass verification");
@@ -367,32 +314,8 @@ fn test_wrong_signature() {
             .as_bytes()
             .pack()])
         .build();
-    let hardfork_switch = {
-        let switch = GLOBAL_HARDFORK_SWITCH.load();
-        HardForkSwitch::new_without_any_enabled()
-            .as_builder()
-            .rfc_0028(switch.rfc_0028())
-            .rfc_0029(switch.rfc_0029())
-            .rfc_0030(switch.rfc_0030())
-            .rfc_0031(switch.rfc_0031())
-            .rfc_0032(switch.rfc_0032())
-            .rfc_0036(switch.rfc_0036())
-            .rfc_0038(switch.rfc_0038())
-            .build()
-            .unwrap()
-    };
-    let consensus = ConsensusBuilder::default()
-        .hardfork_switch(hardfork_switch)
-        .build();
-    let current_epoch_number = GLOBAL_CURRENT_EPOCH_NUMBER.load(Ordering::SeqCst);
-    let tx_verify_env = TxVerifyEnv::new_submit(
-        &HeaderView::new_advanced_builder()
-            .epoch(current_epoch_number.pack())
-            .build(),
-    );
     let resolved_tx = build_resolved_tx(&data_loader, &tx);
-    let mut verifier =
-        TransactionScriptsVerifier::new(&resolved_tx, &consensus, &data_loader, &tx_verify_env);
+    let mut verifier = TransactionScriptsVerifier::new(&resolved_tx, &data_loader);
     verifier.set_debug_printer(|_script, msg| println!("[script debug] {}", msg));
     let verify_result = verifier.verify(MAX_CYCLES);
     let script_cell_index = 0;

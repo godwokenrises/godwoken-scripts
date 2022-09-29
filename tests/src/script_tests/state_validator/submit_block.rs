@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::script_tests::utils::layer1::{
@@ -7,7 +8,7 @@ use crate::script_tests::utils::rollup::{
     build_always_success_cell, build_rollup_locked_cell, build_type_id_script,
     calculate_state_validator_type_id, CellContext, CellContextParam,
 };
-use crate::testing_tool::chain::{build_sync_tx, construct_block_from_timestamp};
+use crate::testing_tool::chain::{apply_block_result, construct_block_from_timestamp};
 use crate::testing_tool::programs::{ALWAYS_SUCCESS_CODE_HASH, STATE_VALIDATOR_CODE_HASH};
 use crate::{script_tests::utils::layer1::build_simple_tx, testing_tool::chain::construct_block};
 use crate::{
@@ -19,10 +20,9 @@ use ckb_types::{
     packed::CellInput,
     prelude::{Pack as CKBPack, Unpack},
 };
-use gw_chain::chain::{L1Action, L1ActionContext, SyncParam};
 use gw_types::core::AllowedEoaType;
 use gw_types::packed::{
-    AllowedTypeHash, DepositRequest, L2BlockCommittedInfo, RawWithdrawalRequest, WithdrawalRequest,
+    AllowedTypeHash, DepositRequest, RawWithdrawalRequest, WithdrawalRequest,
     WithdrawalRequestExtra,
 };
 use gw_types::prelude::{Pack as GWPack, Unpack as GWUnpack, *};
@@ -38,7 +38,7 @@ use gw_types::{
 const INVALID_BLOCK_ERROR: i8 = 20;
 const INVALID_POST_GLOBAL_STATE: i8 = 23;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_submit_block() {
     // calculate type id
     let capacity = 1000_00000000u64;
@@ -54,7 +54,7 @@ async fn test_submit_block() {
     };
     // rollup lock & config
     let stake_lock_type = build_type_id_script(b"stake_lock_type_id");
-    let stake_script_type_hash: [u8; 32] = stake_lock_type.calc_script_hash().unpack();
+    let stake_script_type_hash: [u8; 32] = stake_lock_type.calc_script_hash().unpack().0;
     let rollup_config = RollupConfig::new_builder()
         .stake_script_type_hash(Pack::pack(&stake_script_type_hash))
         .build();
@@ -157,7 +157,7 @@ async fn test_submit_block() {
     ctx.verify_tx(tx).expect("return success");
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_downgrade_rollup_cell() {
     // calculate type id
     let capacity = 1000_00000000u64;
@@ -173,7 +173,7 @@ async fn test_downgrade_rollup_cell() {
     };
     // rollup lock & config
     let stake_lock_type = build_type_id_script(b"stake_lock_type_id");
-    let stake_script_type_hash: [u8; 32] = stake_lock_type.calc_script_hash().unpack();
+    let stake_script_type_hash: [u8; 32] = stake_lock_type.calc_script_hash().unpack().0;
     let rollup_config = RollupConfig::new_builder()
         .stake_script_type_hash(Pack::pack(&stake_script_type_hash))
         .build();
@@ -291,7 +291,7 @@ async fn test_downgrade_rollup_cell() {
     assert_error_eq!(err, expected_err);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_v1_block_timestamp_smaller_or_equal_than_previous_block_in_submit_block() {
     // calculate type id
     let capacity = 1000_00000000u64;
@@ -307,7 +307,7 @@ async fn test_v1_block_timestamp_smaller_or_equal_than_previous_block_in_submit_
     };
     // rollup lock & config
     let stake_lock_type = build_type_id_script(b"stake_lock_type_id");
-    let stake_script_type_hash: [u8; 32] = stake_lock_type.calc_script_hash().unpack();
+    let stake_script_type_hash: [u8; 32] = stake_lock_type.calc_script_hash().unpack().0;
     let rollup_config = RollupConfig::new_builder()
         .stake_script_type_hash(Pack::pack(&stake_script_type_hash))
         .build();
@@ -384,7 +384,7 @@ async fn test_v1_block_timestamp_smaller_or_equal_than_previous_block_in_submit_
         let timestamp = tip_block_timestamp.saturating_sub(100);
         let mem_pool = chain.mem_pool().as_ref().unwrap();
         let mut mem_pool = mem_pool.lock().await;
-        construct_block_from_timestamp(&chain, &mut mem_pool, Vec::default(), timestamp)
+        construct_block_from_timestamp(&chain, &mut mem_pool, Vec::default(), timestamp, true)
             .await
             .unwrap()
     };
@@ -443,9 +443,15 @@ async fn test_v1_block_timestamp_smaller_or_equal_than_previous_block_in_submit_
     let block_result = {
         let mem_pool = chain.mem_pool().as_ref().unwrap();
         let mut mem_pool = mem_pool.lock().await;
-        construct_block_from_timestamp(&chain, &mut mem_pool, Vec::default(), tip_block_timestamp)
-            .await
-            .unwrap()
+        construct_block_from_timestamp(
+            &chain,
+            &mut mem_pool,
+            Vec::default(),
+            tip_block_timestamp,
+            true,
+        )
+        .await
+        .unwrap()
     };
     // verify submit block
     let block_timestamp = block_result.block.raw().timestamp();
@@ -498,7 +504,7 @@ async fn test_v1_block_timestamp_smaller_or_equal_than_previous_block_in_submit_
     assert_error_eq!(err, expected_err);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_v1_block_timestamp_bigger_than_rollup_input_since_in_submit_block() {
     // calculate type id
     let capacity = 1000_00000000u64;
@@ -514,7 +520,7 @@ async fn test_v1_block_timestamp_bigger_than_rollup_input_since_in_submit_block(
     };
     // rollup lock & config
     let stake_lock_type = build_type_id_script(b"stake_lock_type_id");
-    let stake_script_type_hash: [u8; 32] = stake_lock_type.calc_script_hash().unpack();
+    let stake_script_type_hash: [u8; 32] = stake_lock_type.calc_script_hash().unpack().0;
     let rollup_config = RollupConfig::new_builder()
         .stake_script_type_hash(Pack::pack(&stake_script_type_hash))
         .build();
@@ -633,7 +639,7 @@ async fn test_v1_block_timestamp_bigger_than_rollup_input_since_in_submit_block(
     assert_error_eq!(err, expected_err);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_v0_v1_wrong_global_state_tip_block_timestamp_in_submit_block() {
     // calculate type id
     let capacity = 1000_00000000u64;
@@ -649,7 +655,7 @@ async fn test_v0_v1_wrong_global_state_tip_block_timestamp_in_submit_block() {
     };
     // rollup lock & config
     let stake_lock_type = build_type_id_script(b"stake_lock_type_id");
-    let stake_script_type_hash: [u8; 32] = stake_lock_type.calc_script_hash().unpack();
+    let stake_script_type_hash: [u8; 32] = stake_lock_type.calc_script_hash().unpack().0;
     let rollup_config = RollupConfig::new_builder()
         .stake_script_type_hash(Pack::pack(&stake_script_type_hash))
         .build();
@@ -842,7 +848,7 @@ async fn test_v0_v1_wrong_global_state_tip_block_timestamp_in_submit_block() {
     assert_error_eq!(err, expected_err);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_check_reverted_cells_in_submit_block() {
     let capacity = 1000_00000000u64;
     let input_out_point = random_out_point();
@@ -856,13 +862,13 @@ async fn test_check_reverted_cells_in_submit_block() {
     };
     // rollup lock & config
     let stake_lock_type = build_type_id_script(b"stake_lock_type_id");
-    let stake_script_type_hash: [u8; 32] = stake_lock_type.calc_script_hash().unpack();
+    let stake_script_type_hash: [u8; 32] = stake_lock_type.calc_script_hash().unpack().0;
     let deposit_lock_type = build_type_id_script(b"deposit_lock_type_id");
-    let deposit_script_type_hash: [u8; 32] = deposit_lock_type.calc_script_hash().unpack();
+    let deposit_script_type_hash: [u8; 32] = deposit_lock_type.calc_script_hash().unpack().0;
     let custodian_lock_type = build_type_id_script(b"custodian_lock_type_id");
-    let custodian_script_type_hash: [u8; 32] = custodian_lock_type.calc_script_hash().unpack();
+    let custodian_script_type_hash: [u8; 32] = custodian_lock_type.calc_script_hash().unpack().0;
     let withdrawal_lock_type = build_type_id_script(b"withdrawal_lock_type_id");
-    let withdrawal_script_type_hash: [u8; 32] = withdrawal_lock_type.calc_script_hash().unpack();
+    let withdrawal_script_type_hash: [u8; 32] = withdrawal_lock_type.calc_script_hash().unpack().0;
     let rollup_config = RollupConfig::new_builder()
         .stake_script_type_hash(Pack::pack(&stake_script_type_hash))
         .deposit_script_type_hash(Pack::pack(&deposit_script_type_hash))
@@ -1096,7 +1102,7 @@ async fn test_check_reverted_cells_in_submit_block() {
     ctx.verify_tx(tx).expect("return success");
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_withdrawal_cell_lock_args_with_owner_lock_in_submit_block() {
     let _ = env_logger::builder().is_test(true).try_init();
 
@@ -1113,11 +1119,11 @@ async fn test_withdrawal_cell_lock_args_with_owner_lock_in_submit_block() {
 
     // rollup lock & config
     let stake_lock_type = build_type_id_script(b"stake_lock_type_id");
-    let stake_script_type_hash: [u8; 32] = stake_lock_type.calc_script_hash().unpack();
+    let stake_script_type_hash: [u8; 32] = stake_lock_type.calc_script_hash().unpack().0;
     let custodian_lock_type = build_type_id_script(b"custodian_lock_type_id");
-    let custodian_script_type_hash: [u8; 32] = custodian_lock_type.calc_script_hash().unpack();
+    let custodian_script_type_hash: [u8; 32] = custodian_lock_type.calc_script_hash().unpack().0;
     let withdrawal_lock_type = build_type_id_script(b"withdrawal_lock_type_id");
-    let withdrawal_script_type_hash: [u8; 32] = withdrawal_lock_type.calc_script_hash().unpack();
+    let withdrawal_script_type_hash: [u8; 32] = withdrawal_lock_type.calc_script_hash().unpack().0;
     let rollup_config = RollupConfig::new_builder()
         .stake_script_type_hash(Pack::pack(&stake_script_type_hash))
         .custodian_script_type_hash(Pack::pack(&custodian_script_type_hash))
@@ -1130,7 +1136,6 @@ async fn test_withdrawal_cell_lock_args_with_owner_lock_in_submit_block() {
 
     // setup chain
     let mut chain = setup_chain(rollup_type_script.clone(), rollup_config.clone()).await;
-
     // create a rollup cell
     let rollup_cell = build_always_success_cell(
         capacity,
@@ -1165,27 +1170,8 @@ async fn test_withdrawal_cell_lock_args_with_owner_lock_in_submit_block() {
             .await
             .unwrap()
     };
-    let apply_deposits = L1Action {
-        context: L1ActionContext::SubmitBlock {
-            l2block: block_result.block.clone(),
-            deposit_requests: vec![deposit],
-            deposit_asset_scripts: Default::default(),
-            withdrawals: Default::default(),
-        },
-        transaction: build_sync_tx(
-            gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes()),
-            block_result,
-        ),
-        l2block_committed_info: L2BlockCommittedInfo::new_builder()
-            .number(Pack::pack(&1u64))
-            .build(),
-    };
-    let param = SyncParam {
-        updates: vec![apply_deposits],
-        reverts: Default::default(),
-    };
-    chain.sync(param).await.unwrap();
-    assert!(chain.last_sync_event().is_success());
+    let asset_scripts = HashSet::new();
+    apply_block_result(&mut chain, block_result, vec![deposit], asset_scripts).await;
 
     // Withdraw
     let withdrawal = {
@@ -1207,7 +1193,7 @@ async fn test_withdrawal_cell_lock_args_with_owner_lock_in_submit_block() {
         let mem_pool = chain.mem_pool().as_ref().unwrap();
         let mut mem_pool = mem_pool.lock().await;
         mem_pool.push_withdrawal_request(withdrawal).await.unwrap();
-        mem_pool.reset_mem_block().await.unwrap();
+        mem_pool.reset_mem_block(&Default::default()).await.unwrap();
         construct_block(&chain, &mut mem_pool, Vec::default())
             .await
             .unwrap()

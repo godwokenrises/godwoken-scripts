@@ -10,6 +10,7 @@ use crate::script_tests::utils::rollup::{
     build_always_success_cell, build_rollup_locked_cell, build_type_id_script,
     calculate_state_validator_type_id, CellContext, CellContextParam,
 };
+use crate::testing_tool::chain::produce_empty_block;
 use crate::testing_tool::chain::setup_chain_with_account_lock_manage;
 use crate::testing_tool::chain::{apply_block_result, construct_block};
 use crate::testing_tool::programs::STATE_VALIDATOR_CODE_HASH;
@@ -60,7 +61,7 @@ pub(crate) fn build_merkle_proof(leaves: &[H256], indices: &[u32]) -> CKBMerkleP
 }
 
 // Cancel withdrawal signature challengen
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_burn_challenge_capacity() {
     init_env_log();
     let input_out_point = random_out_point();
@@ -77,12 +78,12 @@ async fn test_burn_challenge_capacity() {
         .args(CKBPack::pack(&Bytes::from(b"reward_burned_lock".to_vec())))
         .code_hash(CKBPack::pack(&[0u8; 32]))
         .build();
-    let reward_burn_lock_hash: [u8; 32] = reward_burn_lock.calc_script_hash().unpack();
+    let reward_burn_lock_hash: [u8; 32] = reward_burn_lock.calc_script_hash().unpack().0;
     let stake_lock_type = build_type_id_script(b"stake_lock_type_id");
     let challenge_lock_type = build_type_id_script(b"challenge_lock_type_id");
     let eoa_lock_type = build_type_id_script(b"eoa_lock_type_id");
-    let challenge_script_type_hash: [u8; 32] = challenge_lock_type.calc_script_hash().unpack();
-    let eoa_lock_type_hash: [u8; 32] = eoa_lock_type.calc_script_hash().unpack();
+    let challenge_script_type_hash: [u8; 32] = challenge_lock_type.calc_script_hash().unpack().0;
+    let eoa_lock_type_hash: [u8; 32] = eoa_lock_type.calc_script_hash().unpack().0;
     let allowed_eoa_type_hashes: Vec<AllowedTypeHash> = vec![AllowedTypeHash::new(
         AllowedEoaType::Eth,
         eoa_lock_type_hash,
@@ -104,7 +105,6 @@ async fn test_burn_challenge_capacity() {
         account_lock_manage,
     )
     .await;
-    chain.complete_initial_syncing().await.unwrap();
     // create a rollup cell
     let capacity = 1000_00000000u64;
     let rollup_cell = build_always_success_cell(
@@ -151,16 +151,18 @@ async fn test_burn_challenge_capacity() {
                 .await
                 .unwrap()
         };
-        let rollup_cell = gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes());
         let asset_scripts = HashSet::new();
         apply_block_result(
             &mut chain,
-            rollup_cell.clone(),
             produce_block_result,
             deposit_requests,
             asset_scripts,
         )
         .await;
+
+        for _ in 0..finality_blocks + 1 {
+            produce_empty_block(&mut chain).await.unwrap();
+        }
 
         let withdrawal_capacity = 365_00000000u64;
         withdrawal_extra = {
@@ -195,14 +197,7 @@ async fn test_burn_challenge_capacity() {
         };
 
         let asset_scripts = HashSet::new();
-        apply_block_result(
-            &mut chain,
-            rollup_cell,
-            produce_block_result,
-            vec![],
-            asset_scripts,
-        )
-        .await;
+        apply_block_result(&mut chain, produce_block_result, vec![], asset_scripts).await;
         sender_script
     };
     // deploy scripts

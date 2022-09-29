@@ -42,7 +42,7 @@ use gw_types::{
     },
 };
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_cancel_tx_execute() {
     init_env_log();
     let input_out_point = random_out_point();
@@ -59,8 +59,8 @@ async fn test_cancel_tx_execute() {
     let challenge_lock_type = build_type_id_script(b"challenge_lock_type_id");
     let eoa_lock_type = build_type_id_script(b"eoa_lock_type_id");
     let l2_sudt_type = build_type_id_script(b"l2_sudt_type_id");
-    let challenge_script_type_hash: [u8; 32] = challenge_lock_type.calc_script_hash().unpack();
-    let l2_sudt_type_hash: [u8; 32] = l2_sudt_type.calc_script_hash().unpack();
+    let challenge_script_type_hash: [u8; 32] = challenge_lock_type.calc_script_hash().unpack().0;
+    let l2_sudt_type_hash: [u8; 32] = l2_sudt_type.calc_script_hash().unpack().0;
 
     let finality_blocks = 10;
     let eth_registry_id = gw_common::builtins::ETH_REGISTRY_ACCOUNT_ID;
@@ -135,11 +135,9 @@ async fn test_cancel_tx_execute() {
                 .await
                 .unwrap()
         };
-        let rollup_cell = gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes());
         let asset_scripts = HashSet::new();
         apply_block_result(
             &mut chain,
-            rollup_cell.clone(),
             produce_block_result,
             deposit_requests,
             asset_scripts,
@@ -183,20 +181,13 @@ async fn test_cancel_tx_execute() {
         let produce_block_result = {
             let mem_pool = chain.mem_pool().as_ref().unwrap();
             let mut mem_pool = mem_pool.lock().await;
-            mem_pool.push_transaction(tx).await.unwrap();
+            mem_pool.push_transaction(tx).unwrap();
             construct_block(&chain, &mut mem_pool, Vec::default())
                 .await
                 .unwrap()
         };
         let asset_scripts = HashSet::new();
-        apply_block_result(
-            &mut chain,
-            rollup_cell,
-            produce_block_result,
-            vec![],
-            asset_scripts,
-        )
-        .await;
+        apply_block_result(&mut chain, produce_block_result, vec![], asset_scripts).await;
         (sender_script, receiver_script, sudt_script)
     };
     // deploy scripts

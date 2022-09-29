@@ -12,14 +12,14 @@ use gw_types::U256;
 use gw_types::{
     bytes::Bytes,
     offchain::RunResult,
-    packed::{BlockInfo, LogItem, RawL2Transaction, RollupConfig},
+    packed::{BlockInfo, LogItem, RawL2Transaction},
     prelude::*,
 };
 use lazy_static::lazy_static;
 use std::convert::TryInto;
 use std::{fs, io::Read, path::PathBuf};
 
-use crate::testing_tool::chain::build_backend_manage;
+use crate::testing_tool::chain::{build_backend_manage, RollupBackends};
 
 mod examples;
 mod meta_contract;
@@ -32,6 +32,8 @@ const RECOVER_BIN_NAME: &str = "recover-account-generator";
 const SUDT_TOTAL_SUPPLY_BIN_NAME: &str = "sudt-total-supply-generator";
 
 lazy_static! {
+    static ref SUM_PROGRAM_PATH: PathBuf =
+        PathBuf::from(format!("{}/{}", EXAMPLES_DIR.to_owned(), SUM_BIN_NAME));
     static ref SUM_PROGRAM: Bytes = {
         let mut buf = Vec::new();
         let mut path = PathBuf::new();
@@ -48,6 +50,11 @@ lazy_static! {
         hasher.finalize(&mut buf);
         buf
     };
+    static ref ACCOUNT_OP_PROGRAM_PATH: PathBuf = PathBuf::from(format!(
+        "{}/{}",
+        EXAMPLES_DIR.to_owned(),
+        ACCOUNT_OP_BIN_NAME
+    ));
     static ref ACCOUNT_OP_PROGRAM: Bytes = {
         let mut buf = Vec::new();
         let mut path = PathBuf::new();
@@ -64,6 +71,8 @@ lazy_static! {
         hasher.finalize(&mut buf);
         buf
     };
+    static ref RECOVER_PROGRAM_PATH: PathBuf =
+        PathBuf::from(format!("{}/{}", EXAMPLES_DIR.to_owned(), RECOVER_BIN_NAME));
     static ref RECOVER_PROGRAM: Bytes = {
         let mut buf = Vec::new();
         let mut path = PathBuf::new();
@@ -80,6 +89,11 @@ lazy_static! {
         hasher.finalize(&mut buf);
         buf
     };
+    static ref SUDT_TOTAL_SUPPLY_PROGRAM_PATH: PathBuf = PathBuf::from(format!(
+        "{}/{}",
+        EXAMPLES_DIR.to_owned(),
+        SUDT_TOTAL_SUPPLY_BIN_NAME
+    ));
     static ref SUDT_TOTAL_SUPPLY_PROGRAM: Bytes = {
         let mut buf = Vec::new();
         let mut path = PathBuf::new();
@@ -215,48 +229,75 @@ pub fn check_transfer_logs(
     assert_eq!(sudt_transfer_log.log_type, SudtLogType::Transfer);
 }
 
-pub fn run_contract_get_result<S: State + CodeStore>(
-    rollup_config: &RollupConfig,
-    tree: &mut S,
-    from_id: u32,
-    to_id: u32,
-    args: Bytes,
-    block_info: &BlockInfo,
-) -> Result<RunResult, TransactionError> {
-    let raw_tx = RawL2Transaction::new_builder()
-        .from_id(from_id.pack())
-        .to_id(to_id.pack())
-        .args(args.pack())
-        .build();
-    let backend_manage = build_backend_manage(rollup_config);
-    let account_lock_manage = AccountLockManage::default();
-    let rollup_ctx = RollupContext {
-        rollup_config: rollup_config.clone(),
-        rollup_script_hash: [42u8; 32].into(),
-    };
-    let generator = Generator::new(backend_manage, account_lock_manage, rollup_ctx);
-    let chain_view = DummyChainStore;
-    let run_result = generator.execute_transaction(
-        &chain_view,
-        tree,
-        block_info,
-        &raw_tx,
-        L2TX_MAX_CYCLES,
-        None,
-    )?;
-    tree.apply_run_result(&run_result).expect("update state");
-    Ok(run_result)
+pub struct ContractExecutionEnvironment<'a, S: State + CodeStore> {
+    state: &'a mut S,
+    generator: Generator,
 }
 
-pub fn run_contract<S: State + CodeStore>(
-    rollup_config: &RollupConfig,
-    tree: &mut S,
-    from_id: u32,
-    to_id: u32,
-    args: Bytes,
-    block_info: &BlockInfo,
-) -> Result<Vec<u8>, TransactionError> {
-    let run_result =
-        run_contract_get_result(rollup_config, tree, from_id, to_id, args, block_info)?;
-    Ok(run_result.return_data)
+impl<'a, S: State + CodeStore> ContractExecutionEnvironment<'a, S> {
+    pub fn new(rollup_backends: impl Into<RollupBackends<'a>>, state: &'a mut S) -> Self {
+        let rollup_backends = rollup_backends.into();
+        let account_lock_manage = AccountLockManage::default();
+        let rollup_ctx = RollupContext {
+            rollup_config: rollup_backends.rollup_config.clone(),
+            rollup_script_hash: [42u8; 32].into(),
+        };
+        let backend_manage = build_backend_manage(rollup_backends);
+        let generator = Generator::new(
+            backend_manage,
+            account_lock_manage,
+            rollup_ctx,
+            Default::default(),
+        );
+
+        Self { state, generator }
+    }
+
+    pub fn unhandle_execute(
+        &self,
+        from_id: u32,
+        to_id: u32,
+        args: Bytes,
+        block_info: &BlockInfo,
+    ) -> Result<RunResult, TransactionError> {
+        let raw_tx = RawL2Transaction::new_builder()
+            .from_id(from_id.pack())
+            .to_id(to_id.pack())
+            .args(args.pack())
+            .build();
+        self.generator.unhandled_execute_transaction(
+            &DummyChainStore,
+            self.state,
+            block_info,
+            &raw_tx,
+            L2TX_MAX_CYCLES,
+            None,
+        )
+    }
+
+    pub fn execute(
+        &mut self,
+        from_id: u32,
+        to_id: u32,
+        args: Bytes,
+        block_info: &BlockInfo,
+    ) -> Result<RunResult, TransactionError> {
+        let raw_tx = RawL2Transaction::new_builder()
+            .from_id(from_id.pack())
+            .to_id(to_id.pack())
+            .args(args.pack())
+            .build();
+        let run_result = self.generator.execute_transaction(
+            &DummyChainStore,
+            self.state,
+            block_info,
+            &raw_tx,
+            L2TX_MAX_CYCLES,
+            None,
+        )?;
+        self.state
+            .apply_run_result(&run_result.write)
+            .expect("update state");
+        Ok(run_result)
+    }
 }

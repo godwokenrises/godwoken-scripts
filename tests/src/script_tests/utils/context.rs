@@ -14,6 +14,7 @@ use gw_types::{
     offchain::RollupContext,
     packed::{RollupConfig, Script},
     prelude::*,
+    U256,
 };
 
 pub struct TestingContext {
@@ -79,5 +80,25 @@ impl TestingContext {
             .mapping_registry_address_to_script_hash(registry_address.clone(), script_hash)
             .expect("mapping address");
         registry_address
+    }
+
+    pub fn create_random_account(&mut self, ckb_balance: U256) -> u32 {
+        let script = Script::new_builder()
+            .code_hash([0u8; 32].pack())
+            .args(rand::random::<[u8; 20]>().to_vec().pack())
+            .hash_type(ScriptHashType::Type.into())
+            .build();
+        let script_hash = script.hash();
+
+        let id = { &mut self.state }
+            .create_account_from_script(script)
+            .expect("create random account");
+
+        let address = self.create_eth_address(script_hash.into(), rand::random::<[u8; 20]>());
+        self.state
+            .mint_sudt(CKB_SUDT_ACCOUNT_ID, &address, ckb_balance)
+            .expect("mint CKB for random test account");
+
+        id
     }
 }
