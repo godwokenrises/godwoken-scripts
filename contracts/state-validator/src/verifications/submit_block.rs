@@ -19,10 +19,8 @@ use gw_state::kv_state::KVState;
 use gw_utils::gw_common::{self, ckb_decimal::CKBCapacity};
 use gw_utils::gw_types::{self, U256};
 
-use self::global_state_v2::GlobalStateV2Verifications;
-
 use super::check_status;
-use crate::types::BlockContext;
+use crate::types::{BlockContext, ForkSwitch};
 use gw_utils::{
     cells::{
         lock_cells::{
@@ -51,11 +49,6 @@ use gw_types::{
 };
 
 mod global_state_v2;
-
-struct VerificationContext {
-    block: BlockContext,
-    v2: GlobalStateV2Verifications,
-}
 
 fn check_withdrawal_cells<'a>(
     context: &BlockContext,
@@ -109,12 +102,12 @@ fn check_withdrawal_cells<'a>(
 
 fn check_input_custodian_cells(
     config: &RollupConfig,
-    context: &VerificationContext,
+    context: &BlockContext,
     output_withdrawal_cells: Vec<WithdrawalCell>,
 ) -> Result<BTreeMap<H256, u128>, Error> {
     debug!("check input custodian cells");
 
-    if context.v2.check_no_output_withdrawal_cells {
+    if context.fork_switch.check_no_output_withdrawal_cells() {
         if !output_withdrawal_cells.is_empty() {
             debug!("output withdrawal cells found");
             return Err(Error::InvalidWithdrawalCell);
@@ -123,15 +116,15 @@ fn check_input_custodian_cells(
 
     // collect input custodian cells
     let (finalized_custodian_cells, unfinalized_custodian_cells): (Vec<_>, Vec<_>) =
-        collect_custodian_locks(&context.block.rollup_type_hash, config, Source::Input)?
+        collect_custodian_locks(&context.rollup_type_hash, config, Source::Input)?
             .into_iter()
             .partition(|cell| {
                 let number: u64 = cell.args.deposit_block_number().unpack();
-                number <= context.block.finalized_number
+                number <= context.finalized_number
             });
     // check unfinalized custodian cells == reverted deposit requests
     let mut reverted_deposit_cells =
-        collect_deposit_locks(&context.block.rollup_type_hash, config, Source::Output)?;
+        collect_deposit_locks(&context.rollup_type_hash, config, Source::Output)?;
     for custodian_cell in unfinalized_custodian_cells {
         let index = reverted_deposit_cells
             .iter()
@@ -162,17 +155,17 @@ fn check_input_custodian_cells(
 
 fn check_output_custodian_cells(
     config: &RollupConfig,
-    context: &VerificationContext,
+    context: &BlockContext,
     mut deposit_cells: Vec<DepositRequestCell>,
     input_finalized_assets: BTreeMap<H256, u128>,
 ) -> Result<(), Error> {
     // collect output custodian cells
     let (finalized_custodian_cells, unfinalized_custodian_cells): (Vec<_>, Vec<_>) =
-        collect_custodian_locks(&context.block.rollup_type_hash, config, Source::Output)?
+        collect_custodian_locks(&context.rollup_type_hash, config, Source::Output)?
             .into_iter()
             .partition(|cell| {
                 let number: u64 = cell.args.deposit_block_number().unpack();
-                number <= context.block.finalized_number
+                number <= context.finalized_number
             });
     // check deposits request cells == unfinalized custodian cells
     for custodian_cell in unfinalized_custodian_cells {
@@ -191,7 +184,7 @@ fn check_output_custodian_cells(
     // check reverted withdrawals <= finalized custodian cells
     {
         let reverted_withdrawals =
-            collect_withdrawal_locks(&context.block.rollup_type_hash, config, Source::Input)?;
+            collect_withdrawal_locks(&context.rollup_type_hash, config, Source::Input)?;
         let reverted_withdrawal_assets =
             build_assets_map_from_cells(reverted_withdrawals.iter().map(|c| &c.value))?;
         let mut output_finalized_assets =
@@ -473,6 +466,8 @@ fn load_block_context_and_state<'a>(
         return Err(Error::MerkleProof);
     }
 
+    let fork_switch = ForkSwitch::from_post_global_state(post_global_state)?;
+
     let context = BlockContext {
         number,
         finalized_number,
@@ -480,6 +475,7 @@ fn load_block_context_and_state<'a>(
         rollup_type_hash,
         block_hash,
         prev_account_root,
+        fork_switch,
     };
 
     Ok((context, kv_state))
@@ -759,8 +755,10 @@ pub fn verify(
         post_global_state,
     )?;
 
-    let v2_verifications = GlobalStateV2Verifications::from_post_global_state(post_global_state)?;
-    if v2_verifications.check_prev_last_finalized_withdrawal_field_is_default {
+    if block_context
+        .fork_switch
+        .check_prev_last_finalized_withdrawal_field_is_default()
+    {
         debug!("check last finalized withdrawal field is default");
         if prev_global_state.last_finalized_withdrawal().as_slice()
             != LastFinalizedWithdrawal::default().as_slice()
@@ -769,18 +767,13 @@ pub fn verify(
         }
     }
 
-    let context = VerificationContext {
-        block: block_context,
-        v2: v2_verifications,
-    };
-
     // Verify block producer
-    verify_block_producer(config, &context.block, block)?;
+    verify_block_producer(config, &block_context, block)?;
 
     // collect withdrawal cells
     let withdrawal_cells: Vec<_> =
-        collect_withdrawal_locks(&context.block.rollup_type_hash, config, Source::Output)?;
-    if context.v2.check_no_output_withdrawal_cells {
+        collect_withdrawal_locks(&block_context.rollup_type_hash, config, Source::Output)?;
+    if block_context.fork_switch.check_no_output_withdrawal_cells() {
         debug!("v2 check no output withdrawal cells");
         if !withdrawal_cells.is_empty() {
             debug!("output withdrawal cell found");
@@ -790,22 +783,23 @@ pub fn verify(
 
     // collect deposit cells
     let deposit_cells =
-        collect_deposit_locks(&context.block.rollup_type_hash, config, Source::Input)?;
+        collect_deposit_locks(&block_context.rollup_type_hash, config, Source::Input)?;
 
     // Check new cells and reverted cells: deposit / withdrawal / custodian
     let withdrawal_requests_vec = block.withdrawals();
     let withdrawal_requests: Vec<_> = withdrawal_requests_vec.iter().collect();
-    if { &context.v2 }.check_withdrawal_owner_lock_in_last_witness_type_out {
-        GlobalStateV2Verifications::check_withdrawal_owner_lock(&withdrawal_requests)?;
+    if { &block_context.fork_switch }.check_withdrawal_owner_lock_in_last_witness_type_out() {
+        global_state_v2::check_withdrawal_owner_lock(&withdrawal_requests)?;
     }
-    if !context.v2.check_no_output_withdrawal_cells {
-        check_withdrawal_cells(&context.block, withdrawal_requests, &withdrawal_cells)?;
+    if !block_context.fork_switch.check_no_output_withdrawal_cells() {
+        check_withdrawal_cells(&block_context, withdrawal_requests, &withdrawal_cells)?;
     }
 
-    let input_finalized_assets = check_input_custodian_cells(config, &context, withdrawal_cells)?;
+    let input_finalized_assets =
+        check_input_custodian_cells(config, &block_context, withdrawal_cells)?;
     check_output_custodian_cells(
         config,
-        &context,
+        &block_context,
         deposit_cells.clone(),
         input_finalized_assets,
     )?;
@@ -832,12 +826,12 @@ pub fn verify(
         // we have verified the post block merkle state
         let block_merkle_state = post_global_state.block();
         // last finalized block number
-        let last_finalized_block_number = context.block.finalized_number;
+        let last_finalized_block_number = block_context.finalized_number;
         let version = post_global_state.version();
         let tip_block_timestamp = if version == 0.into() {
             0
         } else {
-            context.block.timestamp
+            block_context.timestamp
         };
 
         prev_global_state
@@ -845,13 +839,13 @@ pub fn verify(
             .as_builder()
             .account(account_merkle_state.to_entity())
             .block(block_merkle_state)
-            .tip_block_hash(context.block.block_hash.pack())
+            .tip_block_hash(block_context.block_hash.pack())
             .tip_block_timestamp(tip_block_timestamp.pack())
             .last_finalized_block_number(last_finalized_block_number.pack())
             .version(version)
             .build()
     };
-    if GlobalStateV2Verifications::can_upgrade_to_v2(&prev_global_state, &post_global_state) {
+    if global_state_v2::can_upgrade_to_v2(&prev_global_state, &post_global_state) {
         if prev_global_state.last_finalized_withdrawal().as_slice()
             != LastFinalizedWithdrawal::default().as_slice()
         {
@@ -860,7 +854,7 @@ pub fn verify(
         }
 
         actual_post_global_state =
-            GlobalStateV2Verifications::upgrade_to_v2(actual_post_global_state, &block.raw());
+            global_state_v2::upgrade_to_v2(actual_post_global_state, &block.raw());
     }
 
     if &actual_post_global_state != post_global_state {
