@@ -1,31 +1,37 @@
-use crate::testing_tool::{chain::build_backend_manage, programs::ALWAYS_SUCCESS_CODE_HASH};
+use crate::{
+    script_tests::utils::{context::TestingContext, init_env_log},
+    testing_tool::{
+        chain::{build_backend_manage, RollupBackends, RollupConfigExtend},
+        programs::ALWAYS_SUCCESS_CODE_HASH,
+    },
+};
 
 use super::{
-    new_block_info, DummyChainStore, SudtLog, SudtLogType, ACCOUNT_OP_PROGRAM,
-    ACCOUNT_OP_PROGRAM_CODE_HASH, GW_LOG_SUDT_TRANSFER, RECOVER_PROGRAM, RECOVER_PROGRAM_CODE_HASH,
-    SUDT_TOTAL_SUPPLY_PROGRAM, SUDT_TOTAL_SUPPLY_PROGRAM_CODE_HASH, SUM_PROGRAM,
-    SUM_PROGRAM_CODE_HASH,
+    new_block_info, DummyChainStore, SudtLog, SudtLogType, ACCOUNT_OP_PROGRAM_CODE_HASH,
+    ACCOUNT_OP_PROGRAM_PATH, GW_LOG_SUDT_TRANSFER, RECOVER_PROGRAM_CODE_HASH, RECOVER_PROGRAM_PATH,
+    SUDT_TOTAL_SUPPLY_PROGRAM_CODE_HASH, SUDT_TOTAL_SUPPLY_PROGRAM_PATH, SUM_PROGRAM_CODE_HASH,
+    SUM_PROGRAM_PATH,
 };
 use gw_common::{
     builtins::ETH_REGISTRY_ACCOUNT_ID, h256_ext::H256Ext, registry_address::RegistryAddress,
     state::State, H256,
 };
-use gw_config::BackendType;
+use gw_config::{BackendConfig, BackendType};
 use gw_generator::{
-    account_lock_manage::{always_success::AlwaysSuccess, secp256k1::Secp256k1, AccountLockManage},
-    backend_manage::Backend,
+    account_lock_manage::{
+        always_success::AlwaysSuccess, secp256k1::Secp256k1Eth, AccountLockManage,
+    },
     constants::L2TX_MAX_CYCLES,
     dummy_state::DummyState,
-    error::TransactionError,
     syscalls::error_codes::{GW_ERROR_ACCOUNT_NOT_FOUND, GW_ERROR_RECOVER, GW_FATAL_UNKNOWN_ARGS},
     traits::StateExt,
     Generator,
 };
-use gw_types::offchain::RollupContext;
 use gw_types::{
     bytes::Bytes,
     core::ScriptHashType,
-    packed::{RawL2Transaction, RollupConfig, Script},
+    offchain::RollupContext,
+    packed::{AllowedTypeHash, RawL2Transaction, RollupConfig, Script},
     prelude::*,
     U256,
 };
@@ -50,14 +56,17 @@ fn test_example_sum() {
 
     // run handle message
     {
-        let mut backend_manage = build_backend_manage(&rollup_config);
         // NOTICE in this test we won't need SUM validator
-        backend_manage.register_backend(Backend {
-            validator: SUM_PROGRAM.clone(),
-            generator: SUM_PROGRAM.clone(),
-            validator_script_type_hash: (*SUM_PROGRAM_CODE_HASH).into(),
-            backend_type: BackendType::Unknown,
-        });
+        let rollup_backends = RollupBackends::new(
+            &rollup_config,
+            vec![BackendConfig {
+                validator_path: (*SUM_PROGRAM_PATH).clone(),
+                generator_path: (*SUM_PROGRAM_PATH).clone(),
+                validator_script_type_hash: (*SUM_PROGRAM_CODE_HASH).into(),
+                backend_type: BackendType::Unknown,
+            }],
+        );
+        let backend_manage = build_backend_manage(rollup_backends);
         let mut account_lock_manage = AccountLockManage::default();
         account_lock_manage
             .register_lock_algorithm(H256::zero(), Box::new(AlwaysSuccess::default()));
@@ -65,7 +74,12 @@ fn test_example_sum() {
             rollup_config: Default::default(),
             rollup_script_hash: [42u8; 32].into(),
         };
-        let generator = Generator::new(backend_manage, account_lock_manage, rollup_context);
+        let generator = Generator::new(
+            backend_manage,
+            account_lock_manage,
+            rollup_context,
+            Default::default(),
+        );
         let mut sum_value = init_value;
         for (number, add_value) in &[(1u64, 7u64), (2u64, 16u64)] {
             let block_info = new_block_info(&Default::default(), *number, 0);
@@ -91,7 +105,8 @@ fn test_example_sum() {
             };
             sum_value += add_value;
             assert_eq!(return_value, sum_value);
-            tree.apply_run_result(&run_result).expect("update state");
+            tree.apply_run_result(&run_result.write)
+                .expect("update state");
             println!("result {:?}", run_result);
         }
     }
@@ -160,10 +175,14 @@ impl AccountOp {
 
 #[test]
 fn test_example_account_operation() {
-    let mut tree = DummyState::default();
+    init_env_log();
+
     let chain_view = DummyChainStore;
-    let from_id: u32 = 2;
-    let rollup_config = RollupConfig::default();
+    let rollup_config = RollupConfig::default()
+        .push_allowed_contract_type(AllowedTypeHash::from_unknown(*ACCOUNT_OP_PROGRAM_CODE_HASH));
+    let mut ctx = TestingContext::setup(&rollup_config);
+    let from_id = ctx.create_random_account(100000u32.into());
+    let tree = &mut ctx.state;
 
     let contract_id = tree
         .create_account_from_script(
@@ -175,20 +194,28 @@ fn test_example_account_operation() {
         )
         .expect("create account");
 
-    let mut backend_manage = build_backend_manage(&rollup_config);
-    backend_manage.register_backend(Backend {
-        validator: ACCOUNT_OP_PROGRAM.clone(),
-        generator: ACCOUNT_OP_PROGRAM.clone(),
-        validator_script_type_hash: (*ACCOUNT_OP_PROGRAM_CODE_HASH).into(),
-        backend_type: BackendType::Unknown,
-    });
+    let rollup_backends = RollupBackends::new(
+        &rollup_config,
+        vec![BackendConfig {
+            validator_path: (*ACCOUNT_OP_PROGRAM_PATH).clone(),
+            generator_path: (*ACCOUNT_OP_PROGRAM_PATH).clone(),
+            validator_script_type_hash: (*ACCOUNT_OP_PROGRAM_CODE_HASH).into(),
+            backend_type: BackendType::Unknown,
+        }],
+    );
+    let backend_manage = build_backend_manage(rollup_backends);
     let mut account_lock_manage = AccountLockManage::default();
     account_lock_manage.register_lock_algorithm(H256::zero(), Box::new(AlwaysSuccess::default()));
     let rollup_context = RollupContext {
-        rollup_config: Default::default(),
+        rollup_config,
         rollup_script_hash: [42u8; 32].into(),
     };
-    let generator = Generator::new(backend_manage, account_lock_manage, rollup_context);
+    let generator = Generator::new(
+        backend_manage,
+        account_lock_manage,
+        rollup_context,
+        Default::default(),
+    );
     let block_info = new_block_info(&Default::default(), 2, 0);
 
     // Load: success
@@ -205,7 +232,7 @@ fn test_example_account_operation() {
         let run_result = generator
             .execute_transaction(
                 &chain_view,
-                &tree,
+                tree,
                 &block_info,
                 &raw_tx,
                 L2TX_MAX_CYCLES,
@@ -225,21 +252,17 @@ fn test_example_account_operation() {
             .to_id(contract_id.pack())
             .args(Bytes::from(args.to_vec()).pack())
             .build();
-        let err = generator
-            .execute_transaction(
+        let run_result = generator
+            .unhandled_execute_transaction(
                 &chain_view,
-                &tree,
+                tree,
                 &block_info,
                 &raw_tx,
                 L2TX_MAX_CYCLES,
                 None,
             )
-            .expect_err("err");
-        let err_code = match err {
-            TransactionError::InvalidExitCode(code) => code,
-            err => panic!("unexpected {:?}", err),
-        };
-        assert_eq!(err_code, GW_ERROR_ACCOUNT_NOT_FOUND as i8);
+            .unwrap();
+        assert_eq!(run_result.exit_code, GW_ERROR_ACCOUNT_NOT_FOUND as i8);
     }
 
     // Store: success
@@ -257,7 +280,7 @@ fn test_example_account_operation() {
         let run_result = generator
             .execute_transaction(
                 &chain_view,
-                &tree,
+                tree,
                 &block_info,
                 &raw_tx,
                 L2TX_MAX_CYCLES,
@@ -278,21 +301,17 @@ fn test_example_account_operation() {
             .to_id(contract_id.pack())
             .args(Bytes::from(args.to_vec()).pack())
             .build();
-        let err = generator
-            .execute_transaction(
+        let run_result = generator
+            .unhandled_execute_transaction(
                 &chain_view,
-                &tree,
+                tree,
                 &block_info,
                 &raw_tx,
                 L2TX_MAX_CYCLES,
                 None,
             )
-            .expect_err("err");
-        let err_code = match err {
-            TransactionError::InvalidExitCode(code) => code,
-            err => panic!("unexpected {:?}", err),
-        };
-        assert_eq!(err_code, GW_ERROR_ACCOUNT_NOT_FOUND as i8);
+            .unwrap();
+        assert_eq!(run_result.exit_code, GW_ERROR_ACCOUNT_NOT_FOUND as i8);
     }
 
     // LoadNonce: success
@@ -306,7 +325,7 @@ fn test_example_account_operation() {
         let run_result = generator
             .execute_transaction(
                 &chain_view,
-                &tree,
+                tree,
                 &block_info,
                 &raw_tx,
                 L2TX_MAX_CYCLES,
@@ -323,21 +342,17 @@ fn test_example_account_operation() {
             .to_id(contract_id.pack())
             .args(Bytes::from(args.to_vec()).pack())
             .build();
-        let err = generator
-            .execute_transaction(
+        let run_result = generator
+            .unhandled_execute_transaction(
                 &chain_view,
-                &tree,
+                tree,
                 &block_info,
                 &raw_tx,
                 L2TX_MAX_CYCLES,
                 None,
             )
-            .expect_err("err");
-        let err_code = match err {
-            TransactionError::InvalidExitCode(code) => code,
-            err => panic!("unexpected {:?}", err),
-        };
-        assert_eq!(err_code, GW_ERROR_ACCOUNT_NOT_FOUND as i8);
+            .unwrap();
+        assert_eq!(run_result.exit_code, GW_ERROR_ACCOUNT_NOT_FOUND as i8);
     }
 
     // Log: success
@@ -366,14 +381,14 @@ fn test_example_account_operation() {
         let run_result = generator
             .execute_transaction(
                 &chain_view,
-                &tree,
+                tree,
                 &block_info,
                 &raw_tx,
                 L2TX_MAX_CYCLES,
                 None,
             )
             .expect("result");
-        let log = SudtLog::from_log_item(&run_result.logs[0]).unwrap();
+        let log = SudtLog::from_log_item(&run_result.write.logs[0]).unwrap();
         assert_eq!(log.sudt_id, account_id);
         assert_eq!(log.from_addr, from_addr);
         assert_eq!(log.to_addr, to_addr);
@@ -393,30 +408,28 @@ fn test_example_account_operation() {
             .to_id(contract_id.pack())
             .args(Bytes::from(args.to_vec()).pack())
             .build();
-        let err = generator
-            .execute_transaction(
+        let run_result = generator
+            .unhandled_execute_transaction(
                 &chain_view,
-                &tree,
+                tree,
                 &block_info,
                 &raw_tx,
                 L2TX_MAX_CYCLES,
                 None,
             )
-            .expect_err("err");
-        let err_code = match err {
-            TransactionError::InvalidExitCode(code) => code,
-            err => panic!("unexpected {:?}", err),
-        };
-        assert_eq!(err_code, GW_ERROR_ACCOUNT_NOT_FOUND as i8);
+            .unwrap();
+        assert_eq!(run_result.exit_code, GW_ERROR_ACCOUNT_NOT_FOUND as i8);
     }
 }
 
 #[test]
 fn test_example_recover_account() {
-    let mut tree = DummyState::default();
     let chain_view = DummyChainStore;
-    let from_id: u32 = 2;
-    let rollup_config = RollupConfig::default();
+    let rollup_config = RollupConfig::default()
+        .push_allowed_contract_type(AllowedTypeHash::from_unknown(*RECOVER_PROGRAM_CODE_HASH));
+    let mut ctx = TestingContext::setup(&rollup_config);
+    let from_id = ctx.create_random_account(100000u32.into());
+    let tree = &mut ctx.state;
 
     let contract_id = tree
         .create_account_from_script(
@@ -428,26 +441,34 @@ fn test_example_recover_account() {
         )
         .expect("create account");
 
-    let mut backend_manage = build_backend_manage(&rollup_config);
-    backend_manage.register_backend(Backend {
-        validator: RECOVER_PROGRAM.clone(),
-        generator: RECOVER_PROGRAM.clone(),
-        validator_script_type_hash: (*RECOVER_PROGRAM_CODE_HASH).into(),
-        backend_type: BackendType::Unknown,
-    });
+    let rollup_backends = RollupBackends::new(
+        &rollup_config,
+        vec![BackendConfig {
+            validator_path: (*RECOVER_PROGRAM_PATH).clone(),
+            generator_path: (*RECOVER_PROGRAM_PATH).clone(),
+            validator_script_type_hash: (*RECOVER_PROGRAM_CODE_HASH).into(),
+            backend_type: BackendType::Unknown,
+        }],
+    );
+    let backend_manage = build_backend_manage(rollup_backends);
     let mut account_lock_manage = AccountLockManage::default();
     let secp256k1_code_hash = H256::from_u32(11);
     account_lock_manage
-        .register_lock_algorithm(secp256k1_code_hash, Box::new(Secp256k1::default()));
+        .register_lock_algorithm(secp256k1_code_hash, Box::new(Secp256k1Eth::default()));
     let rollup_script_hash: H256 = [42u8; 32].into();
     let rollup_context = RollupContext {
         rollup_config: Default::default(),
         rollup_script_hash,
     };
-    let generator = Generator::new(backend_manage, account_lock_manage, rollup_context);
+    let generator = Generator::new(
+        backend_manage,
+        account_lock_manage,
+        rollup_context,
+        Default::default(),
+    );
     let block_info = new_block_info(&Default::default(), 2, 0);
 
-    let lock_args_hex = "404f90829ec0e5821aeba9bce7d5e841ce9f7fa5";
+    let lock_args_hex = "fbf94b15f695fb6e7595a7788864d99009272f60";
     let message_hex = "1cdeae55a5768fe14b628001c6247ae84c70310a7ddcfdc73ac68494251e46ec";
     let signature_hex = "28aa0c394487edf2211f445c47fb5f4fb5e3023920f62124d309f5bdf70d95045a934f278cec717300a5417313d1cdc390e761e37c0964b940c0a6f07b7361ed01";
 
@@ -466,7 +487,7 @@ fn test_example_recover_account() {
         let run_result = generator
             .execute_transaction(
                 &chain_view,
-                &tree,
+                tree,
                 &block_info,
                 &raw_tx,
                 L2TX_MAX_CYCLES,
@@ -497,22 +518,18 @@ fn test_example_recover_account() {
             .to_id(contract_id.pack())
             .args(Bytes::from(args).pack())
             .build();
-        let err = generator
-            .execute_transaction(
+        let run_result = generator
+            .unhandled_execute_transaction(
                 &chain_view,
-                &tree,
+                tree,
                 &block_info,
                 &raw_tx,
                 L2TX_MAX_CYCLES,
                 None,
             )
-            .expect_err("err");
-        let err_code = match err {
-            TransactionError::InvalidExitCode(code) => code,
-            err => panic!("unexpected {:?}", err),
-        };
-        println!("err_code: {}", err_code);
-        assert_eq!(err_code, GW_ERROR_RECOVER as i8);
+            .unwrap();
+        eprintln!("exit code: {}", run_result.exit_code);
+        assert_eq!(run_result.exit_code, GW_ERROR_RECOVER as i8);
     }
 
     // Wrong code hash
@@ -528,22 +545,18 @@ fn test_example_recover_account() {
             .to_id(contract_id.pack())
             .args(Bytes::from(args).pack())
             .build();
-        let err = generator
-            .execute_transaction(
+        let run_result = generator
+            .unhandled_execute_transaction(
                 &chain_view,
-                &tree,
+                tree,
                 &block_info,
                 &raw_tx,
                 L2TX_MAX_CYCLES,
                 None,
             )
-            .expect_err("err");
-        let err_code = match err {
-            TransactionError::InvalidExitCode(code) => code,
-            err => panic!("unexpected {:?}", err),
-        };
-        println!("err_code: {}", err_code);
-        assert_eq!(err_code, GW_FATAL_UNKNOWN_ARGS);
+            .unwrap();
+        eprintln!("exit code: {}", run_result.exit_code);
+        assert_eq!(run_result.exit_code, GW_FATAL_UNKNOWN_ARGS);
     }
 }
 
@@ -553,7 +566,10 @@ fn test_sudt_total_supply() {
     let chain_view = DummyChainStore;
     let rollup_config = RollupConfig::new_builder()
         .l2_sudt_validator_script_type_hash(ALWAYS_SUCCESS_CODE_HASH.pack())
-        .build();
+        .build()
+        .push_allowed_contract_type(AllowedTypeHash::from_unknown(
+            *SUDT_TOTAL_SUPPLY_PROGRAM_CODE_HASH,
+        ));
 
     let sudt_id = tree
         .create_account_from_script(
@@ -602,14 +618,17 @@ fn test_sudt_total_supply() {
 
     // run handle message
     {
-        let mut backend_manage = build_backend_manage(&rollup_config);
         // NOTICE in this test we won't need SUM validator
-        backend_manage.register_backend(Backend {
-            validator: SUDT_TOTAL_SUPPLY_PROGRAM.clone(),
-            generator: SUDT_TOTAL_SUPPLY_PROGRAM.clone(),
-            validator_script_type_hash: (*SUDT_TOTAL_SUPPLY_PROGRAM_CODE_HASH).into(),
-            backend_type: BackendType::Unknown,
-        });
+        let rollup_backends = RollupBackends::new(
+            &rollup_config,
+            vec![BackendConfig {
+                validator_path: (*SUDT_TOTAL_SUPPLY_PROGRAM_PATH).clone(),
+                generator_path: (*SUDT_TOTAL_SUPPLY_PROGRAM_PATH).clone(),
+                validator_script_type_hash: (*SUDT_TOTAL_SUPPLY_PROGRAM_CODE_HASH).into(),
+                backend_type: BackendType::Unknown,
+            }],
+        );
+        let backend_manage = build_backend_manage(rollup_backends);
         let mut account_lock_manage = AccountLockManage::default();
         account_lock_manage.register_lock_algorithm(
             (*ALWAYS_SUCCESS_CODE_HASH).into(),
@@ -619,7 +638,12 @@ fn test_sudt_total_supply() {
             rollup_config,
             rollup_script_hash: [42u8; 32].into(),
         };
-        let generator = Generator::new(backend_manage, account_lock_manage, rollup_context);
+        let generator = Generator::new(
+            backend_manage,
+            account_lock_manage,
+            rollup_context,
+            Default::default(),
+        );
         let block_info = new_block_info(&Default::default(), 1, 0);
         let raw_tx = RawL2Transaction::new_builder()
             .from_id(alice_id.pack())

@@ -48,7 +48,7 @@ use gw_types::{
     },
 };
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_cancel_tx_signature() {
     init_env_log();
     let input_out_point = random_out_point();
@@ -65,9 +65,9 @@ async fn test_cancel_tx_signature() {
     let challenge_lock_type = build_type_id_script(b"challenge_lock_type_id");
     let eoa_lock_type = build_type_id_script(b"eoa_lock_type_id");
     let l2_sudt_type = build_type_id_script(b"l2_sudt_type_id");
-    let challenge_script_type_hash: [u8; 32] = challenge_lock_type.calc_script_hash().unpack();
-    let eoa_lock_type_hash: [u8; 32] = eoa_lock_type.calc_script_hash().unpack();
-    let l2_sudt_type_hash: [u8; 32] = l2_sudt_type.calc_script_hash().unpack();
+    let challenge_script_type_hash: [u8; 32] = challenge_lock_type.calc_script_hash().unpack().0;
+    let eoa_lock_type_hash: [u8; 32] = eoa_lock_type.calc_script_hash().unpack().0;
+    let l2_sudt_type_hash: [u8; 32] = l2_sudt_type.calc_script_hash().unpack().0;
 
     let allowed_eoa_type_hashes: Vec<AllowedTypeHash> = vec![AllowedTypeHash::new(
         AllowedEoaType::Eth,
@@ -99,7 +99,6 @@ async fn test_cancel_tx_signature() {
         account_lock_manage,
     )
     .await;
-    chain.complete_initial_syncing().await.unwrap();
     // create a rollup cell
     let capacity = 1000_00000000u64;
     let rollup_cell = build_always_success_cell(
@@ -149,11 +148,9 @@ async fn test_cancel_tx_signature() {
                 .await
                 .unwrap()
         };
-        let rollup_cell = gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes());
         let asset_scripts = HashSet::new();
         apply_block_result(
             &mut chain,
-            rollup_cell.clone(),
             produce_block_result,
             deposit_requests,
             asset_scripts,
@@ -197,20 +194,13 @@ async fn test_cancel_tx_signature() {
         let produce_block_result = {
             let mem_pool = chain.mem_pool().as_ref().unwrap();
             let mut mem_pool = mem_pool.lock().await;
-            mem_pool.push_transaction(tx).await.unwrap();
+            mem_pool.push_transaction(tx).unwrap();
             construct_block(&chain, &mut mem_pool, Vec::default())
                 .await
                 .unwrap()
         };
         let asset_scripts = HashSet::new();
-        apply_block_result(
-            &mut chain,
-            rollup_cell,
-            produce_block_result,
-            vec![],
-            asset_scripts,
-        )
-        .await;
+        apply_block_result(&mut chain, produce_block_result, vec![], asset_scripts).await;
         (sender_script, receiver_script, sudt_script)
     };
     // deploy scripts
@@ -372,7 +362,7 @@ async fn test_cancel_tx_signature() {
         let owner_lock_hash = vec![42u8; 32];
         let message = {
             let typed_tx = eip712::types::L2Transaction::from_raw(
-                tx.raw(),
+                &tx.raw(),
                 sender_address,
                 sudt_script.hash().into(),
             )

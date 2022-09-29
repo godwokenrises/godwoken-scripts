@@ -1,19 +1,22 @@
 use super::super::utils::init_env_log;
+use crate::script_tests::l2_scripts::ContractExecutionEnvironment;
 use crate::script_tests::utils::context::TestingContext;
+use crate::testing_tool::chain::RollupConfigExtend;
 
-use super::{check_transfer_logs, new_block_info, run_contract, run_contract_get_result};
-use ckb_vm::Bytes;
+use super::{check_transfer_logs, new_block_info};
 use gw_common::builtins::CKB_SUDT_ACCOUNT_ID;
 use gw_common::registry_address::RegistryAddress;
 use gw_common::state::State;
 use gw_generator::syscalls::error_codes::{
     GW_SUDT_ERROR_AMOUNT_OVERFLOW, GW_SUDT_ERROR_INSUFFICIENT_BALANCE,
 };
-use gw_generator::{error::TransactionError, traits::StateExt};
+use gw_generator::traits::StateExt;
 use gw_traits::CodeStore;
-use gw_types::packed::{BlockInfo, Fee};
+use gw_types::core::AllowedContractType;
+use gw_types::packed::{AllowedTypeHash, BlockInfo, Fee};
 use gw_types::U256;
 use gw_types::{
+    bytes::Bytes,
     core::ScriptHashType,
     packed::{RollupConfig, SUDTArgs, SUDTQuery, SUDTTransfer, Script},
     prelude::*,
@@ -26,7 +29,11 @@ fn test_sudt() {
     init_env_log();
     let rollup_config = RollupConfig::new_builder()
         .l2_sudt_validator_script_type_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.pack())
-        .build();
+        .build()
+        .push_allowed_contract_type(AllowedTypeHash::new(
+            AllowedContractType::Sudt,
+            DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH,
+        ));
     let mut ctx = TestingContext::setup(&rollup_config);
 
     let init_a_balance = U256::from(10000u64);
@@ -147,21 +154,16 @@ fn test_sudt() {
                     .build(),
             )
             .build();
-        let run_result = run_contract_get_result(
-            &rollup_config,
-            &mut ctx.state,
-            a_id,
-            sudt_id,
-            args.as_bytes(),
-            &block_info,
-        )
-        .expect("execute");
+        let mut exec_env = ContractExecutionEnvironment::new(&rollup_config, &mut ctx.state);
+        let run_result = exec_env
+            .execute(a_id, sudt_id, args.as_bytes(), &block_info)
+            .expect("execute");
         let new_sender_nonce = ctx.state.get_nonce(a_id).unwrap();
         assert_eq!(sender_nonce + 1, new_sender_nonce, "nonce increased");
         assert!(run_result.return_data.is_empty());
-        assert_eq!(run_result.logs.len(), 2);
+        assert_eq!(run_result.write.logs.len(), 2);
         check_transfer_logs(
-            &run_result.logs,
+            &run_result.write.logs,
             sudt_id,
             &block_producer,
             fee,
@@ -247,7 +249,11 @@ fn test_insufficient_balance() {
 
     let rollup_config = RollupConfig::new_builder()
         .l2_sudt_validator_script_type_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.pack())
-        .build();
+        .build()
+        .push_allowed_contract_type(AllowedTypeHash::new(
+            AllowedContractType::Sudt,
+            DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH,
+        ));
     let mut ctx = TestingContext::setup(&rollup_config);
 
     // init accounts
@@ -320,20 +326,11 @@ fn test_insufficient_balance() {
                     .build(),
             )
             .build();
-        let err = run_contract(
-            &rollup_config,
-            &mut ctx.state,
-            a_id,
-            sudt_id,
-            args.as_bytes(),
-            &block_info,
-        )
-        .expect_err("err");
-        let err_code = match err {
-            TransactionError::InvalidExitCode(code) => code,
-            err => panic!("unexpected {:?}", err),
-        };
-        assert_eq!(err_code, GW_SUDT_ERROR_INSUFFICIENT_BALANCE);
+        let exec_env = ContractExecutionEnvironment::new(&rollup_config, &mut ctx.state);
+        let run_result = exec_env
+            .unhandle_execute(a_id, sudt_id, args.as_bytes(), &block_info)
+            .expect("execute");
+        assert_eq!(run_result.exit_code, GW_SUDT_ERROR_INSUFFICIENT_BALANCE);
     }
 }
 
@@ -343,7 +340,11 @@ fn test_transfer_to_non_exist_account() {
 
     let rollup_config = RollupConfig::new_builder()
         .l2_sudt_validator_script_type_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.pack())
-        .build();
+        .build()
+        .push_allowed_contract_type(AllowedTypeHash::new(
+            AllowedContractType::Sudt,
+            DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH,
+        ));
     let mut ctx = TestingContext::setup(&rollup_config);
 
     // init accounts
@@ -405,15 +406,10 @@ fn test_transfer_to_non_exist_account() {
                     .build(),
             )
             .build();
-        let _run_result = run_contract(
-            &rollup_config,
-            &mut ctx.state,
-            a_id,
-            sudt_id,
-            args.as_bytes(),
-            &block_info,
-        )
-        .expect("run contract");
+        let mut exec_env = ContractExecutionEnvironment::new(&rollup_config, &mut ctx.state);
+        let _run_result = exec_env
+            .execute(a_id, sudt_id, args.as_bytes(), &block_info)
+            .expect("execute");
     }
 }
 
@@ -424,7 +420,11 @@ fn test_transfer_to_self() {
 
     let rollup_config = RollupConfig::new_builder()
         .l2_sudt_validator_script_type_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.pack())
-        .build();
+        .build()
+        .push_allowed_contract_type(AllowedTypeHash::new(
+            AllowedContractType::Sudt,
+            DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH,
+        ));
     let mut ctx = TestingContext::setup(&rollup_config);
 
     // init accounts
@@ -508,20 +508,15 @@ fn test_transfer_to_self() {
                     .build(),
             )
             .build();
-        let run_result = run_contract_get_result(
-            &rollup_config,
-            &mut ctx.state,
-            a_id,
-            sudt_id,
-            args.as_bytes(),
-            &block_info,
-        )
-        .expect("run contract");
+        let mut exec_env = ContractExecutionEnvironment::new(&rollup_config, &mut ctx.state);
+        let run_result = exec_env
+            .execute(a_id, sudt_id, args.as_bytes(), &block_info)
+            .expect("execute");
         let new_sender_nonce = ctx.state.get_nonce(a_id).unwrap();
         assert_eq!(sender_nonce + 1, new_sender_nonce, "nonce increased");
-        assert_eq!(run_result.logs.len(), 2);
+        assert_eq!(run_result.write.logs.len(), 2);
         check_transfer_logs(
-            &run_result.logs,
+            &run_result.write.logs,
             sudt_id,
             &block_producer,
             fee,
@@ -567,18 +562,13 @@ fn test_transfer_to_self() {
                     .build(),
             )
             .build();
-        let run_result = run_contract_get_result(
-            &rollup_config,
-            &mut ctx.state,
-            a_id,
-            sudt_id,
-            args.as_bytes(),
-            &block_info,
-        )
-        .expect("run contract");
-        assert_eq!(run_result.logs.len(), 2);
+        let mut exec_env = ContractExecutionEnvironment::new(&rollup_config, &mut ctx.state);
+        let run_result = exec_env
+            .execute(a_id, sudt_id, args.as_bytes(), &block_info)
+            .expect("execute");
+        assert_eq!(run_result.write.logs.len(), 2);
         check_transfer_logs(
-            &run_result.logs,
+            &run_result.write.logs,
             sudt_id,
             &block_producer,
             fee,
@@ -648,20 +638,11 @@ fn test_transfer_to_self() {
                     .build(),
             )
             .build();
-        let err = run_contract(
-            &rollup_config,
-            &mut ctx.state,
-            a_id,
-            sudt_id,
-            args.as_bytes(),
-            &block_info,
-        )
-        .expect_err("err");
-        let err_code = match err {
-            TransactionError::InvalidExitCode(code) => code,
-            err => panic!("unexpected {:?}", err),
-        };
-        assert_eq!(err_code, GW_SUDT_ERROR_INSUFFICIENT_BALANCE);
+        let exec_env = ContractExecutionEnvironment::new(&rollup_config, &mut ctx.state);
+        let run_result = exec_env
+            .unhandle_execute(a_id, sudt_id, args.as_bytes(), &block_info)
+            .expect("execute");
+        assert_eq!(run_result.exit_code, GW_SUDT_ERROR_INSUFFICIENT_BALANCE);
         // sender sudt
         check_balance(
             &rollup_config,
@@ -703,7 +684,11 @@ fn test_transfer_to_self_overflow() {
 
     let rollup_config = RollupConfig::new_builder()
         .l2_sudt_validator_script_type_hash(DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH.pack())
-        .build();
+        .build()
+        .push_allowed_contract_type(AllowedTypeHash::new(
+            AllowedContractType::Sudt,
+            DUMMY_SUDT_VALIDATOR_SCRIPT_TYPE_HASH,
+        ));
     let mut ctx = TestingContext::setup(&rollup_config);
 
     // init accounts
@@ -785,18 +770,13 @@ fn test_transfer_to_self_overflow() {
                     .build(),
             )
             .build();
-        let run_result = run_contract_get_result(
-            &rollup_config,
-            &mut ctx.state,
-            a_id,
-            sudt_id,
-            args.as_bytes(),
-            &block_info,
-        )
-        .expect("run contract");
-        assert_eq!(run_result.logs.len(), 2);
+        let mut exec_env = ContractExecutionEnvironment::new(&rollup_config, &mut ctx.state);
+        let run_result = exec_env
+            .execute(a_id, sudt_id, args.as_bytes(), &block_info)
+            .expect("execute");
+        assert_eq!(run_result.write.logs.len(), 2);
         check_transfer_logs(
-            &run_result.logs,
+            &run_result.write.logs,
             sudt_id,
             &block_producer,
             fee,
@@ -865,18 +845,13 @@ fn test_transfer_to_self_overflow() {
                     .build(),
             )
             .build();
-        let run_result = run_contract_get_result(
-            &rollup_config,
-            &mut ctx.state,
-            a_id,
-            sudt_id,
-            args.as_bytes(),
-            &block_info,
-        )
-        .expect("run contract");
-        assert_eq!(run_result.logs.len(), 2);
+        let mut exec_env = ContractExecutionEnvironment::new(&rollup_config, &mut ctx.state);
+        let run_result = exec_env
+            .execute(a_id, sudt_id, args.as_bytes(), &block_info)
+            .expect("execute");
+        assert_eq!(run_result.write.logs.len(), 2);
         check_transfer_logs(
-            &run_result.logs,
+            &run_result.write.logs,
             sudt_id,
             &block_producer,
             fee,
@@ -940,18 +915,13 @@ fn test_transfer_to_self_overflow() {
                     .build(),
             )
             .build();
-        let run_result = run_contract_get_result(
-            &rollup_config,
-            &mut ctx.state,
-            a_id,
-            sudt_id,
-            args.as_bytes(),
-            &block_info,
-        )
-        .expect("ok");
-        assert_eq!(run_result.logs.len(), 2);
+        let mut exec_env = ContractExecutionEnvironment::new(&rollup_config, &mut ctx.state);
+        let run_result = exec_env
+            .execute(a_id, sudt_id, args.as_bytes(), &block_info)
+            .expect("execute");
+        assert_eq!(run_result.write.logs.len(), 2);
         check_transfer_logs(
-            &run_result.logs,
+            &run_result.write.logs,
             sudt_id,
             &block_producer,
             0,
@@ -1015,18 +985,13 @@ fn test_transfer_to_self_overflow() {
                     .build(),
             )
             .build();
-        let run_result = run_contract_get_result(
-            &rollup_config,
-            &mut ctx.state,
-            a_id,
-            sudt_id,
-            args.as_bytes(),
-            &block_info,
-        )
-        .expect("ok");
-        assert_eq!(run_result.logs.len(), 2);
+        let mut exec_env = ContractExecutionEnvironment::new(&rollup_config, &mut ctx.state);
+        let run_result = exec_env
+            .execute(a_id, sudt_id, args.as_bytes(), &block_info)
+            .expect("execute");
+        assert_eq!(run_result.write.logs.len(), 2);
         check_transfer_logs(
-            &run_result.logs,
+            &run_result.write.logs,
             sudt_id,
             &block_producer,
             0,
@@ -1075,9 +1040,8 @@ fn test_transfer_to_self_overflow() {
     }
 }
 
-// Total supply overflow
 #[test]
-#[ignore]
+#[ignore = "total supply overflow"]
 fn test_transfer_overflow() {
     let init_a_balance = U256::from(10000u64);
     let init_b_balance: U256 = U256::MAX - init_a_balance;
@@ -1163,20 +1127,11 @@ fn test_transfer_overflow() {
                     .build(),
             )
             .build();
-        let err = run_contract(
-            &rollup_config,
-            &mut ctx.state,
-            a_id,
-            sudt_id,
-            args.as_bytes(),
-            &block_info,
-        )
-        .expect_err("err");
-        let err_code = match err {
-            TransactionError::InvalidExitCode(code) => code,
-            err => panic!("unexpected {:?}", err),
-        };
-        assert_eq!(err_code, GW_SUDT_ERROR_AMOUNT_OVERFLOW);
+        let exec_env = ContractExecutionEnvironment::new(&rollup_config, &mut ctx.state);
+        let run_result = exec_env
+            .unhandle_execute(a_id, sudt_id, args.as_bytes(), &block_info)
+            .expect("execute");
+        assert_eq!(run_result.exit_code, GW_SUDT_ERROR_AMOUNT_OVERFLOW);
 
         // check balance
         check_balance(
@@ -1228,15 +1183,11 @@ fn check_balance<S: State + CodeStore>(
                 .build(),
         )
         .build();
-    let return_data = run_contract(
-        rollup_config,
-        tree,
-        sender_id,
-        sudt_id,
-        args.as_bytes(),
-        block_info,
-    )
-    .expect("execute");
+    let mut exec_env = ContractExecutionEnvironment::new(rollup_config, tree);
+    let run_result = exec_env
+        .execute(sender_id, sudt_id, args.as_bytes(), block_info)
+        .expect("execute");
+    let return_data = run_result.return_data.to_vec();
     let balance = {
         let mut buf = [0u8; 32];
         buf.copy_from_slice(&return_data);

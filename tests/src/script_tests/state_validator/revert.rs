@@ -36,7 +36,7 @@ use gw_types::{
 };
 use gw_types::{packed::StakeLockArgs, prelude::*};
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_revert() {
     init_env_log();
     let input_out_point = random_out_point();
@@ -57,11 +57,11 @@ async fn test_revert() {
         .args(CKBPack::pack(&Bytes::from(b"reward_burned_lock".to_vec())))
         .code_hash(CKBPack::pack(&[0u8; 32]))
         .build();
-    let reward_burn_lock_hash: [u8; 32] = reward_burn_lock.calc_script_hash().unpack();
+    let reward_burn_lock_hash: [u8; 32] = reward_burn_lock.calc_script_hash().unpack().0;
     let stake_lock_type = build_type_id_script(b"stake_lock_type_id");
-    let stake_script_type_hash: [u8; 32] = stake_lock_type.calc_script_hash().unpack();
+    let stake_script_type_hash: [u8; 32] = stake_lock_type.calc_script_hash().unpack().0;
     let challenge_lock_type = build_type_id_script(b"challenge_lock_type_id");
-    let challenge_script_type_hash: [u8; 32] = challenge_lock_type.calc_script_hash().unpack();
+    let challenge_script_type_hash: [u8; 32] = challenge_lock_type.calc_script_hash().unpack().0;
     let finality_blocks = 10;
     let rollup_config = RollupConfig::new_builder()
         .stake_script_type_hash(Pack::pack(&stake_script_type_hash))
@@ -128,11 +128,9 @@ async fn test_revert() {
                 .await
                 .unwrap()
         };
-        let rollup_cell = gw_types::packed::CellOutput::new_unchecked(rollup_cell.as_bytes());
         let asset_scripts = HashSet::new();
         apply_block_result(
             &mut chain,
-            rollup_cell.clone(),
             produce_block_result,
             deposit_requests,
             asset_scripts,
@@ -173,21 +171,14 @@ async fn test_revert() {
                 .build();
             let mem_pool = chain.mem_pool().as_ref().unwrap();
             let mut mem_pool = mem_pool.lock().await;
-            mem_pool.push_transaction(tx).await.unwrap();
+            mem_pool.push_transaction(tx).unwrap();
             construct_block(&chain, &mut mem_pool, Vec::default())
                 .await
                 .unwrap()
         };
         let prev_block_merkle = chain.local_state().last_global_state().block();
         let asset_scripts = HashSet::new();
-        apply_block_result(
-            &mut chain,
-            rollup_cell,
-            produce_block_result,
-            vec![],
-            asset_scripts,
-        )
-        .await;
+        apply_block_result(&mut chain, produce_block_result, vec![], asset_scripts).await;
         prev_block_merkle
     };
     // deploy scripts

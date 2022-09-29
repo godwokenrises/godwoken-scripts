@@ -13,12 +13,12 @@ gw-config = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "afb6
 gw-db = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "afb6521b6048f9a08a602b27fdcd8657402a99c0" }
 gw-store = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "afb6521b6048f9a08a602b27fdcd8657402a99c0" }
 gw-traits = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "afb6521b6048f9a08a602b27fdcd8657402a99c0" }
-gw-generator = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "afb6521b6048f9a08a602b27fdcd8657402a99c0" }
+gw-generator = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "afb6521b6048f9a08a602b27fdcd8657402a99c0", features = ["detect-asm", "unhandled-execution"] }
 gw-chain = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "afb6521b6048f9a08a602b27fdcd8657402a99c0" }
 gw-mem-pool = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "afb6521b6048f9a08a602b27fdcd8657402a99c0" }
 gw-block-producer = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "afb6521b6048f9a08a602b27fdcd8657402a99c0" }
-gw-ckb-hardfork = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "afb6521b6048f9a08a602b27fdcd8657402a99c0" }
-parking_lot = "0.11"
+gw-utils = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "afb6521b6048f9a08a602b27fdcd8657402a99c0" }
+async-trait = "0.1"
 anyhow = "1.0"
 blake2b-rs = "0.2"
 thiserror = "1.0"
@@ -26,20 +26,16 @@ lazy_static = "1.4"
 secp256k1 = { version = "0.20", features = ["recovery", "rand-std"] }
 sha3 = "0.9.1"
 hex = "0.4.2"
-ckb-script = "0.100.0"
-ckb-types = "0.100.0"
-ckb-error = "0.100.0"
-ckb-crypto = "0.100.0"
-ckb-hash = "0.100.0"
-ckb-traits = "0.100.0"
-ckb-fixed-hash = "0.100.0"
-ckb-chain-spec = "0.100.0"
+ckb-script = "0.104.0"
+ckb-types = "0.104.0"
+ckb-error = "0.104.0"
+ckb-crypto = "0.104.0"
+ckb-hash = "0.104.0"
+ckb-traits = "0.104.0"
+ckb-fixed-hash = "0.104.0"
 rand = "0.8"
 env_logger = "0.8"
-# Remove this after CKB fixed the dependencies issue
-ckb-vm = { version = "=0.20.0-rc5", features = ["detect-asm"] }
-ckb-vm-definitions = "=0.20.0-rc5"
 tentacle-multiaddr = "=0.2.0"
-molecule = "=0.6.0"
+molecule = "=0.7.3"
 tempfile = "3"
 tokio = "1.15"
