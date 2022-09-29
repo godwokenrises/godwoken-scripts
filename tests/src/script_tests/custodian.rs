@@ -29,7 +29,7 @@ use gw_types::{
 
 const ERROR_INVALID_CUSTODIAN_CELL: i8 = 28;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_rollup_action_submit_block() {
     init_env_log();
 
@@ -83,7 +83,7 @@ async fn test_rollup_action_submit_block() {
     let block_result = {
         let mem_pool = chain.mem_pool().as_ref().unwrap();
         let mut mem_pool = mem_pool.lock().await;
-        mem_pool.reset_mem_block().await.unwrap();
+        mem_pool.reset_mem_block(&Default::default()).await.unwrap();
         construct_block(&chain, &mut mem_pool, Vec::default())
             .await
             .unwrap()
@@ -266,7 +266,7 @@ fn append_custodian_cells(
     (tx, rollup_config)
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_rollup_action_enter_challenge() {
     use super::state_validator::enter_challenge;
 
@@ -297,7 +297,7 @@ async fn test_rollup_action_enter_challenge() {
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_rollup_action_cancel_challengel() {
     use super::state_validator::cancel_challenge;
 
@@ -329,7 +329,7 @@ async fn test_rollup_action_cancel_challengel() {
     }
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_rollup_action_revert() {
     use super::state_validator::revert;
 

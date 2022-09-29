@@ -9,16 +9,15 @@ use crate::script_tests::utils::rollup::{
     build_always_success_cell, build_rollup_locked_cell, build_type_id_script,
     calculate_state_validator_type_id, CellContext, CellContextParam,
 };
-use crate::testing_tool::chain::build_sync_tx;
-use crate::testing_tool::chain::construct_block;
 use crate::testing_tool::chain::setup_chain;
+use crate::testing_tool::chain::{apply_block_result, construct_block};
 use crate::testing_tool::programs::{ALWAYS_SUCCESS_CODE_HASH, STATE_VALIDATOR_CODE_HASH};
 use ckb_error::assert_error_eq;
-use gw_chain::chain::{Chain, L1Action, L1ActionContext, SyncParam};
+use gw_chain::chain::Chain;
 use gw_types::core::AllowedEoaType;
 use gw_types::packed::{
-    AllowedTypeHash, CellInput, DepositRequest, L2BlockCommittedInfo, LastFinalizedWithdrawal,
-    RawWithdrawalRequest, ScriptVec, WithdrawalRequest, WithdrawalRequestExtra, WitnessArgs,
+    AllowedTypeHash, CellInput, DepositRequest, LastFinalizedWithdrawal, RawWithdrawalRequest,
+    ScriptVec, WithdrawalRequest, WithdrawalRequestExtra, WitnessArgs,
 };
 use gw_types::prelude::{Builder, Entity, Pack, PackVec, Unpack};
 use gw_types::{
@@ -36,7 +35,7 @@ const ERROR_INVALID_WITHDRAWAL_REQUEST: i8 = 33;
 const ERROR_INVALID_LAST_FINALIZED_WITHDRAWAL: i8 = 46;
 
 // For global state version < 2
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_non_default_last_finalized_withdrawal_in_prev_global_state() {
     init_env_log();
 
@@ -72,7 +71,7 @@ async fn test_non_default_last_finalized_withdrawal_in_prev_global_state() {
         let mem_pool = chain.mem_pool().as_ref().unwrap();
         let mut mem_pool = mem_pool.lock().await;
         mem_pool.push_withdrawal_request(withdrawal).await.unwrap();
-        mem_pool.reset_mem_block().await.unwrap();
+        mem_pool.reset_mem_block(&Default::default()).await.unwrap();
         construct_block(&chain, &mut mem_pool, Vec::default())
             .await
             .unwrap()
@@ -171,7 +170,7 @@ async fn test_non_default_last_finalized_withdrawal_in_prev_global_state() {
     assert_error_eq!(err, expected_err);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_modify_last_finalized_withdrawal() {
     init_env_log();
 
@@ -207,7 +206,7 @@ async fn test_modify_last_finalized_withdrawal() {
         let mem_pool = chain.mem_pool().as_ref().unwrap();
         let mut mem_pool = mem_pool.lock().await;
         mem_pool.push_withdrawal_request(withdrawal).await.unwrap();
-        mem_pool.reset_mem_block().await.unwrap();
+        mem_pool.reset_mem_block(&Default::default()).await.unwrap();
         construct_block(&chain, &mut mem_pool, Vec::default())
             .await
             .unwrap()
@@ -306,7 +305,7 @@ async fn test_modify_last_finalized_withdrawal() {
     assert_error_eq!(err, expected_err);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_upgrade_to_v2_post_global_state() {
     init_env_log();
 
@@ -326,7 +325,7 @@ async fn test_upgrade_to_v2_post_global_state() {
     let block_result = {
         let mem_pool = chain.mem_pool().as_ref().unwrap();
         let mut mem_pool = mem_pool.lock().await;
-        mem_pool.reset_mem_block().await.unwrap();
+        mem_pool.reset_mem_block(&Default::default()).await.unwrap();
         construct_block(&chain, &mut mem_pool, Vec::default())
             .await
             .unwrap()
@@ -416,7 +415,7 @@ async fn test_upgrade_to_v2_post_global_state() {
     ctx.verify_tx(tx).expect("pass");
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_upgrade_to_v2_post_global_state_withdrawal_cell_outputs_found() {
     init_env_log();
 
@@ -452,7 +451,7 @@ async fn test_upgrade_to_v2_post_global_state_withdrawal_cell_outputs_found() {
         let mem_pool = chain.mem_pool().as_ref().unwrap();
         let mut mem_pool = mem_pool.lock().await;
         mem_pool.push_withdrawal_request(withdrawal).await.unwrap();
-        mem_pool.reset_mem_block().await.unwrap();
+        mem_pool.reset_mem_block(&Default::default()).await.unwrap();
         construct_block(&chain, &mut mem_pool, Vec::default())
             .await
             .unwrap()
@@ -581,7 +580,7 @@ async fn test_upgrade_to_v2_post_global_state_withdrawal_cell_outputs_found() {
     assert_error_eq!(err, expected_err);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_upgrade_to_v2_post_global_state_wrong_last_finalized_withdrawal() {
     init_env_log();
 
@@ -601,7 +600,7 @@ async fn test_upgrade_to_v2_post_global_state_wrong_last_finalized_withdrawal() 
     let block_result = {
         let mem_pool = chain.mem_pool().as_ref().unwrap();
         let mut mem_pool = mem_pool.lock().await;
-        mem_pool.reset_mem_block().await.unwrap();
+        mem_pool.reset_mem_block(&Default::default()).await.unwrap();
         construct_block(&chain, &mut mem_pool, Vec::default())
             .await
             .unwrap()
@@ -794,7 +793,7 @@ async fn test_upgrade_to_v2_post_global_state_wrong_last_finalized_withdrawal() 
     assert_error_eq!(err, expected_err);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_no_output_withdrawal_cell() {
     init_env_log();
 
@@ -830,7 +829,7 @@ async fn test_no_output_withdrawal_cell() {
         let mem_pool = chain.mem_pool().as_ref().unwrap();
         let mut mem_pool = mem_pool.lock().await;
         mem_pool.push_withdrawal_request(withdrawal).await.unwrap();
-        mem_pool.reset_mem_block().await.unwrap();
+        mem_pool.reset_mem_block(&Default::default()).await.unwrap();
         construct_block(&chain, &mut mem_pool, Vec::default())
             .await
             .unwrap()
@@ -952,7 +951,7 @@ async fn test_no_output_withdrawal_cell() {
     ctx.verify_tx(tx).expect("pass");
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_output_withdrawal_cell_found() {
     init_env_log();
 
@@ -988,7 +987,7 @@ async fn test_output_withdrawal_cell_found() {
         let mem_pool = chain.mem_pool().as_ref().unwrap();
         let mut mem_pool = mem_pool.lock().await;
         mem_pool.push_withdrawal_request(withdrawal).await.unwrap();
-        mem_pool.reset_mem_block().await.unwrap();
+        mem_pool.reset_mem_block(&Default::default()).await.unwrap();
         construct_block(&chain, &mut mem_pool, Vec::default())
             .await
             .unwrap()
@@ -1111,7 +1110,7 @@ async fn test_output_withdrawal_cell_found() {
     assert_error_eq!(err, expected_err);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_withdrawal_owner_lock_not_found() {
     init_env_log();
 
@@ -1147,7 +1146,7 @@ async fn test_withdrawal_owner_lock_not_found() {
         let mem_pool = chain.mem_pool().as_ref().unwrap();
         let mut mem_pool = mem_pool.lock().await;
         mem_pool.push_withdrawal_request(withdrawal).await.unwrap();
-        mem_pool.reset_mem_block().await.unwrap();
+        mem_pool.reset_mem_block(&Default::default()).await.unwrap();
         construct_block(&chain, &mut mem_pool, Vec::default())
             .await
             .unwrap()
@@ -1273,7 +1272,7 @@ async fn test_withdrawal_owner_lock_not_found() {
     assert_error_eq!(err, expected_err);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_no_withdrawal_owner_lock_in_last_witness() {
     init_env_log();
 
@@ -1309,7 +1308,7 @@ async fn test_no_withdrawal_owner_lock_in_last_witness() {
         let mem_pool = chain.mem_pool().as_ref().unwrap();
         let mut mem_pool = mem_pool.lock().await;
         mem_pool.push_withdrawal_request(withdrawal).await.unwrap();
-        mem_pool.reset_mem_block().await.unwrap();
+        mem_pool.reset_mem_block(&Default::default()).await.unwrap();
         construct_block(&chain, &mut mem_pool, Vec::default())
             .await
             .unwrap()
@@ -1425,7 +1424,7 @@ async fn test_no_withdrawal_owner_lock_in_last_witness() {
     assert_error_eq!(err, expected_err);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_allow_input_reverted_withdrawal_cell() {
     init_env_log();
 
@@ -1695,24 +1694,8 @@ async fn setup_test_env() -> TestEnv {
             .await
             .unwrap()
     };
-    let apply_deposits = L1Action {
-        context: L1ActionContext::SubmitBlock {
-            l2block: block_result.block.clone(),
-            deposit_requests: vec![deposit],
-            deposit_asset_scripts: Default::default(),
-            withdrawals: Default::default(),
-        },
-        transaction: build_sync_tx(rollup_cell.to_gw(), block_result),
-        l2block_committed_info: L2BlockCommittedInfo::new_builder()
-            .number(1u64.pack())
-            .build(),
-    };
-    let param = SyncParam {
-        updates: vec![apply_deposits],
-        reverts: Default::default(),
-    };
-    chain.sync(param).await.unwrap();
-    assert!(chain.last_sync_event().is_success());
+    let asset_scripts = Default::default();
+    apply_block_result(&mut chain, block_result, vec![deposit], asset_scripts).await;
 
     TestEnv {
         rollup_type_script,
