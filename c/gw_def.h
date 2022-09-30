@@ -106,6 +106,38 @@ typedef int (*gw_create_fn)(struct gw_context_t *ctx, uint8_t *script,
                             uint64_t script_len, uint32_t *account_id);
 
 /**
+ * @param input  two curve points (x, y)
+ * @param output curve point x + y, where + is point addition on the elliptic curve
+ * 
+ * Fails on invalid input
+ */
+typedef int (*gw_bn_add)(const uint8_t *input, const size_t input_size,
+                         uint8_t *output);
+
+/**
+ * @param Input  two curve points (x, y)
+ * @param output curve point s * x, where * is the scalar multiplication on the elliptic curve
+ * 
+ * Fails on invalid input
+ */
+typedef int (*gw_bn_mul)(const uint8_t *input, const size_t input_size,
+                         uint8_t *output);
+
+/**
+ * @param input  Input: (a1, b1, a2, b2, ..., ak, bk) from (G_1 x G_2)^k
+ *               Note that k is the input_size divided by 192
+ * @param output curve point s * x, where * is the scalar multiplication on the elliptic curve
+ * 
+ * @return Empty input is valid and results in returning one.
+ * 
+ * Fails on:
+ *   1. the input_size is not a multiple of 192
+ *   2. any of the inputs are not elements of the respective group are not encoded correctly
+ */
+typedef int (*gw_bn_pairing)(const uint8_t *input, const size_t input_size,
+                             uint8_t *output);
+
+/**
  * Load value by key from current contract account
  *
  * @param ctx        The godwoken context

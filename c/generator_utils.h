@@ -35,6 +35,10 @@
 #define GW_SYS_PAY_FEE 3501
 #define GW_SYS_LOG 3502
 #define GW_SYS_RECOVER_ACCOUNT 3503
+/* Syscall for make use the Barreto-Naehrig (BN) curve construction */
+#define GW_SYS_BN_ADD          3601
+#define GW_SYS_BN_MUL          3602
+#define GW_SYS_BN_PAIRING      3603
 
 typedef struct gw_context_t {
   /* verification context */
@@ -57,6 +61,9 @@ typedef struct gw_context_t {
   gw_store_data_fn sys_store_data;
   gw_get_block_hash_fn sys_get_block_hash;
   gw_recover_account_fn sys_recover_account;
+  gw_bn_add sys_bn_add;
+  gw_bn_mul sys_bn_mul;
+  gw_bn_pairing sys_bn_pairing;
   gw_log_fn sys_log;
   gw_pay_fee_fn sys_pay_fee;
   gw_get_registry_address_by_script_hash_fn
@@ -346,6 +353,30 @@ int sys_recover_account(struct gw_context_t *ctx, uint8_t message[32],
   return ret;
 }
 
+int sys_bn_add(const uint8_t *input, const size_t input_size,
+               uint8_t *output) {
+  volatile uint64_t output_len = 64;
+  return syscall(GW_SYS_BN_ADD,
+                 output, &output_len, 0 /* offset */,
+                 input, input_size, 0);
+}
+
+int sys_bn_mul(const uint8_t *input, const size_t input_size,
+               uint8_t *output) {
+  volatile uint64_t output_len = 64;
+  return syscall(GW_SYS_BN_MUL,
+                 output, &output_len, 0 /* offset */,
+                 input, input_size, 0);
+}
+
+int sys_bn_pairing(const uint8_t *input, const size_t input_size,
+                   uint8_t *output) {
+  volatile uint64_t output_size = 32;
+  return syscall(GW_SYS_BN_PAIRING,
+                 output, &output_size, 0/* offset */,
+                 input, input_size, 0);
+}
+
 int sys_log(gw_context_t *ctx, uint32_t account_id, uint8_t service_flag,
             uint64_t data_length, const uint8_t *data) {
   if (ctx == NULL) {
@@ -415,6 +446,9 @@ int gw_context_init(gw_context_t *ctx) {
   ctx->sys_load_data = sys_load_data;
   ctx->sys_get_block_hash = sys_get_block_hash;
   ctx->sys_recover_account = sys_recover_account;
+  ctx->sys_bn_add = sys_bn_add;
+  ctx->sys_bn_mul = sys_bn_mul;
+  ctx->sys_bn_pairing = sys_bn_pairing;
   ctx->sys_pay_fee = sys_pay_fee;
   ctx->sys_log = sys_log;
   ctx->sys_get_registry_address_by_script_hash =
