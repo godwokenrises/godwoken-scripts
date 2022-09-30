@@ -551,14 +551,12 @@ int sys_recover_account(gw_context_t *ctx, uint8_t message[32],
   return GW_FATAL_SIGNATURE_CELL_NOT_FOUND;
 }
 
-int sys_bn_add(const uint8_t *input, const size_t input_size,
-               uint8_t *output) {
+int sys_bn_add(const uint8_t *input, const size_t input_size, uint8_t *output) {
   // TODO
   return GW_UNIMPLEMENTED;
 }
 
-int sys_bn_mul(const uint8_t *input, const size_t input_size,
-               uint8_t *output) {
+int sys_bn_mul(const uint8_t *input, const size_t input_size, uint8_t *output) {
   // TODO
   return GW_UNIMPLEMENTED;
 }

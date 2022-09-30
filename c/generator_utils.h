@@ -36,9 +36,9 @@
 #define GW_SYS_LOG 3502
 #define GW_SYS_RECOVER_ACCOUNT 3503
 /* Syscall for make use the Barreto-Naehrig (BN) curve construction */
-#define GW_SYS_BN_ADD          3601
-#define GW_SYS_BN_MUL          3602
-#define GW_SYS_BN_PAIRING      3603
+#define GW_SYS_BN_ADD 3601
+#define GW_SYS_BN_MUL 3602
+#define GW_SYS_BN_PAIRING 3603
 
 typedef struct gw_context_t {
   /* verification context */
@@ -353,27 +353,20 @@ int sys_recover_account(struct gw_context_t *ctx, uint8_t message[32],
   return ret;
 }
 
-int sys_bn_add(const uint8_t *input, const size_t input_size,
-               uint8_t *output) {
+int sys_bn_add(const uint8_t *input, const size_t input_size, uint8_t *output) {
   volatile uint64_t output_len = 64;
-  return syscall(GW_SYS_BN_ADD,
-                 output, &output_len, 0 /* offset */,
-                 input, input_size, 0);
+  return syscall(GW_SYS_BN_ADD, output, &output_len, 0, input, input_size, 0);
 }
 
-int sys_bn_mul(const uint8_t *input, const size_t input_size,
-               uint8_t *output) {
+int sys_bn_mul(const uint8_t *input, const size_t input_size, uint8_t *output) {
   volatile uint64_t output_len = 64;
-  return syscall(GW_SYS_BN_MUL,
-                 output, &output_len, 0 /* offset */,
-                 input, input_size, 0);
+  return syscall(GW_SYS_BN_MUL, output, &output_len, 0, input, input_size, 0);
 }
 
 int sys_bn_pairing(const uint8_t *input, const size_t input_size,
                    uint8_t *output) {
   volatile uint64_t output_size = 32;
-  return syscall(GW_SYS_BN_PAIRING,
-                 output, &output_size, 0/* offset */,
+  return syscall(GW_SYS_BN_PAIRING, output, &output_size, 0 /* offset = 0 */,
                  input, input_size, 0);
 }
 
