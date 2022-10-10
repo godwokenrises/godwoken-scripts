@@ -155,7 +155,7 @@ int sys_set_program_return_data(gw_context_t *ctx, uint8_t *data,
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
   }
-  if (len > GW_MAX_DATA_SIZE) {
+  if (len > GW_MAX_RETURN_DATA_SIZE) {
     printf("Exceeded max return data size");
     return GW_FATAL_BUFFER_OVERFLOW;
   }
