@@ -551,6 +551,12 @@ impl BlockWithdrawals {
             post_last_finalized_withdrawal.block_number().unpack(),
             post_last_finalized_withdrawal.withdrawal_index().unpack(),
         );
+        dbg!(
+            prev_block_number,
+            prev_wth_idx,
+            post_block_number,
+            post_wth_idx
+        );
         assert!(prev_block_number <= post_block_number);
 
         let min_block_number = self.blocks.first().unwrap().raw().number().unpack();
@@ -617,23 +623,31 @@ impl BlockWithdrawals {
                             }
                         })
                         .unzip();
+                    // empty range
+                    if indices.is_empty() {
+                        (
+                            WithdrawalRequestVec::default(),
+                            CKBMerkleProof::default(),
+                            vec![],
+                        )
+                    } else {
+                        println!("indices {:?} leaves {}", indices, leaves.len());
+                        let proof = CBMT::build_merkle_proof(&leaves, &indices).unwrap();
+                        let cbmt_proof = CKBMerkleProof::new_builder()
+                            .lemmas(proof.lemmas().pack())
+                            .indices(proof.indices().pack())
+                            .build();
 
-                    println!("indices {:?} leaves {}", indices, leaves.len());
-                    let proof = CBMT::build_merkle_proof(&leaves, &indices).unwrap();
-                    let cbmt_proof = CKBMerkleProof::new_builder()
-                        .lemmas(proof.lemmas().pack())
-                        .indices(proof.indices().pack())
-                        .build();
+                        let cells = withdrawal_cells.iter().enumerate().filter_map(|(i, w)| {
+                            if i >= start as usize && i <= end as usize {
+                                Some(w.to_owned())
+                            } else {
+                                None
+                            }
+                        });
 
-                    let cells = withdrawal_cells.iter().enumerate().filter_map(|(i, w)| {
-                        if i >= start as usize && i <= end as usize {
-                            Some(w.to_owned())
-                        } else {
-                            None
-                        }
-                    });
-
-                    (proof_withdrawals.pack(), cbmt_proof, cells.collect())
+                        (proof_withdrawals.pack(), cbmt_proof, cells.collect())
+                    }
                 }
                 Some(_) | None => (
                     WithdrawalRequestVec::default(),

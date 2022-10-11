@@ -6,8 +6,8 @@ use gw_types::prelude::{Builder, Pack, Unpack};
 use super::{TestCase, BLOCK_ALL_WITHDRAWALS, CKB, FINALITY_BLOCKS};
 
 use super::ERROR_MERKLE_PROOF;
-const ERROR_INVALID_LAST_FINALIZED_WITHDRAWAL: i8 = 46;
-const ERROR_INVALID_ROLLUP_FINALIZE_WITHDRAWAL_WITNESS: i8 = 47;
+const ERROR_INVALID_FINALIZED_WITHDRAWAL_CURSOR: i8 = 46;
+const ERROR_INVALID_WITHDRAWALS_WITNESS: i8 = 47;
 
 #[test]
 #[ignore = "unable to pass block proof verification"]
@@ -40,7 +40,7 @@ fn test_invalid_block_number() {
             .last_finalized_withdrawal(err_post_last_finalized_withdrawal)
             .build();
 
-        expect_err!(test_case, ERROR_INVALID_LAST_FINALIZED_WITHDRAWAL);
+        expect_err!(test_case, ERROR_INVALID_FINALIZED_WITHDRAWAL_CURSOR);
     }
 
     // post block > last finalized block number
@@ -60,7 +60,7 @@ fn test_invalid_block_number() {
         .last_finalized_withdrawal(err_post_last_finalized_withdrawal)
         .build();
 
-    expect_err!(test_case, ERROR_INVALID_LAST_FINALIZED_WITHDRAWAL);
+    expect_err!(test_case, ERROR_INVALID_FINALIZED_WITHDRAWAL_CURSOR);
 }
 
 mod same_block {
@@ -83,84 +83,6 @@ mod same_block {
     fn test_valid_case() {
         let test_case = sample_case();
         test_case.verify().expect("pass");
-
-        // prev index == BLOCK_ALL_WITHDRAWAL
-        {
-            let mut test_case = test_case.clone();
-            let modified_prev_last_finalized_withdrawal = test_case
-                .prev_global_state
-                .last_finalized_withdrawal()
-                .as_builder()
-                .withdrawal_index(BLOCK_ALL_WITHDRAWALS.pack())
-                .build();
-
-            test_case.prev_global_state = test_case
-                .prev_global_state
-                .as_builder()
-                .last_finalized_withdrawal(modified_prev_last_finalized_withdrawal)
-                .build();
-
-            test_case.verify().expect("pass");
-        }
-
-        // post last withdrawal index
-        {
-            let last_withdrawal_index = {
-                let withdrawals = test_case.builder.withdrawals.get(&1).unwrap();
-                withdrawals.len().saturating_sub(1) as u32
-            };
-
-            let test_case = test_case
-                .clone()
-                .into_builder()
-                .post_last_finalized_withdrawal(1, last_withdrawal_index)
-                .build();
-
-            test_case.verify().expect("pass");
-        }
-
-        // post index == prev index (BLOCK_ALL_WITHDRAWALS == last withdrawal index)
-        {
-            let mut test_case = test_case
-                .clone()
-                .into_builder()
-                .push_withdrawal(3, 100, 0)
-                .push_withdrawal(3, 100, 0)
-                .push_withdrawal(3, 100, 0)
-                .last_finalized_block(3)
-                .prev_last_finalized_withdrawal(3, 1)
-                .post_last_finalized_withdrawal(3, 2)
-                .build();
-            test_case.verify().expect("pass");
-
-            let err_prev_last_finalized_withdrawal = test_case
-                .prev_global_state
-                .last_finalized_withdrawal()
-                .as_builder()
-                .withdrawal_index(2u32.pack())
-                .build();
-
-            test_case.prev_global_state = test_case
-                .prev_global_state
-                .as_builder()
-                .last_finalized_withdrawal(err_prev_last_finalized_withdrawal)
-                .build();
-
-            let err_post_last_finalized_withdrawal = test_case
-                .post_global_state
-                .last_finalized_withdrawal()
-                .as_builder()
-                .withdrawal_index(BLOCK_ALL_WITHDRAWALS.pack())
-                .build();
-
-            test_case.post_global_state = test_case
-                .post_global_state
-                .as_builder()
-                .last_finalized_withdrawal(err_post_last_finalized_withdrawal)
-                .build();
-
-            test_case.verify().expect("pass");
-        }
 
         // post BLOCK_ALL_WITHDRAWALS
         let test_case = test_case
@@ -192,18 +114,31 @@ mod same_block {
             .last_finalized_withdrawal(err_post_last_finalized_withdrawal)
             .build();
 
-        expect_err!(test_case, ERROR_INVALID_ROLLUP_FINALIZE_WITHDRAWAL_WITNESS);
-    }
-
-    #[test]
-    #[ignore = "already checked before enter this logic"]
-    fn test_invalid_prev_index_withdrawal_index_no_withdrawal() {
-        unreachable!()
+        expect_err!(test_case, ERROR_INVALID_WITHDRAWALS_WITNESS);
     }
 
     #[test]
     fn test_invalid_index() {
         let test_case = sample_case();
+
+        // prev index == BLOCK_ALL_WITHDRAWAL
+        {
+            let mut test_case = test_case.clone();
+            let modified_prev_last_finalized_withdrawal = test_case
+                .prev_global_state
+                .last_finalized_withdrawal()
+                .as_builder()
+                .withdrawal_index(BLOCK_ALL_WITHDRAWALS.pack())
+                .build();
+
+            test_case.prev_global_state = test_case
+                .prev_global_state
+                .as_builder()
+                .last_finalized_withdrawal(modified_prev_last_finalized_withdrawal)
+                .build();
+
+            expect_err!(test_case, ERROR_INVALID_WITHDRAWALS_WITNESS);
+        }
 
         // post index == WithdrawalIndex::NoWithdrawal
         {
@@ -232,7 +167,50 @@ mod same_block {
                 .last_finalized_withdrawal(err_prev_last_finalized_withdrawal)
                 .build();
 
-            expect_err!(test_case, ERROR_INVALID_ROLLUP_FINALIZE_WITHDRAWAL_WITNESS);
+            expect_err!(test_case, ERROR_INVALID_FINALIZED_WITHDRAWAL_CURSOR);
+        }
+
+        // post index == prev index (BLOCK_ALL_WITHDRAWALS == last withdrawal index)
+        {
+            let mut test_case = test_case
+                .clone()
+                .into_builder()
+                .push_withdrawal(3, 100, 0)
+                .push_withdrawal(3, 100, 0)
+                .push_withdrawal(3, 100, 0)
+                .last_finalized_block(3)
+                .prev_last_finalized_withdrawal(3, 1)
+                .post_last_finalized_withdrawal(3, 2)
+                .build();
+            expect_err!(test_case, ERROR_INVALID_FINALIZED_WITHDRAWAL_CURSOR);
+
+            let err_prev_last_finalized_withdrawal = test_case
+                .prev_global_state
+                .last_finalized_withdrawal()
+                .as_builder()
+                .withdrawal_index(2u32.pack())
+                .build();
+
+            test_case.prev_global_state = test_case
+                .prev_global_state
+                .as_builder()
+                .last_finalized_withdrawal(err_prev_last_finalized_withdrawal)
+                .build();
+
+            let err_post_last_finalized_withdrawal = test_case
+                .post_global_state
+                .last_finalized_withdrawal()
+                .as_builder()
+                .withdrawal_index(BLOCK_ALL_WITHDRAWALS.pack())
+                .build();
+
+            test_case.post_global_state = test_case
+                .post_global_state
+                .as_builder()
+                .last_finalized_withdrawal(err_post_last_finalized_withdrawal)
+                .build();
+
+            expect_err!(test_case, ERROR_INVALID_FINALIZED_WITHDRAWAL_CURSOR);
         }
 
         // post index < prev index
@@ -258,7 +236,7 @@ mod same_block {
                 .last_finalized_withdrawal(err_prev_last_finalized_withdrawal)
                 .build();
 
-            expect_err!(test_case, ERROR_INVALID_LAST_FINALIZED_WITHDRAWAL);
+            expect_err!(test_case, ERROR_INVALID_FINALIZED_WITHDRAWAL_CURSOR);
         }
 
         // prev index > last withdrawal index
@@ -291,7 +269,7 @@ mod same_block {
                 .last_finalized_withdrawal(err_post_last_finalized_withdrawal)
                 .build();
 
-            expect_err!(test_case, ERROR_INVALID_ROLLUP_FINALIZE_WITHDRAWAL_WITNESS);
+            expect_err!(test_case, ERROR_INVALID_FINALIZED_WITHDRAWAL_CURSOR);
         }
 
         // post index > last withdrawal index
@@ -311,7 +289,7 @@ mod same_block {
                 .last_finalized_withdrawal(err_post_last_finalized_withdrawal)
                 .build();
 
-            expect_err!(test_case, ERROR_INVALID_LAST_FINALIZED_WITHDRAWAL);
+            expect_err!(test_case, ERROR_INVALID_FINALIZED_WITHDRAWAL_CURSOR);
         }
     }
 
@@ -346,7 +324,7 @@ mod same_block {
             finalize_withdrawal
         };
 
-        expect_err!(test_case, ERROR_INVALID_ROLLUP_FINALIZE_WITHDRAWAL_WITNESS);
+        expect_err!(test_case, ERROR_INVALID_WITHDRAWALS_WITNESS);
     }
 }
 
@@ -398,21 +376,6 @@ mod across_blocks {
             test_case.verify().expect("pass");
         }
 
-        // prev last withdrawal index
-        {
-            let last_withdrawal_index = {
-                let withdrawals = test_case.builder.withdrawals.get(&1).unwrap();
-                withdrawals.len().saturating_sub(1) as u32
-            };
-
-            let test_case = test_case
-                .clone()
-                .into_builder()
-                .prev_last_finalized_withdrawal(1, last_withdrawal_index)
-                .build();
-            test_case.verify().expect("pass");
-        }
-
         // post BLOCK_ALL_WITHDRAWAL (no withdrawal)
         {
             let test_case = test_case
@@ -429,20 +392,6 @@ mod across_blocks {
                 .clone()
                 .into_builder()
                 .post_last_finalized_withdrawal(4, BLOCK_ALL_WITHDRAWALS)
-                .build();
-            test_case.verify().expect("pass");
-        }
-
-        // post last withdrawal index
-        {
-            let last_withdrawal_index = {
-                let withdrawals = test_case.builder.withdrawals.get(&4).unwrap();
-                withdrawals.len().saturating_sub(1) as u32
-            };
-
-            let test_case = test_case
-                .into_builder()
-                .post_last_finalized_withdrawal(4, last_withdrawal_index)
                 .build();
             test_case.verify().expect("pass");
         }
@@ -480,7 +429,7 @@ mod across_blocks {
             .last_finalized_withdrawal(err_prev_index)
             .build();
 
-        expect_err!(test_case, ERROR_INVALID_ROLLUP_FINALIZE_WITHDRAWAL_WITNESS);
+        expect_err!(test_case, ERROR_INVALID_WITHDRAWALS_WITNESS);
     }
 
     #[test]
@@ -538,7 +487,7 @@ mod across_blocks {
                 .last_finalized_withdrawal(err_prev_index)
                 .build();
 
-            expect_err!(test_case, ERROR_INVALID_ROLLUP_FINALIZE_WITHDRAWAL_WITNESS);
+            expect_err!(test_case, ERROR_INVALID_FINALIZED_WITHDRAWAL_CURSOR);
         }
 
         // prev index > last withdrawal index
@@ -560,7 +509,7 @@ mod across_blocks {
                 .last_finalized_withdrawal(err_prev_index)
                 .build();
 
-            expect_err!(test_case, ERROR_INVALID_ROLLUP_FINALIZE_WITHDRAWAL_WITNESS);
+            expect_err!(test_case, ERROR_INVALID_FINALIZED_WITHDRAWAL_CURSOR);
         }
     }
 
@@ -587,12 +536,13 @@ mod across_blocks {
                 .last_finalized_withdrawal(err_post_index)
                 .build();
 
-            expect_err!(test_case, ERROR_INVALID_LAST_FINALIZED_WITHDRAWAL);
+            expect_err!(test_case, ERROR_INVALID_FINALIZED_WITHDRAWAL_CURSOR);
         }
 
         // post index > last withdrawal index
         {
             let mut test_case = test_case
+                .clone()
                 .into_builder()
                 .post_last_finalized_withdrawal(2, BLOCK_ALL_WITHDRAWALS)
                 .build();
@@ -613,7 +563,37 @@ mod across_blocks {
                 .last_finalized_withdrawal(err_post_index)
                 .build();
 
-            expect_err!(test_case, ERROR_INVALID_LAST_FINALIZED_WITHDRAWAL);
+            expect_err!(test_case, ERROR_INVALID_FINALIZED_WITHDRAWAL_CURSOR);
+        }
+
+        // post last withdrawal index
+        {
+            let last_withdrawal_index = {
+                let withdrawals = test_case.builder.withdrawals.get(&1).unwrap();
+                withdrawals.len().saturating_sub(1) as u32
+            };
+
+            let test_case = test_case
+                .clone()
+                .into_builder()
+                .post_last_finalized_withdrawal(1, last_withdrawal_index)
+                .build();
+
+            expect_err!(test_case, ERROR_INVALID_FINALIZED_WITHDRAWAL_CURSOR);
+        }
+
+        // post last withdrawal index
+        {
+            let last_withdrawal_index = {
+                let withdrawals = test_case.builder.withdrawals.get(&4).unwrap();
+                withdrawals.len().saturating_sub(1) as u32
+            };
+
+            let test_case = test_case
+                .into_builder()
+                .post_last_finalized_withdrawal(4, last_withdrawal_index)
+                .build();
+            expect_err!(test_case, ERROR_INVALID_FINALIZED_WITHDRAWAL_CURSOR);
         }
     }
 
@@ -636,7 +616,7 @@ mod across_blocks {
             .last_finalized_withdrawal(err_post_index)
             .build();
 
-        expect_err!(test_case, ERROR_INVALID_ROLLUP_FINALIZE_WITHDRAWAL_WITNESS);
+        expect_err!(test_case, ERROR_INVALID_WITHDRAWALS_WITNESS);
     }
 
     #[test]
@@ -663,7 +643,7 @@ mod across_blocks {
             .build();
 
         // witnes wrong block
-        expect_err!(test_case, ERROR_INVALID_ROLLUP_FINALIZE_WITHDRAWAL_WITNESS);
+        expect_err!(test_case, ERROR_INVALID_WITHDRAWALS_WITNESS);
     }
 }
 
@@ -696,6 +676,22 @@ mod check_inclusive_range_withdrawals {
     fn test_invalid_index() {
         let test_case = sample_case();
 
+        // must using all to represent the last index
+        {
+            let prev_withdrawal_index = {
+                let withdrawals = test_case.builder.withdrawals.get(&1).unwrap();
+                withdrawals.len().saturating_sub(1) as u32
+            };
+
+            let test_case = test_case
+                .clone()
+                .into_builder()
+                .prev_last_finalized_withdrawal(1, prev_withdrawal_index)
+                .post_last_finalized_withdrawal(1, BLOCK_ALL_WITHDRAWALS)
+                .build();
+            expect_err!(test_case, ERROR_INVALID_FINALIZED_WITHDRAWAL_CURSOR);
+        }
+
         // start > last withdrawal index
         {
             let mut test_case = test_case.clone();
@@ -726,7 +722,7 @@ mod check_inclusive_range_withdrawals {
                 .last_finalized_withdrawal(err_post_last_finalized_withdrawal)
                 .build();
 
-            expect_err!(test_case, ERROR_INVALID_ROLLUP_FINALIZE_WITHDRAWAL_WITNESS);
+            expect_err!(test_case, ERROR_INVALID_FINALIZED_WITHDRAWAL_CURSOR);
         }
 
         // end > last withdrawal index
@@ -746,7 +742,7 @@ mod check_inclusive_range_withdrawals {
                 .last_finalized_withdrawal(err_post_last_finalized_withdrawal)
                 .build();
 
-            expect_err!(test_case, ERROR_INVALID_LAST_FINALIZED_WITHDRAWAL);
+            expect_err!(test_case, ERROR_INVALID_FINALIZED_WITHDRAWAL_CURSOR);
         }
     }
 
@@ -805,7 +801,7 @@ mod check_inclusive_range_withdrawals {
             .last_finalized_withdrawal(post)
             .build();
 
-        expect_err!(test_case, ERROR_INVALID_ROLLUP_FINALIZE_WITHDRAWAL_WITNESS);
+        expect_err!(test_case, ERROR_INVALID_FINALIZED_WITHDRAWAL_CURSOR);
     }
 
     #[test]
@@ -838,7 +834,7 @@ mod check_inclusive_range_withdrawals {
                 finalize_withdrawal
             };
 
-            expect_err!(test_case, ERROR_INVALID_ROLLUP_FINALIZE_WITHDRAWAL_WITNESS);
+            expect_err!(test_case, ERROR_INVALID_WITHDRAWALS_WITNESS);
         }
 
         // Skip withdrawals
@@ -863,7 +859,7 @@ mod check_inclusive_range_withdrawals {
                 finalize_withdrawal
             };
 
-            expect_err!(test_case, ERROR_INVALID_ROLLUP_FINALIZE_WITHDRAWAL_WITNESS);
+            expect_err!(test_case, ERROR_INVALID_WITHDRAWALS_WITNESS);
         }
     }
 

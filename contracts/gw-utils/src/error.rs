@@ -53,7 +53,7 @@ pub enum Error {
     RegistryAddressNotFound = 43,
     DuplicatedRegistryAddress = 44,
     InvalidGlobalStateVersion = 45,
-    InvalidLastFinalizedWithdrawal = 46,
+    FinalizeWithdrawal = 46,
     InvalidRollupFinalizeWithdrawalWitness = 47,
     InvalidUserWithdrawalCell = 48,
 }

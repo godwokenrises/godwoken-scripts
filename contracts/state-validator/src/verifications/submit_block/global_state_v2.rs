@@ -9,14 +9,12 @@ use gw_utils::{
     error::Error,
     gw_types::{
         packed::{
-            GlobalState, LastFinalizedWithdrawal, RawL2BlockReader, ScriptVecReader,
+            self, GlobalState, RawL2BlockReader, ScriptVecReader,
             WithdrawalRequestReader, WitnessArgsReader,
         },
         prelude::{Builder, Entity, Pack, Reader, Unpack},
     },
 };
-
-use crate::verifications::finalize_withdrawal::last_finalized_withdrawal::LAST_FINALIZED_WITHDRAWAL_INDEX_ALL_WITHDRAWALS;
 
 pub fn check_withdrawal_owner_lock<'a>(
     withdrawals: &[WithdrawalRequestReader<'a>],
@@ -45,14 +43,14 @@ pub fn can_upgrade_to_v2(prev_global_state: &GlobalState, post_global_state: &Gl
 pub fn upgrade_to_v2(global_state: GlobalState, raw_l2block: &RawL2BlockReader) -> GlobalState {
     let parent_block_number = raw_l2block.number().unpack().saturating_sub(1);
 
-    let last_finalized_withdrawal = LastFinalizedWithdrawal::new_builder()
+    let withdrawal_cursor = packed::WithdrawalCursor::new_builder()
         .block_number(parent_block_number.pack())
-        .withdrawal_index(LAST_FINALIZED_WITHDRAWAL_INDEX_ALL_WITHDRAWALS.pack())
+        .index(packed::WithdrawalCursor::ALL_WITHDRAWALS.pack())
         .build();
 
     global_state
         .as_builder()
-        .last_finalized_withdrawal(last_finalized_withdrawal)
+        .finalized_withdrawal_cursor(withdrawal_cursor)
         .version(2u8.into())
         .build()
 }
