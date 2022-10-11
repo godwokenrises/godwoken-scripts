@@ -12,8 +12,9 @@ use gw_utils::{
     },
 };
 
-pub mod last_finalized_withdrawal;
+pub mod withdrawal_cursor;
 mod user_withdrawal_cells;
+mod types;
 
 #[must_use]
 pub fn verify(
@@ -36,11 +37,15 @@ pub fn verify(
 
     // Check global state `last_finalized_withdrawal` and witness withdrawals proof
     let last_finalized_block_number = prev_global_state.last_finalized_block_number().unpack();
-    last_finalized_withdrawal::check(
+    withdrawal_cursor::check(
         last_finalized_block_number,
         &args.block_withdrawals(),
-        prev_global_state.last_finalized_withdrawal(),
-        post_global_state.last_finalized_withdrawal(),
+        prev_global_state
+            .finalized_withdrawal_cursor()
+            .unpack_cursor(),
+        post_global_state
+            .finalized_withdrawal_cursor()
+            .unpack_cursor(),
     )?;
 
     // Check input/output custodian cells and output user withdrawal cells
@@ -54,7 +59,7 @@ pub fn verify(
     // Check global state, must only update `last_finalized_withdrawal`
     let expected_post_global_state = prev_global_state
         .as_builder()
-        .last_finalized_withdrawal(post_global_state.last_finalized_withdrawal())
+        .finalized_withdrawal_cursor(post_global_state.finalized_withdrawal_cursor())
         .build();
     if expected_post_global_state.as_slice() != post_global_state.as_slice() {
         debug!("global state update extra field(s)");

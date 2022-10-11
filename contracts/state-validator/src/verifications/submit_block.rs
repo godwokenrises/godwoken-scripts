@@ -10,7 +10,9 @@ use gw_utils::cells::utils::build_assets_map_from_cells;
 use gw_utils::ckb_std::high_level::load_input_since;
 use gw_utils::ckb_std::since::{LockValue, Since};
 use gw_utils::gw_common::registry_address::RegistryAddress;
-use gw_utils::gw_types::packed::{L2BlockReader, LastFinalizedWithdrawal, WithdrawalRequestReader};
+use gw_utils::gw_types::packed::{
+    L2BlockReader, WithdrawalRequestReader,
+};
 
 // Import CKB syscalls and structures
 // https://nervosnetwork.github.io/ckb-std/riscv64imac-unknown-none-elf/doc/ckb_std/index.html
@@ -44,7 +46,7 @@ use gw_common::{
 use gw_types::{
     bytes::Bytes,
     core::{ScriptHashType, Status},
-    packed::{Byte32, GlobalState, RawL2Block, RollupConfig},
+    packed::{self, Byte32, GlobalState, RawL2Block, RollupConfig},
     prelude::*,
 };
 
@@ -760,10 +762,10 @@ pub fn verify(
         .check_prev_last_finalized_withdrawal_field_is_default()
     {
         debug!("check last finalized withdrawal field is default");
-        if prev_global_state.last_finalized_withdrawal().as_slice()
-            != LastFinalizedWithdrawal::default().as_slice()
+        if prev_global_state.finalized_withdrawal_cursor().as_slice()
+            != packed::WithdrawalCursor::default().as_slice()
         {
-            return Err(Error::InvalidLastFinalizedWithdrawal);
+            return Err(Error::FinalizeWithdrawal);
         }
     }
 
@@ -846,11 +848,11 @@ pub fn verify(
             .build()
     };
     if global_state_v2::can_upgrade_to_v2(&prev_global_state, &post_global_state) {
-        if prev_global_state.last_finalized_withdrawal().as_slice()
-            != LastFinalizedWithdrawal::default().as_slice()
+        if prev_global_state.finalized_withdrawal_cursor().as_slice()
+            != packed::WithdrawalCursor::default().as_slice()
         {
             debug!("unreachable prev last finalized withdrawal field isn't default");
-            return Err(Error::InvalidLastFinalizedWithdrawal);
+            return Err(Error::FinalizeWithdrawal);
         }
 
         actual_post_global_state =
