@@ -4,9 +4,12 @@ use gw_common::{
     H256,
 };
 use gw_types::{
-    core::Status,
+    core::{Status, Timepoint},
     packed::{BlockMerkleState, Byte32, GlobalState, RawL2Block, RollupConfig},
     prelude::*,
+};
+use gw_utils::finality::{
+    finality_as_blocks, finality_as_duration, obtain_max_timestamp_of_header_deps,
 };
 use gw_utils::gw_types;
 use gw_utils::{
@@ -247,12 +250,22 @@ fn check_reverted_blocks(
     };
     let account_merkle_state = reverted_blocks[0].prev_account();
     let tip_block_hash = reverted_blocks[0].parent_block_hash();
-    let last_finalized_block_number = {
-        let number: u64 = reverted_blocks[0].number().unpack();
-        number
+    let version: u8 = prev_global_state.version().into();
+    let last_finalized = if version < 2 {
+        let tip_number: u64 = reverted_blocks[0].number().unpack();
+        let finalized_number = tip_number
             .saturating_sub(1)
-            .saturating_sub(config.finality_blocks().unpack())
+            .saturating_sub(finality_as_blocks(&config));
+        Timepoint::from_block_number(finalized_number)
+    } else {
+        let l1_timestamp = match obtain_max_timestamp_of_header_deps() {
+            Some(timestamp) => timestamp,
+            None => return Err(Error::HeaderDepsNotFound),
+        };
+        let finalized_timestamp = l1_timestamp.saturating_sub(finality_as_duration(&config));
+        Timepoint::from_timestamp(finalized_timestamp)
     };
+
     let new_tip_block = revert_args.new_tip_block();
     if new_tip_block.hash() != tip_block_hash.as_slice() {
         debug!("[verify revert] reverted new_tip_block doesn't match");
@@ -269,7 +282,7 @@ fn check_reverted_blocks(
             .block(block_merkle_state)
             .tip_block_hash(tip_block_hash.to_entity())
             .tip_block_timestamp(tip_block_timestamp.to_entity())
-            .last_finalized_block_number(last_finalized_block_number.pack())
+            .last_finalized_block_number(last_finalized.full_value().pack())
             .reverted_block_root(reverted_block_root)
             .status(status.into())
             .build()
