@@ -10,9 +10,7 @@ use gw_utils::cells::utils::build_assets_map_from_cells;
 use gw_utils::ckb_std::high_level::load_input_since;
 use gw_utils::ckb_std::since::{LockValue, Since};
 use gw_utils::gw_common::registry_address::RegistryAddress;
-use gw_utils::gw_types::packed::{
-    L2BlockReader, WithdrawalRequestReader,
-};
+use gw_utils::gw_types::packed::{L2BlockReader, WithdrawalRequestReader};
 
 // Import CKB syscalls and structures
 // https://nervosnetwork.github.io/ckb-std/riscv64imac-unknown-none-elf/doc/ckb_std/index.html

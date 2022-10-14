@@ -12,9 +12,9 @@ use gw_utils::{
     },
 };
 
-pub mod withdrawal_cursor;
-mod user_withdrawal_cells;
 mod types;
+mod user_withdrawal_cells;
+pub mod withdrawal_cursor;
 
 #[must_use]
 pub fn verify(

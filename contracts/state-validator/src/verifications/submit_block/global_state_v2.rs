@@ -9,8 +9,8 @@ use gw_utils::{
     error::Error,
     gw_types::{
         packed::{
-            self, GlobalState, RawL2BlockReader, ScriptVecReader,
-            WithdrawalRequestReader, WitnessArgsReader,
+            self, GlobalState, RawL2BlockReader, ScriptVecReader, WithdrawalRequestReader,
+            WitnessArgsReader,
         },
         prelude::{Builder, Entity, Pack, Reader, Unpack},
     },
