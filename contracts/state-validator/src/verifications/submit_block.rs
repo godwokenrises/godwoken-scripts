@@ -194,11 +194,21 @@ fn check_output_custodian_cells(
                 .unwrap_or(false)
             });
     // check deposits request cells == unfinalized custodian cells
+    // check l2block's timepoint == unfinalized custodian cells' deposit_block_number
+    // check l2block's block_hash == unfinalized custodian cells' deposit_block_hash
+    let expected_timepoint = if context.post_version < 2 {
+        Timepoint::from_block_number(context.number)
+    } else {
+        Timepoint::from_timestamp(context.timestamp)
+    };
     for custodian_cell in unfinalized_custodian_cells {
         let index = deposit_cells
             .iter()
             .position(|cell| {
                 custodian_cell.args.deposit_lock_args() == cell.args
+                    && custodian_cell.args.deposit_block_hash() == context.block_hash.pack()
+                    && custodian_cell.args.deposit_block_number().unpack()
+                        == expected_timepoint.full_value()
                     && custodian_cell.value == cell.value
             })
             .ok_or(Error::InvalidCustodianCell)?;
