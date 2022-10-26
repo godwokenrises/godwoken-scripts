@@ -173,7 +173,7 @@ pub fn main() -> Result<(), Error> {
                 &config,
                 &global_state,
                 &Timepoint::from_full_value(lock_args.withdrawal_block_number().unpack()),
-            )?;
+            );
             if !is_finalized {
                 return Err(Error::NotFinalized);
             }

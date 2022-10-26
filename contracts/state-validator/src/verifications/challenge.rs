@@ -49,11 +49,7 @@ pub fn verify_enter_challenge(
             challenged_block.number().unpack(),
         )
     } else {
-        is_timestamp_finalized(
-            config,
-            post_global_state,
-            challenged_block.timestamp().unpack(),
-        )?
+        is_timestamp_finalized(post_global_state, challenged_block.timestamp().unpack())
     };
     if is_block_finalized {
         debug!("cannot challenge a finalized block");

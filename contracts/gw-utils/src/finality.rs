@@ -4,22 +4,29 @@
 //!
 //! ## Check finality
 //!
-//! - post_version < 2, entity is number-based
-//!   Assert `post_global_state.block.count - 1 + FINALITY_CONFIGURATION >= entity.number`
+//! **IMPORTANT NOTE: Offchain and onchain checking logic must be consistent.**
 //!
-//! - post_version < 2, entity is time-based
-//!   Impossible
+//! - Entity is number-based, prev_global_state.last_finalized_block_number is number-based
 //!
-//! - post_version >= 2, entity is number-based
-//!   Assert `post_global_state.block.count - 1 + FINALITY_CONFIGURATION >= entity.number`
+//!   Assert entity's timepoint <= prev_global_state.last_finalized_block_number
 //!
-//! - post_version >= 2, entity is time-based
-//!   post_global_state.last_finalized_block_number must be time-based.
-//!   Assert `post_global_state.last_finalized_block_number + FINALITY_CONFIGURATION >= entity.time`
+//! - Entity is number-based, prev_global_state.last_finalized_block_number is timestamp-based
+//!
+//!   Instead of using prev_global_state.last_finalized_block_number, we choose prev_global_state.block.count as finality standard.
+//!
+//!   Assert entity's timepoint <= prev_global_state.block.count - 1 + FINALITY_REQUIREMENT
+//!
+//! - Entity is timestamp-based, prev_global_state.last_finalized_block_number is number-based
+//!
+//!   Currently swtiching version from v1 to v2, the entity is sure unfinalized.
+//!
+//! - Entity is timestamp-based, prev_global_state.last_finalized_block_number is timestamp-based
+//!
+//!   Assert entity's timepoint <= prev_global_state.last_finalized_block_number
 
-use crate::error::Error;
 use ckb_std::{
     ckb_constants::Source,
+    debug,
     high_level::{load_header, QueryIter},
 };
 use gw_types::core::Timepoint;
@@ -31,41 +38,40 @@ const BLOCK_INTERVAL_IN_MILLISECONDS: u64 = 36000;
 
 pub fn is_finalized(
     rollup_config: &RollupConfig,
-    global_state: &GlobalState,
+    prev_global_state: &GlobalState,
     timepoint: &Timepoint,
-) -> Result<bool, Error> {
+) -> bool {
     match timepoint {
-        Timepoint::BlockNumber(block_number) => Ok(is_block_number_finalized(
-            rollup_config,
-            global_state,
-            *block_number,
-        )),
-        Timepoint::Timestamp(timestamp) => {
-            is_timestamp_finalized(rollup_config, global_state, *timestamp)
+        Timepoint::BlockNumber(block_number) => {
+            is_block_number_finalized(rollup_config, prev_global_state, *block_number)
         }
+        Timepoint::Timestamp(timestamp) => is_timestamp_finalized(prev_global_state, *timestamp),
     }
 }
 
-pub fn is_timestamp_finalized(
-    rollup_config: &RollupConfig,
-    global_state: &GlobalState,
-    timestamp: u64,
-) -> Result<bool, Error> {
-    let finality = finality_as_duration(rollup_config);
-    match Timepoint::from_full_value(global_state.last_finalized_block_number().unpack()) {
-        Timepoint::BlockNumber(_) => Err(Error::InvalidPostGlobalState),
-        Timepoint::Timestamp(finalized) => Ok(timestamp <= finalized.saturating_add(finality)),
+pub fn is_timestamp_finalized(prev_global_state: &GlobalState, timestamp: u64) -> bool {
+    match Timepoint::from_full_value(prev_global_state.last_finalized_block_number().unpack()) {
+        Timepoint::BlockNumber(_) => {
+            debug!("[is_timestamp_finalized] switching version, prev_global_state.last_finalized_block_number is number-based");
+            false
+        }
+        Timepoint::Timestamp(finalized) => timestamp <= finalized,
     }
 }
 
 pub fn is_block_number_finalized(
     rollup_config: &RollupConfig,
-    global_state: &GlobalState,
+    prev_global_state: &GlobalState,
     block_number: u64,
 ) -> bool {
-    let finality = finality_as_blocks(rollup_config);
-    let tip_number: u64 = global_state.block().count().unpack().saturating_sub(1);
-    block_number.saturating_add(finality) <= tip_number
+    match Timepoint::from_full_value(prev_global_state.last_finalized_block_number().unpack()) {
+        Timepoint::BlockNumber(finalized) => block_number <= finalized,
+        Timepoint::Timestamp(_) => {
+            let finality = finality_as_blocks(rollup_config);
+            let tip_number: u64 = prev_global_state.block().count().unpack().saturating_sub(1);
+            block_number.saturating_add(finality) <= tip_number
+        }
+    }
 }
 
 pub fn finality_as_duration(rollup_config: &RollupConfig) -> u64 {

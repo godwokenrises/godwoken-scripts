@@ -127,7 +127,7 @@ fn check_withdrawal_cells<'a>(
 
 fn check_input_custodian_cells(
     config: &RollupConfig,
-    global_state: &GlobalState,
+    prev_global_state: &GlobalState,
     context: &BlockContext,
     output_withdrawal_cells: Vec<WithdrawalCell>,
 ) -> Result<BTreeMap<H256, u128>, Error> {
@@ -138,10 +138,9 @@ fn check_input_custodian_cells(
             .partition(|cell| {
                 is_finalized(
                     config,
-                    global_state,
+                    prev_global_state,
                     &Timepoint::from_full_value(cell.args.deposit_block_number().unpack()),
                 )
-                .unwrap_or(false)
             });
     // check unfinalized custodian cells == reverted deposit requests
     let mut reverted_deposit_cells =
@@ -176,7 +175,7 @@ fn check_input_custodian_cells(
 
 fn check_output_custodian_cells(
     config: &RollupConfig,
-    global_state: &GlobalState,
+    prev_global_state: &GlobalState,
     context: &BlockContext,
     mut deposit_cells: Vec<DepositRequestCell>,
     input_finalized_assets: BTreeMap<H256, u128>,
@@ -188,10 +187,9 @@ fn check_output_custodian_cells(
             .partition(|cell| {
                 is_finalized(
                     config,
-                    global_state,
+                    prev_global_state,
                     &Timepoint::from_full_value(cell.args.deposit_block_number().unpack()),
                 )
-                .unwrap_or(false)
             });
     // check deposits request cells == unfinalized custodian cells
     // check l2block's timepoint == unfinalized custodian cells' deposit_block_number
@@ -813,10 +811,10 @@ pub fn verify(
     let withdrawal_requests = withdrawal_requests_vec.iter().collect();
     check_withdrawal_cells(&context, withdrawal_requests, &withdrawal_cells)?;
     let input_finalized_assets =
-        check_input_custodian_cells(config, post_global_state, &context, withdrawal_cells)?;
+        check_input_custodian_cells(config, prev_global_state, &context, withdrawal_cells)?;
     check_output_custodian_cells(
         config,
-        post_global_state,
+        prev_global_state,
         &context,
         deposit_cells.clone(),
         input_finalized_assets,

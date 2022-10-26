@@ -65,7 +65,7 @@ pub fn main() -> Result<(), Error> {
         &config,
         &global_state,
         &Timepoint::from_full_value(lock_args.deposit_block_number().unpack()),
-    )?;
+    );
     if is_finalized {
         // this custodian lock is already finalized, rollup will handle the logic
         return Ok(());

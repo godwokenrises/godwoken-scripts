@@ -61,7 +61,7 @@ pub fn main() -> Result<(), Error> {
             &config,
             &global_state,
             &Timepoint::from_full_value(lock_args.stake_block_number().unpack()),
-        )?;
+        );
         if is_finalized
             && search_lock_hash(&lock_args.owner_lock_hash().unpack(), Source::Input).is_some()
         {
