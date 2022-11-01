@@ -316,6 +316,24 @@ typedef int (*gw_get_script_hash_by_registry_address_fn)(
     struct gw_context_t *ctx, gw_reg_addr_t *address, uint8_t script_hash[32]);
 
 /**
+ * Create snapshot of state
+ *
+ * @param ctx        The godwoken context
+ * @param snapshot_id The pointer of the snapshot id to save the result
+ * @return           The status code, 0 is success
+ */
+typedef int (*gw_snapshot_fn)(struct gw_context_t *ctx, uint32_t *snapshot_id);
+
+/**
+ * Revert state
+ *
+ * @param ctx        The godwoken context
+ * @param snapshot_id The snapshot id
+ * @return           The status code, 0 is success
+ */
+typedef int (*gw_revert_fn)(struct gw_context_t *ctx, uint32_t snapshot_id);
+
+/**
  * Load value by raw key from state tree
  *
  * @param ctx        The godwoken context
