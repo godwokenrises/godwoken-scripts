@@ -39,6 +39,9 @@
 #define GW_SYS_BN_ADD 3601
 #define GW_SYS_BN_MUL 3602
 #define GW_SYS_BN_PAIRING 3603
+/* Syscall state */
+#define GW_SYS_SNAPSHOT 3701
+#define GW_SYS_REVERT 3702
 
 typedef struct gw_context_t {
   /* verification context */
@@ -70,6 +73,8 @@ typedef struct gw_context_t {
       sys_get_registry_address_by_script_hash;
   gw_get_script_hash_by_registry_address_fn
       sys_get_script_hash_by_registry_address;
+  gw_snapshot_fn sys_snapshot;
+  gw_revert_fn sys_revert;
   _gw_load_raw_fn _internal_load_raw;
   _gw_store_raw_fn _internal_store_raw;
 } gw_context_t;
@@ -405,6 +410,22 @@ int sys_pay_fee(gw_context_t *ctx, gw_reg_addr_t addr, uint32_t sudt_id,
   return syscall(GW_SYS_PAY_FEE, buf, len, sudt_id, (uint8_t *)&amount, 0, 0);
 }
 
+int sys_snapshot(gw_context_t *ctx, uint32_t * snapshot) {
+  if (ctx == NULL) {
+    return GW_FATAL_INVALID_CONTEXT;
+  }
+
+  return syscall(GW_SYS_SNAPSHOT, snapshot, 0, 0, 0, 0, 0);
+}
+
+int sys_revert(gw_context_t *ctx, uint32_t snapshot) {
+  if (ctx == NULL) {
+    return GW_FATAL_INVALID_CONTEXT;
+  }
+
+  return syscall(GW_SYS_REVERT, snapshot, 0, 0, 0, 0, 0);
+}
+
 int _sys_load_rollup_config(uint8_t *addr, uint64_t *len) {
   volatile uint64_t inner_len = *len;
   int ret = syscall(GW_SYS_LOAD_ROLLUP_CONFIG, addr, &inner_len, 0, 0, 0, 0);
@@ -448,6 +469,8 @@ int gw_context_init(gw_context_t *ctx) {
       _gw_get_registry_address_by_script_hash;
   ctx->sys_get_script_hash_by_registry_address =
       _gw_get_script_hash_by_registry_address;
+  ctx->sys_snapshot = sys_snapshot;
+  ctx->sys_revert = sys_revert;
   ctx->_internal_load_raw = _internal_load_raw;
   ctx->_internal_store_raw = _internal_store_raw;
 

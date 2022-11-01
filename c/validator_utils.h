@@ -78,6 +78,8 @@ typedef struct gw_context_t {
       sys_get_registry_address_by_script_hash;
   gw_get_script_hash_by_registry_address_fn
       sys_get_script_hash_by_registry_address;
+  gw_snapshot_fn sys_snapshot;
+  gw_revert_fn sys_revert;
   _gw_load_raw_fn _internal_load_raw;
   _gw_store_raw_fn _internal_store_raw;
 
@@ -688,6 +690,16 @@ int sys_pay_fee(gw_context_t *ctx, gw_reg_addr_t payer_addr, uint32_t sudt_id,
 
   /* do nothing */
   return 0;
+}
+
+int sys_snapshot(gw_context_t *ctx, uint32_t * snapshot) {
+  /* unsuport operation */
+  return GW_FATAL_INVALID_CONTEXT;
+}
+
+int sys_revert(gw_context_t *ctx, uint32_t snapshot) {
+  /* unsuport operation */
+  return GW_FATAL_INVALID_CONTEXT;
 }
 
 /* Find cell by type hash */
@@ -1623,6 +1635,8 @@ int gw_context_init(gw_context_t *ctx) {
       _gw_get_registry_address_by_script_hash;
   ctx->sys_get_script_hash_by_registry_address =
       _gw_get_script_hash_by_registry_address;
+  ctx->sys_snapshot = sys_snapshot;
+  ctx->sys_revert = sys_revert;
   ctx->_internal_load_raw = _internal_load_raw;
   ctx->_internal_store_raw = _internal_store_raw;
 
