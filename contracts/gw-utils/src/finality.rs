@@ -1,28 +1,13 @@
-//! # Finality machenism
+//! # How to check finality
 //!
-//! https://talk.nervos.org/t/optimize-godwoken-finality-and-on-chain-cost/6739
+//! To determine a block-number-based timepoint is finalized, compare it with
+//! `prev_global_state.block.count - 1 + FINALITY_REQUIREMENT`.
 //!
-//! ## Check finality
-//!
-//! **IMPORTANT NOTE: Offchain and onchain checking logic must be consistent.**
-//!
-//! - Entity is number-based, prev_global_state.last_finalized_block_number is number-based
-//!
-//!   Assert entity's timepoint <= prev_global_state.last_finalized_block_number
-//!
-//! - Entity is number-based, prev_global_state.last_finalized_block_number is timestamp-based
-//!
-//!   Instead of using prev_global_state.last_finalized_block_number, we choose prev_global_state.block.count as finality standard.
-//!
-//!   Assert entity's timepoint <= prev_global_state.block.count - 1 + FINALITY_REQUIREMENT
-//!
-//! - Entity is timestamp-based, prev_global_state.last_finalized_block_number is number-based
-//!
-//!   Currently swtiching version from v1 to v2, the entity is sure unfinalized.
-//!
-//! - Entity is timestamp-based, prev_global_state.last_finalized_block_number is timestamp-based
-//!
-//!   Assert entity's timepoint <= prev_global_state.last_finalized_block_number
+//! To determine a timestamp-based timepoint is finalized,
+//!   - If prev_global_state.last_finalized_block_number is also timestamp-based,
+//!     compare them directly;
+//!   - Otherwise, we know it is switching versions, so the corresponding entity
+//!     is surely not finalized.
 
 use ckb_std::{
     ckb_constants::Source,
@@ -64,14 +49,9 @@ pub fn is_block_number_finalized(
     prev_global_state: &GlobalState,
     block_number: u64,
 ) -> bool {
-    match Timepoint::from_full_value(prev_global_state.last_finalized_block_number().unpack()) {
-        Timepoint::BlockNumber(finalized) => block_number <= finalized,
-        Timepoint::Timestamp(_) => {
-            let finality_blocks: u64 = rollup_config.finality_blocks().unpack();
-            let tip_number: u64 = prev_global_state.block().count().unpack().saturating_sub(1);
-            block_number.saturating_add(finality_blocks) <= tip_number
-        }
-    }
+    let finality_blocks: u64 = rollup_config.finality_blocks().unpack();
+    let tip_number: u64 = prev_global_state.block().count().unpack().saturating_sub(1);
+    block_number.saturating_add(finality_blocks) <= tip_number
 }
 
 pub fn finality_as_duration(rollup_config: &RollupConfig) -> u64 {
