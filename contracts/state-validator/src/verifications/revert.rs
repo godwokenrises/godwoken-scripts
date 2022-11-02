@@ -250,8 +250,8 @@ fn check_reverted_blocks(
     };
     let account_merkle_state = reverted_blocks[0].prev_account();
     let tip_block_hash = reverted_blocks[0].parent_block_hash();
-    let version: u8 = prev_global_state.version().into();
-    let last_finalized = if version < 2 {
+    let post_version: u8 = post_global_state.version().into();
+    let last_finalized = if post_version < 2 {
         let tip_number: u64 = reverted_blocks[0].number().unpack();
         let finalized_number = tip_number
             .saturating_sub(1)
