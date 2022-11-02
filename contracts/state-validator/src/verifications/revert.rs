@@ -8,9 +8,7 @@ use gw_types::{
     packed::{BlockMerkleState, Byte32, GlobalState, RawL2Block, RollupConfig},
     prelude::*,
 };
-use gw_utils::finality::{
-    finality_as_blocks, finality_as_duration, obtain_max_timestamp_of_header_deps,
-};
+use gw_utils::finality::{finality_as_duration, obtain_max_timestamp_of_header_deps};
 use gw_utils::gw_types;
 use gw_utils::{
     cells::{
@@ -255,7 +253,7 @@ fn check_reverted_blocks(
         let tip_number: u64 = reverted_blocks[0].number().unpack();
         let finalized_number = tip_number
             .saturating_sub(1)
-            .saturating_sub(finality_as_blocks(&config));
+            .saturating_sub(config.finality_blocks().unpack());
         Timepoint::from_block_number(finalized_number)
     } else {
         let l1_timestamp = match obtain_max_timestamp_of_header_deps() {

@@ -67,27 +67,16 @@ pub fn is_block_number_finalized(
     match Timepoint::from_full_value(prev_global_state.last_finalized_block_number().unpack()) {
         Timepoint::BlockNumber(finalized) => block_number <= finalized,
         Timepoint::Timestamp(_) => {
-            let finality = finality_as_blocks(rollup_config);
+            let finality_blocks: u64 = rollup_config.finality_blocks().unpack();
             let tip_number: u64 = prev_global_state.block().count().unpack().saturating_sub(1);
-            block_number.saturating_add(finality) <= tip_number
+            block_number.saturating_add(finality_blocks) <= tip_number
         }
     }
 }
 
 pub fn finality_as_duration(rollup_config: &RollupConfig) -> u64 {
-    match Timepoint::from_full_value(rollup_config.finality_blocks().unpack()) {
-        Timepoint::BlockNumber(block_number) => {
-            block_number.saturating_mul(BLOCK_INTERVAL_IN_MILLISECONDS)
-        }
-        Timepoint::Timestamp(timestamp) => timestamp,
-    }
-}
-
-pub fn finality_as_blocks(rollup_config: &RollupConfig) -> u64 {
-    match Timepoint::from_full_value(rollup_config.finality_blocks().unpack()) {
-        Timepoint::BlockNumber(block_number) => block_number,
-        Timepoint::Timestamp(timestamp) => timestamp / BLOCK_INTERVAL_IN_MILLISECONDS,
-    }
+    let finality_blocks = rollup_config.finality_blocks().unpack();
+    finality_blocks.saturating_mul(BLOCK_INTERVAL_IN_MILLISECONDS)
 }
 
 /// Obtain the max timestamp of the header-deps

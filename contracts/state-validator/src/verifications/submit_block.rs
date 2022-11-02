@@ -15,9 +15,7 @@ use gw_utils::gw_types::packed::{L2BlockReader, WithdrawalRequestReader};
 // https://nervosnetwork.github.io/ckb-std/riscv64imac-unknown-none-elf/doc/ckb_std/index.html
 use crate::ckb_std::{ckb_constants::Source, debug};
 use gw_state::kv_state::KVState;
-use gw_utils::finality::{
-    finality_as_blocks, finality_as_duration, is_finalized, obtain_max_timestamp_of_header_deps,
-};
+use gw_utils::finality::{finality_as_duration, is_finalized, obtain_max_timestamp_of_header_deps};
 use gw_utils::gw_common::{self, ckb_decimal::CKBCapacity};
 use gw_utils::gw_types::{self, U256};
 
@@ -844,7 +842,9 @@ pub fn verify(
 
         let version: u8 = post_global_state.version().into();
         let last_finalized = if version < 2 {
-            let finalized_number = context.number.saturating_sub(finality_as_blocks(&config));
+            let finalized_number = context
+                .number
+                .saturating_sub(config.finality_blocks().unpack());
             Timepoint::from_block_number(finalized_number)
         } else {
             let l1_timestamp = match obtain_max_timestamp_of_header_deps() {
