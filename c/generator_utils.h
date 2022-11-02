@@ -410,7 +410,7 @@ int sys_pay_fee(gw_context_t *ctx, gw_reg_addr_t addr, uint32_t sudt_id,
   return syscall(GW_SYS_PAY_FEE, buf, len, sudt_id, (uint8_t *)&amount, 0, 0);
 }
 
-int sys_snapshot(gw_context_t *ctx, uint32_t * snapshot) {
+int sys_snapshot(gw_context_t *ctx, uint32_t *snapshot) {
   if (ctx == NULL) {
     return GW_FATAL_INVALID_CONTEXT;
   }

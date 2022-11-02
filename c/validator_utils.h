@@ -692,7 +692,7 @@ int sys_pay_fee(gw_context_t *ctx, gw_reg_addr_t payer_addr, uint32_t sudt_id,
   return 0;
 }
 
-int sys_snapshot(gw_context_t *ctx, uint32_t * snapshot) {
+int sys_snapshot(gw_context_t *ctx, uint32_t *snapshot) {
   /* unsuport operation */
   return GW_FATAL_INVALID_CONTEXT;
 }
