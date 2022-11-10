@@ -15,6 +15,7 @@ use gw_utils::gw_types::packed::{L2BlockReader, WithdrawalRequestReader};
 // https://nervosnetwork.github.io/ckb-std/riscv64imac-unknown-none-elf/doc/ckb_std/index.html
 use crate::ckb_std::{ckb_constants::Source, debug};
 use gw_state::kv_state::KVState;
+use gw_utils::finality::{finality_as_duration, is_finalized, obtain_max_timestamp_of_header_deps};
 use gw_utils::gw_common::{self, ckb_decimal::CKBCapacity};
 use gw_utils::gw_types::{self, U256};
 
@@ -42,7 +43,7 @@ use gw_common::{
 };
 use gw_types::{
     bytes::Bytes,
-    core::{ScriptHashType, Status},
+    core::{ScriptHashType, Status, Timepoint},
     packed::{Byte32, GlobalState, RawL2Block, RollupConfig},
     prelude::*,
 };
@@ -73,10 +74,18 @@ fn check_withdrawal_cells<'a>(
     for cell in withdrawal_cells {
         // check withdrawal cell block info
         let withdrawal_block_hash: H256 = cell.args.withdrawal_block_hash().unpack();
-        if withdrawal_block_hash != context.block_hash
-            || cell.args.withdrawal_block_number().unpack() != context.number
-        {
+        if withdrawal_block_hash != context.block_hash {
             debug!("withdrawal cell mismatch block_hash");
+            return Err(Error::InvalidWithdrawalCell);
+        }
+
+        let expected_timepoint = if context.post_version < 2 {
+            Timepoint::from_block_number(context.number)
+        } else {
+            Timepoint::from_timestamp(context.timestamp)
+        };
+        if cell.args.withdrawal_block_number().unpack() != expected_timepoint.full_value() {
+            debug!("withdrawal cell mismatch timepoint");
             return Err(Error::InvalidWithdrawalCell);
         }
 
@@ -116,6 +125,7 @@ fn check_withdrawal_cells<'a>(
 
 fn check_input_custodian_cells(
     config: &RollupConfig,
+    prev_global_state: &GlobalState,
     context: &BlockContext,
     output_withdrawal_cells: Vec<WithdrawalCell>,
 ) -> Result<BTreeMap<H256, u128>, Error> {
@@ -124,8 +134,11 @@ fn check_input_custodian_cells(
         collect_custodian_locks(&context.rollup_type_hash, config, Source::Input)?
             .into_iter()
             .partition(|cell| {
-                let number: u64 = cell.args.deposit_block_number().unpack();
-                number <= context.finalized_number
+                is_finalized(
+                    config,
+                    prev_global_state,
+                    &Timepoint::from_full_value(cell.args.deposit_block_number().unpack()),
+                )
             });
     // check unfinalized custodian cells == reverted deposit requests
     let mut reverted_deposit_cells =
@@ -160,6 +173,7 @@ fn check_input_custodian_cells(
 
 fn check_output_custodian_cells(
     config: &RollupConfig,
+    prev_global_state: &GlobalState,
     context: &BlockContext,
     mut deposit_cells: Vec<DepositRequestCell>,
     input_finalized_assets: BTreeMap<H256, u128>,
@@ -169,15 +183,28 @@ fn check_output_custodian_cells(
         collect_custodian_locks(&context.rollup_type_hash, config, Source::Output)?
             .into_iter()
             .partition(|cell| {
-                let number: u64 = cell.args.deposit_block_number().unpack();
-                number <= context.finalized_number
+                is_finalized(
+                    config,
+                    prev_global_state,
+                    &Timepoint::from_full_value(cell.args.deposit_block_number().unpack()),
+                )
             });
     // check deposits request cells == unfinalized custodian cells
+    // check l2block's timepoint == unfinalized custodian cells' deposit_block_number
+    // check l2block's block_hash == unfinalized custodian cells' deposit_block_hash
+    let expected_timepoint = if context.post_version < 2 {
+        Timepoint::from_block_number(context.number)
+    } else {
+        Timepoint::from_timestamp(context.timestamp)
+    };
     for custodian_cell in unfinalized_custodian_cells {
         let index = deposit_cells
             .iter()
             .position(|cell| {
                 custodian_cell.args.deposit_lock_args() == cell.args
+                    && custodian_cell.args.deposit_block_hash() == context.block_hash.pack()
+                    && custodian_cell.args.deposit_block_number().unpack()
+                        == expected_timepoint.full_value()
                     && custodian_cell.value == cell.value
             })
             .ok_or(Error::InvalidCustodianCell)?;
@@ -375,7 +402,6 @@ fn check_layer2_withdrawal(
 
 fn load_block_context_and_state<'a>(
     rollup_type_hash: H256,
-    config: &RollupConfig,
     tree_buffer: &'a mut [Pair],
     kv_state_proof: &'a Bytes,
     l2block: &L2BlockReader,
@@ -465,9 +491,9 @@ fn load_block_context_and_state<'a>(
     }
 
     // Generate context
+    let post_version: u8 = post_global_state.version().into();
     let account_count: u32 = prev_global_state.account().count().unpack();
     let prev_account_root = prev_global_state.account().merkle_root().unpack();
-    let finalized_number = number.saturating_sub(config.finality_blocks().unpack());
 
     // Check pre account merkle proof
     let kv_state = KVState::build(
@@ -484,11 +510,11 @@ fn load_block_context_and_state<'a>(
 
     let context = BlockContext {
         number,
-        finalized_number,
         timestamp,
         rollup_type_hash,
         block_hash,
         prev_account_root,
+        post_version,
     };
 
     Ok((context, kv_state))
@@ -525,10 +551,15 @@ fn verify_block_producer(
         Source::Input,
         &owner_lock_hash,
     )? {
+        let expected_timepoint = if context.post_version < 2 {
+            Timepoint::from_block_number(context.number)
+        } else {
+            Timepoint::from_timestamp(context.timestamp)
+        };
         let expected_stake_lock_args = input_stake_cell
             .args
             .as_builder()
-            .stake_block_number(raw_block.number().to_entity())
+            .stake_block_number(expected_timepoint.full_value().pack())
             .build();
         if expected_stake_lock_args != output_stake_cell.args
             || input_stake_cell.capacity > output_stake_cell.capacity
@@ -760,7 +791,6 @@ pub fn verify(
 
     let (context, mut kv_state) = load_block_context_and_state(
         rollup_type_hash,
-        config,
         &mut tree_buffer,
         &kv_state_proof,
         block,
@@ -778,9 +808,11 @@ pub fn verify(
     let withdrawal_requests_vec = block.withdrawals();
     let withdrawal_requests = withdrawal_requests_vec.iter().collect();
     check_withdrawal_cells(&context, withdrawal_requests, &withdrawal_cells)?;
-    let input_finalized_assets = check_input_custodian_cells(config, &context, withdrawal_cells)?;
+    let input_finalized_assets =
+        check_input_custodian_cells(config, prev_global_state, &context, withdrawal_cells)?;
     check_output_custodian_cells(
         config,
+        prev_global_state,
         &context,
         deposit_cells.clone(),
         input_finalized_assets,
@@ -807,9 +839,30 @@ pub fn verify(
         let account_merkle_state = block.raw().post_account();
         // we have verified the post block merkle state
         let block_merkle_state = post_global_state.block();
-        // last finalized block number
-        let last_finalized_block_number = context.finalized_number;
-        let version = post_global_state.version();
+
+        let version: u8 = post_global_state.version().into();
+        let last_finalized = if version < 2 {
+            let finalized_number = context
+                .number
+                .saturating_sub(config.finality_blocks().unpack());
+            Timepoint::from_block_number(finalized_number)
+        } else {
+            let l1_timestamp = match obtain_max_timestamp_of_header_deps() {
+                Some(timestamp) => timestamp,
+                None => return Err(Error::HeaderDepsNotFound),
+            };
+            let finalized_timestamp = l1_timestamp.saturating_sub(finality_as_duration(&config));
+            Timepoint::from_timestamp(finalized_timestamp)
+        };
+        if version >= 2 {
+            if prev_global_state.last_finalized_block_number().unpack()
+                > last_finalized.full_value()
+            {
+                debug!("prev_global_state.last_finalized_block_number > post_global_state.last_finalized_block_number");
+                return Err(Error::InvalidPostGlobalState);
+            }
+        }
+
         let tip_block_timestamp = if version == 0.into() {
             0
         } else {
@@ -823,8 +876,8 @@ pub fn verify(
             .block(block_merkle_state)
             .tip_block_hash(context.block_hash.pack())
             .tip_block_timestamp(tip_block_timestamp.pack())
-            .last_finalized_block_number(last_finalized_block_number.pack())
-            .version(version)
+            .last_finalized_block_number(last_finalized.full_value().pack())
+            .version(version.into())
             .build()
     };
 

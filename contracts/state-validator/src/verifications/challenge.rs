@@ -6,6 +6,7 @@ use gw_types::{
     packed::{GlobalState, RollupConfig},
     prelude::*,
 };
+use gw_utils::finality::{is_block_number_finalized, is_timestamp_finalized};
 use gw_utils::{
     cells::lock_cells::{collect_burn_cells, find_challenge_cell},
     ckb_std::{ckb_constants::Source, debug},
@@ -38,13 +39,23 @@ pub fn verify_enter_challenge(
     // check that challenge target is exists
     let witness = args.witness();
     let challenged_block = witness.raw_l2block();
+
     // check challenged block isn't finazlied
-    if prev_global_state.last_finalized_block_number().unpack()
-        >= challenged_block.number().unpack()
-    {
-        debug!("enter challenge finalized block error");
+    let post_version: u8 = post_global_state.version().into();
+    let is_block_finalized = if post_version < 2 {
+        is_block_number_finalized(
+            config,
+            post_global_state,
+            challenged_block.number().unpack(),
+        )
+    } else {
+        is_timestamp_finalized(post_global_state, challenged_block.timestamp().unpack())
+    };
+    if is_block_finalized {
+        debug!("cannot challenge a finalized block");
         return Err(Error::InvalidChallengeTarget);
     }
+
     let valid = {
         let merkle_proof = CompiledMerkleProof(witness.block_proof().unpack());
         let leaves = vec![(

@@ -29,9 +29,9 @@ pub struct WithdrawalRequest {
 }
 pub struct BlockContext {
     pub number: u64,
-    pub finalized_number: u64,
     pub timestamp: u64,
     pub block_hash: H256,
     pub rollup_type_hash: H256,
     pub prev_account_root: H256,
+    pub post_version: u8,
 }
